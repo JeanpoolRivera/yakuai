@@ -1,0 +1,36 @@
+import {describe,it,expect,vi,afterEach} from "vitest";
+import {render,screen,cleanup} from "@testing-library/react";
+import {MemoryRouter} from "react-router-dom";
+import {App} from "./App";
+const auth = vi.hoisted(()=>({session:null as null|{user:{role:string}},role:null as string|null,ready:true,displayName:"Persona de prueba",signOut:vi.fn()}));
+vi.mock("./auth",()=>({useAuth:()=>auth}));
+vi.mock("../pages/Dashboard",()=>({Dashboard:()=> <h1>Dashboard de prueba</h1>}));
+vi.mock("../pages/Hoy",()=>({Hoy:()=> <h1>Mi campo de prueba</h1>}));
+vi.mock("../pages/Login",()=>({Login:()=> <h1>Ingreso de prueba</h1>}));
+afterEach(()=>cleanup());
+describe("Navegación por rol",()=>{
+ it("protege la ruta inicial cuando no existe sesión",()=>{
+  auth.session=null;auth.role=null;
+  render(<MemoryRouter initialEntries={["/"]}><App/></MemoryRouter>);
+  expect(screen.getByRole("heading",{name:"Ingreso de prueba"})).toBeInTheDocument();
+ });
+ it("incluye el dashboard dentro de la navegación del equipo",()=>{
+  auth.role="admin";auth.session={user:{role:"admin"}};
+  render(<MemoryRouter initialEntries={["/"]}><App/></MemoryRouter>);
+  expect(screen.getByRole("heading",{name:"Dashboard de prueba"})).toBeInTheDocument();
+  expect(screen.getByRole("link",{name:"Resumen"})).toHaveAttribute("aria-current","page");
+  expect(screen.getByRole("navigation",{name:"Secciones"})).toBeInTheDocument();
+ });
+ it("mantiene la vista y navegación específicas del agricultor",()=>{
+  auth.role="agricultor";auth.session={user:{role:"agricultor"}};
+  render(<MemoryRouter initialEntries={["/"]}><App/></MemoryRouter>);
+  expect(screen.getByRole("heading",{name:"Mi campo de prueba"})).toBeInTheDocument();
+  expect(screen.getByRole("navigation",{name:"Navegación agricultor"})).toBeInTheDocument();
+  expect(screen.queryByRole("link",{name:"Cultivos y suelos"})).not.toBeInTheDocument();
+ });
+ it("impide acceder a páginas del equipo desde el rol agricultor",()=>{
+  auth.role="agricultor";auth.session={user:{role:"agricultor"}};
+  render(<MemoryRouter initialEntries={["/sensores"]}><App/></MemoryRouter>);
+  expect(screen.getByRole("heading",{name:"Mi campo de prueba"})).toBeInTheDocument();
+ });
+});

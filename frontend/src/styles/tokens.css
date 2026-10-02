@@ -1,0 +1,33 @@
+/* YakuAI / Fieldwork — shared visual primitives */
+:root {
+  color-scheme: light;
+  --font-sans: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, monospace;
+  --fs-display: 2rem; --fs-h1: 1.5rem; --fs-h2: 1.125rem; --fs-h3: 1rem;
+  --fs-body: .875rem; --fs-small: .8125rem; --fs-tiny: .75rem;
+  --lh-tight: 1.25; --lh-normal: 1.55; --lh-relaxed: 1.75;
+  --bg: #f4f6f8; --surface: #fff; --surface-2: #f8fafb;
+  --border: #e1e7ec; --border-strong: #a5b3bd;
+  --text-1: #172b36; --text-2: #4d626f; --text-3: #5d727f; --placeholder: #667b87;
+  --primary-950: #092e2b; --primary-900: #103e38; --primary-800: #165349;
+  --primary-700: #146852; --primary-600: #207c63; --primary-500: #399279;
+  --primary-300: #97c9b7; --primary-200: #bee0d2; --primary-100: #d9eee4; --primary-50: #edf7f2;
+  --action: #146852; --action-hover: #103e38; --action-bg: #edf7f2; --action-border: #bee0d2;
+  --success: #24734d; --success-bg: #edf7ef; --success-border: #cbe5d3; --success-text: #1a5839;
+  --warning: #99610b; --warning-bg: #fff7e6; --warning-border: #ecd7a7; --warning-text: #774908;
+  --danger: #b7353d; --danger-bg: #fff1f1; --danger-border: #efc8cc; --danger-text: #8f2530;
+  --info: #326899; --info-bg: #edf5fc; --info-border: #cadfed; --info-text: #254e76;
+  --neutral-bg: #f0f3f5; --neutral-border: #dce3e8; --neutral-text: #526775;
+  --verdict-riega-bg: #fff8ea; --verdict-no-bg: #eff8f2;
+  --verdict-espera-bg: #eff6fc; --verdict-incompleta-bg: #f5f6f7;
+  --on-dark: #fff; --on-dark-dim: #c5d9d4; --on-dark-faint: #b8d0c8;
+  --on-dark-soft: #e2eee8; --accent-teal-light: #d6e8a9;
+  --s1: .25rem; --s2: .5rem; --s3: .75rem; --s4: 1rem; --s5: 1.25rem;
+  --s6: 1.5rem; --s7: 1.75rem; --s8: 2rem; --s10: 2.5rem;
+  --r-xs: 4px; --r-sm: 7px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px; --r-pill: 999px;
+  --shadow-1: 0 2px 4px #172b3604, 0 1px 2px #172b3605;
+  --shadow-2: 0 12px 40px #172b3617;
+  --sidebar-w: 15.5rem; --topbar-h: 4.25rem; --maxw: 88rem; --touch: 2.75rem;
+  --z-nav: 20; --z-menu: 50; --z-sidebar: 90; --z-dialog: 100; --z-toast: 300; --z-skip: 400;
+  --focus: 0 0 0 3px #207c6326; --duration-fast: 160ms; --ease: cubic-bezier(.2,.8,.2,1);
+}

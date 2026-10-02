@@ -1,0 +1,94 @@
+import { ROUTE_TITLES } from "./navigation";
+/* YakuAI — rutas y puertas por rol. */
+import { Suspense, lazy } from "react";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "./auth";
+import { FarmerShell, TechShell } from "../components/layout";
+import { Loading } from "../components/ui";
+import { isFarmerRole } from "../lib/permissions";
+import { Dashboard } from "../pages/Dashboard";
+import { Hoy } from "../pages/Hoy";
+import { Login } from "../pages/Login";
+import { RecoverPin } from "../pages/RecoverPin";
+import { Evaluate } from "../pages/Evaluate";
+import { Irrigations } from "../pages/Irrigations";
+import { Alerts } from "../pages/Alerts";
+
+const Plots = lazy(() => import("../pages/Plots").then((m) => ({ default: m.Plots })));
+const Farmers = lazy(() => import("../pages/Farmers").then((m) => ({ default: m.Farmers })));
+const Sensors = lazy(() => import("../pages/Sensors").then((m) => ({ default: m.Sensors })));
+const Weather = lazy(() => import("../pages/Weather").then((m) => ({ default: m.Weather })));
+const Catalogs = lazy(() => import("../pages/Catalogs").then((m) => ({ default: m.Catalogs })));
+const Validation = lazy(() => import("../pages/Validation").then((m) => ({ default: m.Validation })));
+
+const STAFF_ONLY = ["/parcelas", "/sensores", "/clima", "/agricultores", "/catalogos", "/validacion"];
+
+
+function ShellRoutes(): React.JSX.Element {
+  const { session, role, displayName, signOut } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  if (!session || !role) return <Navigate to="/login" replace />;
+
+  if (isFarmerRole(role) && STAFF_ONLY.includes(location.pathname)) {
+    return <Navigate to="/" replace />;
+  }
+
+  const exit = (): void => {
+    void signOut().then(() => navigate("/login"));
+  };
+
+  if (isFarmerRole(role)) {
+    return (
+      <FarmerShell nombre={displayName} onExit={exit}>
+        <Routes>
+          <Route path="/" element={<Hoy />} />
+          <Route path="/evaluar" element={<Evaluate />} />
+          <Route path="/riegos" element={<Irrigations />} />
+          <Route path="/alertas" element={<Alerts />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </FarmerShell>
+    );
+  }
+
+  return (
+    <TechShell
+      nombre={displayName}
+      rol={role}
+      onExit={exit}
+      crumb={ROUTE_TITLES[location.pathname] ?? "YakuAI"}
+    >
+      <Suspense fallback={<Loading text="Cargando pantalla…" />}>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/evaluar" element={<Evaluate />} />
+          <Route path="/parcelas" element={<Plots />} />
+          <Route path="/riegos" element={<Irrigations />} />
+          <Route path="/alertas" element={<Alerts />} />
+          <Route path="/sensores" element={<Sensors />} />
+          <Route path="/clima" element={<Weather />} />
+          <Route path="/agricultores" element={<Farmers />} />
+          <Route path="/catalogos" element={<Catalogs />} />
+          <Route path="/validacion" element={<Validation />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
+    </TechShell>
+  );
+}
+
+export function App(): React.JSX.Element {
+  const { session, ready } = useAuth();
+
+  if (!ready) return <Loading text="Abriendo YakuAI…" />;
+
+  return (
+    <Routes>
+      <Route path="/login" element={session ? <Navigate to="/" replace /> : <Login />} />
+      <Route path="/recuperar-pin" element={session ? <Navigate to="/" replace /> : <RecoverPin />} />
+      <Route path="/*" element={<ShellRoutes />} />
+    </Routes>
+  );
+}
