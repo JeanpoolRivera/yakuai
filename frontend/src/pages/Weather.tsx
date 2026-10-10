@@ -50,7 +50,12 @@ export function Weather(): React.JSX.Element {
     setLoadingFc(true);
     setForecast(null);
     try {
-      setForecast(await getWeather(id));
+      const fc = await getWeather(id);
+      setForecast(fc);
+      setRainMm(String(fc.rain_mm));
+      setRainProb(String(fc.rain_prob));
+      if (fc.temp_max !== null) setTMax(String(fc.temp_max));
+      if (fc.temp_min !== null) setTMin(String(fc.temp_min));
     } catch (err) {
       if (!(err instanceof ApiError && err.status === 404)) {
         toastError(friendlyError(err, "No se pudo cargar el pronóstico."));
@@ -67,13 +72,33 @@ export function Weather(): React.JSX.Element {
   async function onRefresh(e: FormEvent): Promise<void> {
     e.preventDefault();
     if (plotId === null) return;
+    const rain = Number(rainMm);
+    const prob = Number(rainProb);
+    const max = Number(tMax);
+    const min = Number(tMin);
+    if (!Number.isFinite(rain) || rain < 0) {
+      toastError("La lluvia debe ser un número mayor o igual a 0.");
+      return;
+    }
+    if (!Number.isFinite(prob) || prob < 0 || prob > 1) {
+      toastError("La probabilidad debe estar entre 0 y 1.");
+      return;
+    }
+    if (!Number.isFinite(max) || !Number.isFinite(min)) {
+      toastError("Escribe temperaturas válidas.");
+      return;
+    }
+    if (min > max) {
+      toastError("La mínima no puede superar a la máxima.");
+      return;
+    }
     setRefreshing(true);
     try {
       const fc = await refreshWeather(plotId, {
-        rain_mm: Number(rainMm),
-        rain_prob: Number(rainProb),
-        temp_max: Number(tMax),
-        temp_min: Number(tMin),
+        rain_mm: rain,
+        rain_prob: prob,
+        temp_max: max,
+        temp_min: min,
       });
       setForecast(fc);
       toastOk(fc.origin === "owm" ? "Pronóstico actualizado (OWM en vivo)." : "Pronóstico demo guardado.");

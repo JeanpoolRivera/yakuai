@@ -3,7 +3,7 @@ import type {ReactNode} from "react";
 import {Link, NavLink, useLocation} from "react-router-dom";
 import {NAVIGATION, FARMER_NAVIGATION} from "../app/navigation";
 import {roleLabel} from "../lib/permissions";
-import {initial} from "../lib/format";
+import {initial, todayLong, todayShort} from "../lib/format";
 import {Icon} from "./ui";
 import {Toasts} from "./Toasts";
 
@@ -53,7 +53,7 @@ export function TechShell({nombre,rol,onExit,crumb,children}:{
   useEffect(()=>{
     document.title=crumb+" · YakuAI";
   },[crumb,location.pathname]);
-  const [today]=useState(()=>new Date().toLocaleDateString("es-PE",{day:"numeric",month:"long",timeZone:"America/Lima"}));
+  const [today]=useState(()=>todayShort());
   return <div className="app">
     <a className="skip-link" href="#contenido">Saltar al contenido</a>
     {navOpen?<button className="scrim" aria-label="Cerrar navegación" onClick={()=>setNavOpen(false)}/>:null}
@@ -80,11 +80,11 @@ export function TechShell({nombre,rol,onExit,crumb,children}:{
     </div><Toasts/>
   </div>;
 }
-export function FarmerShell({nombre,onExit,children}:{nombre:string;onExit:()=>void;children:ReactNode}):React.JSX.Element{
- const [today]=useState(()=>new Date().toLocaleDateString("es-PE",{weekday:"long",day:"numeric",month:"long",timeZone:"America/Lima"}));
+export function FarmerShell({nombre,rol,onExit,children}:{nombre:string;rol:string;onExit:()=>void;children:ReactNode}):React.JSX.Element{
+  const [today]=useState(()=>todayLong());
  return <div className="farmer">
   <a className="skip-link" href="#contenido">Saltar al contenido</a>
-  <header className="farmer-top"><div className="farmer-top-inner"><Brand/><div className="farmer-user"><span className="avatar">{initial(nombre)}</span><div><strong>{nombre}</strong><small>Mi campo · Chupaca</small></div><button className="icon-btn" onClick={onExit} aria-label="Cerrar sesión" title="Cerrar sesión"><Icon name="logout"/></button></div></div></header>
+  <header className="farmer-top"><div className="farmer-top-inner"><Brand/><div className="farmer-user"><span className="avatar">{initial(nombre)}</span><div><strong>{nombre}</strong><small>{`${roleLabel(rol)} · Mi campo`}</small></div><button className="icon-btn" onClick={onExit} aria-label="Cerrar sesión" title="Cerrar sesión"><Icon name="logout"/></button></div></div></header>
   <div className="farmer-date"><Icon name="calendar" size={15}/>{today}</div>
   <main className="farmer-body" id="contenido" tabIndex={-1}>{children}</main>
   <nav className="bottomnav" aria-label="Navegación agricultor">{FARMER_NAVIGATION.map(item=><NavLink key={item.to} className="bottomnav-link" to={item.to} end={item.end}><Icon name={item.icon} size={21}/><span>{item.label}</span></NavLink>)}</nav>

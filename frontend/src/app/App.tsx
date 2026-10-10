@@ -4,8 +4,8 @@ import { Suspense, lazy } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "./auth";
 import { FarmerShell, TechShell } from "../components/layout";
-import { Loading } from "../components/ui";
-import { isFarmerRole } from "../lib/permissions";
+import { Button, Empty, Loading } from "../components/ui";
+import { isFarmerRole, isStaffRole } from "../lib/permissions";
 import { Dashboard } from "../pages/Dashboard";
 import { Hoy } from "../pages/Hoy";
 import { Login } from "../pages/Login";
@@ -41,7 +41,7 @@ function ShellRoutes(): React.JSX.Element {
 
   if (isFarmerRole(role)) {
     return (
-      <FarmerShell nombre={displayName} onExit={exit}>
+      <FarmerShell nombre={displayName} rol={role} onExit={exit}>
         <Routes>
           <Route path="/" element={<Hoy />} />
           <Route path="/evaluar" element={<Evaluate />} />
@@ -50,6 +50,20 @@ function ShellRoutes(): React.JSX.Element {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </FarmerShell>
+    );
+  }
+
+  if (!isStaffRole(role)) {
+    // Rol no reconocido por esta versión: vista restringida sin navegación.
+    return (
+      <main className="page">
+        <Empty
+          icon="lock"
+          title="Sesión no reconocida"
+          hint="Tu cuenta tiene un rol que esta versión no reconoce. Cierra sesión o contacta a tu técnico."
+          action={<Button variant="outline" onClick={exit}>Cerrar sesión</Button>}
+        />
+      </main>
     );
   }
 

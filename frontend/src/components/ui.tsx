@@ -1,6 +1,6 @@
 // Public design-system API. Modules remain independently maintainable.
 export { Icon } from "./ui/Icon";
-export { Button, IconButton } from "./ui/Button";
+export { Button } from "./ui/Button";
 export { Card, PageHead, Stat } from "./ui/Surface";
 export { Banner, Empty, Loading, Skeletons, Badge } from "./ui/Feedback";
 export { Field, TextInput, SelectInput, SearchInput } from "./ui/Field";

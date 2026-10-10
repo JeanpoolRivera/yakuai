@@ -49,6 +49,8 @@ export function Irrigations(): React.JSX.Element {
   const [fRecommended, setFRecommended] = useState("");
   const [fAt, setFAt] = useState(nowLocalInput());
   const [fNote, setFNote] = useState("");
+  const [fDesde, setFDesde] = useState("");
+  const [fHasta, setFHasta] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
   const [correcting, setCorrecting] = useState<Irrigation | null>(null);
@@ -80,8 +82,16 @@ export function Irrigations(): React.JSX.Element {
   const coll = useCollection(items, {
     perPage: 10,
     search: (r, q) => `${r.id} ${r.plot?.name ?? ""} ${r.note ?? ""}`.toLowerCase().includes(q),
+    filter: (r) => {
+      const day = r.occurred_at.slice(0, 10);
+      if (fDesde && day < fDesde) return false;
+      if (fHasta && day > fHasta) return false;
+      return true;
+    },
     sort: (a, b) => (a.occurred_at < b.occurred_at ? 1 : -1),
   });
+
+  const hasFilter = coll.query !== "" || fDesde !== "" || fHasta !== "";
 
   const activos = items.filter((r) => r.status === "activo");
   const totalAgua = activos.reduce((a, r) => a + (toNum(r.applied_liters) ?? 0), 0);
@@ -199,14 +209,49 @@ export function Irrigations(): React.JSX.Element {
                 placeholder="Buscar por parcela o nota…"
                 label="Buscar riegos"
               />
+              <input
+                className="input"
+                type="date"
+                aria-label="Desde"
+                value={fDesde}
+                max={fHasta || undefined}
+                onChange={(e) => {
+                  setFDesde(e.target.value);
+                  coll.setPage(1);
+                }}
+              />
+              <input
+                className="input"
+                type="date"
+                aria-label="Hasta"
+                value={fHasta}
+                min={fDesde || undefined}
+                onChange={(e) => {
+                  setFHasta(e.target.value);
+                  coll.setPage(1);
+                }}
+              />
+              {fDesde || fHasta ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setFDesde("");
+                    setFHasta("");
+                    coll.setPage(1);
+                  }}
+                >
+                  Limpiar
+                </Button>
+              ) : null}
               <span className="tiny">{coll.total} registros</span>
             </div>
             {coll.total === 0 ? (
               <Empty
                 icon="drop"
-                title={coll.query ? "Sin coincidencias" : "Aún no hay riegos"}
-                hint="Anota cada riego real para comparar con lo recomendado."
-                action={coll.query ? undefined : <Button onClick={openCreate}>Anotar riego</Button>}
+                title={hasFilter ? "Sin coincidencias" : "Aún no hay riegos"}
+                hint={hasFilter ? "Prueba con otra búsqueda o período." : "Anota cada riego real para comparar con lo recomendado."}
+                action={hasFilter ? undefined : <Button onClick={openCreate}>Anotar riego</Button>}
               />
             ) : (
               <>

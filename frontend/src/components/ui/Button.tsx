@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes } from 'react';
 
 type BtnVariant = "primary" | "action" | "secondary" | "outline" | "ghost" | "danger" | "danger-outline";
 type BtnSize = "sm" | "md" | "lg";
@@ -32,24 +32,6 @@ export function Button({
   return (
     <button className={cls} disabled={disabled || loading} aria-busy={loading || undefined} {...rest}>
       {loading ? <span className="spinner" aria-hidden="true" /> : null}
-      {children}
-    </button>
-  );
-}
-
-export function IconButton({
-  label,
-  onClick,
-  disabled,
-  children,
-}: {
-  label: string;
-  onClick?: () => void;
-  disabled?: boolean;
-  children: ReactNode;
-}): React.JSX.Element {
-  return (
-    <button type="button" className="icon-btn" aria-label={label} onClick={onClick} disabled={disabled}>
       {children}
     </button>
   );

@@ -23,5 +23,45 @@
  .monitoring-page .stats { grid-template-columns:repeat(2,minmax(0,1fr)); }.monitoring-directory { padding:20px; }.monitoring-section-head { flex-wrap:wrap; }.monitoring-reading-form { grid-template-columns:minmax(0,1fr); }.monitoring-reading-form .btn { margin-bottom:0; }
  .monitoring-sensor { flex-wrap:wrap; gap:12px; }.monitoring-device-status { width:100%; align-items:center; flex-direction:row; padding-left:56px; }.monitoring-device-info { flex-basis:calc(100% - 56px); }
  .monitoring-weather-hero { padding:20px; }.monitoring-weather-symbol { width:48px; }.monitoring-rain-value { font-size:42px; }.monitoring-weather-details { gap:12px; }.monitoring-weather-details > div { padding:12px; }
- .farmer-today > .monitoring-workspace { grid-template-columns:1fr; gap:16px; }.farmer-today .monitoring-directory { padding:24px; }.farmer-today .monitoring-workspace > .monitoring-aside { display:grid; grid-template-columns:32px minmax(0,1fr) auto; padding:18px 20px; gap:2px 12px; align-items:center; }.farmer-today .monitoring-aside > svg { grid-column:1; grid-row:1/3; margin:0; }.farmer-today .monitoring-aside > span { grid-column:2; }.farmer-today .monitoring-aside > p { grid-column:2; grid-row:2; }.farmer-today .monitoring-aside > strong { grid-column:3; grid-row:1/3; font-size:30px; }
+ .farmer-today > .monitoring-workspace { grid-template-columns:1fr; gap:16px; }.farmer-today .monitoring-directory { padding:24px; }.farmer-today .monitoring-workspace > .monitoring-aside { display:grid; grid-template-columns:32px minmax(0,1fr) auto; padding:18px 20px; gap:2px 12px; align-items:center; }.farmer-today .monitoring-aside > svg { grid-column:1; grid-row:1/3; margin:0; }.farmer-today .monitoring-aside > span { grid-column:2; }.farmer-today .monitoring-aside > p { grid-column:2; grid-row:2; } .farmer-today .monitoring-aside > strong { grid-column:3; grid-row:1/3; font-size:30px; }
 }
+/* Hoy rediseñado (VD-1): jornada del agricultor. */
+.hoy { display:grid; gap:20px; }
+.hoy-hero { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(240px,1fr); gap:24px; align-items:center; padding:28px; border-radius:var(--r-lg); border:1px solid; }
+.hoy-hero[data-state="alert"] { background:var(--primary-900); border-color:var(--primary-900); color:white; }
+.hoy-hero[data-state="alert"] .eyebrow { color:var(--accent-teal-light); }
+.hoy-hero h1 { font-size:30px; font-weight:600; letter-spacing:-.035em; margin:6px 0 10px; }
+.hoy-hero-main > p:last-of-type { line-height:1.75; max-width:55ch; }
+.hoy-hero[data-state="alert"] .hoy-hero-main > p:last-of-type { color:var(--on-dark-dim); }
+.hoy-hero .row { display:flex; gap:12px; flex-wrap:wrap; margin-top:18px; }
+.hoy-hero[data-state="alert"] .btn-primary { background:var(--accent-teal-light); border-color:var(--accent-teal-light); color:var(--primary-950); }
+.hoy-ghost { background:transparent; border:1px solid #ffffff55; color:white; }
+.hoy-hero[data-state="calm"] .hoy-ghost { border-color:var(--border); color:var(--text-1); background:white; }
+.hoy-hero-side { display:flex; gap:14px; align-items:center; padding:20px; border-radius:var(--r-md); background:#ffffff14; border:1px solid #ffffff2e; }
+.hoy-hero[data-state="calm"] .hoy-hero-side { background:var(--surface-2); border-color:var(--border); }
+.hoy-hero-icon { width:48px; height:48px; flex:none; display:grid; place-items:center; border-radius:50%; background:var(--accent-teal-light); color:var(--primary-950); }
+.hoy-hero[data-state="calm"] .hoy-hero-icon { background:var(--primary-100); color:var(--primary-800); }
+.hoy-hero-side span { display:block; font-size:12px; opacity:.85; }
+.hoy-hero-side strong { display:block; font-size:24px; font-weight:600; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+.hoy-stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.hoy-stat { display:flex; gap:14px; align-items:center; padding:18px 20px; background:white; border:1px solid var(--border); border-radius:var(--r-md); box-shadow:var(--shadow-1); }
+.hoy-stat-icon { width:44px; height:44px; flex:none; display:grid; place-items:center; border-radius:var(--r-md); background:var(--primary-50); color:var(--primary-700); }
+.hoy-stat strong { display:block; font-size:26px; font-weight:600; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+.hoy-stat span:last-child { font-size:12px; color:var(--text-2); }
+.hoy-list { display:grid; gap:16px; }
+.hoy-toolbar { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+.hoy-toolbar .searchbox { flex:1 1 220px; }
+.hoy-toolbar .tiny { margin-left:auto; }
+.hoy-cards { display:grid; gap:16px; }
+.hoy-card { display:grid; gap:14px; padding:22px; background:white; border:1px solid var(--border); border-left:5px solid var(--border); border-radius:var(--r-md); box-shadow:var(--shadow-1); }
+.hoy-card[data-tone="riega"] { border-left-color:var(--warning); }
+.hoy-card[data-tone="critica"] { border-left-color:var(--danger); }
+.hoy-card[data-tone="no"] { border-left-color:var(--success); }
+.hoy-card[data-tone="espera"] { border-left-color:var(--info); }
+.hoy-card[data-tone="incompleta"] { border-left-color:var(--border-strong); }
+.hoy-card-head { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+.hoy-card-head strong { font-size:16px; font-weight:600; display:block; }
+.hoy-card-time { display:flex; align-items:center; gap:6px; margin-top:6px; }
+.hoy-amount { font-size:28px; font-weight:600; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+.hoy-amount span { font-size:15px; color:var(--text-3); font-weight:500; }
+@media(max-width:900px) { .hoy-hero { grid-template-columns:minmax(0,1fr); } .hoy-stats { grid-template-columns:minmax(0,1fr); } }

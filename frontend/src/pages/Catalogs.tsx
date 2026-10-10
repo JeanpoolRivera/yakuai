@@ -1,8 +1,8 @@
 /* Catálogos FAO (solo lectura): cultivos/etapas y suelos. */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { listCrops, listSoils } from "../api/endpoints";
 import type { Crop, SoilTexture } from "../api/types";
-import { Badge, Banner, Card, Empty, Icon, Loading, PageHead } from "../components/ui";
+import { Badge, Banner, Card, Empty, Icon, Loading, PageHead, SearchInput } from "../components/ui";
 import { fmtNum, toNum } from "../lib/format";
 
 const ETAPAS: Record<string, string> = {
@@ -18,6 +18,18 @@ export function Catalogs(): React.JSX.Element {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openCrop, setOpenCrop] = useState<number | null>(null);
+  const [query, setQuery] = useState("");
+  const cropList = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return crops;
+    return crops.filter((c) => `${c.name} ${c.code} ${c.scientific_name ?? ""}`.toLowerCase().includes(q));
+  }, [crops, query]);
+  const soilList = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return soils;
+    return soils.filter((s) => `${s.name} ${s.code}`.toLowerCase().includes(q));
+  }, [soils, query]);
+  const visibleOpen = cropList.some((c) => c.id === openCrop) ? openCrop : (cropList[0]?.id ?? null);
 
   useEffect(() => {
     Promise.all([listCrops(), listSoils()])
@@ -52,14 +64,20 @@ export function Catalogs(): React.JSX.Element {
             <div><p className="eyebrow">Biblioteca agronómica</p><h2>Una base técnica para cada recomendación</h2><p>Parámetros FAO-56 y Saxton &amp; Rawls. Catálogo de consulta; los cambios los realiza el administrador.</p></div>
             <Badge tone="neutro">Solo lectura</Badge>
           </div>
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Buscar cultivo o textura de suelo…"
+            label="Buscar en catálogos"
+          />
           <div className="manage-catalog-grid">
           <Card label="Cultivos y etapas" title="Cultivos y etapas" sub="Coeficientes de cultivo (Kc), duración y profundidad de raíces.">
-            {crops.length === 0 ? (
-              <Empty icon="sprout" title="Sin cultivos" hint="El servidor aún no cargó el catálogo." />
+            {cropList.length === 0 ? (
+              <Empty icon="sprout" title={query ? "Sin coincidencias" : "Sin cultivos"} hint={query ? "Prueba con otro nombre." : "El servidor aún no cargó el catálogo."} />
             ) : (
               <div className="rows">
-                {crops.map((c) => {
-                  const open = openCrop === c.id;
+                {cropList.map((c) => {
+                  const open = visibleOpen === c.id;
                   const panelId = `crop-panel-${c.id}`;
                   return (
                     <article className="manage-crop" key={c.id}>
@@ -124,8 +142,8 @@ export function Catalogs(): React.JSX.Element {
             title="Texturas de suelo"
             sub="Capacidad de campo y punto de marchitez en fracción volumétrica."
           >
-            {soils.length === 0 ? (
-              <Empty icon="layers" title="Sin suelos" hint="El servidor aún no cargó el catálogo." />
+            {soilList.length === 0 ? (
+              <Empty icon="layers" title={query ? "Sin coincidencias" : "Sin suelos"} hint={query ? "Prueba con otro nombre." : "El servidor aún no cargó el catálogo."} />
             ) : (
               <div className="table-wrap">
                 <table className="tbl">
@@ -139,7 +157,7 @@ export function Catalogs(): React.JSX.Element {
                     </tr>
                   </thead>
                   <tbody>
-                    {soils.map((s) => {
+                    {soilList.map((s) => {
                       const cc = toNum(s.field_capacity) ?? 0;
                       const pmp = toNum(s.wilting_point) ?? 0;
                       return (
@@ -160,7 +178,21 @@ export function Catalogs(): React.JSX.Element {
             )}
           </Card>
           </div>
-          <p className="manage-caption">CC: capacidad de campo · PMP: punto de marchitez permanente · p: fracción de agotamiento.</p>
+          <dl className="kv" aria-label="Significado de los parámetros">
+            <dt className="kv-dt">Kc</dt>
+            <dd className="kv-dd">Coeficiente de cultivo: cuánta agua usa la planta en cada etapa.</dd>
+            <dt className="kv-dt">Zr · Raíz (m)</dt>
+            <dd className="kv-dd">Profundidad de raíces que el riego debe alcanzar.</dd>
+            <dt className="kv-dt">p</dt>
+            <dd className="kv-dd">Fracción de agotamiento permitido antes de regar.</dd>
+            <dt className="kv-dt">CC</dt>
+            <dd className="kv-dd">Capacidad de campo: agua que el suelo retiene tras drenar.</dd>
+            <dt className="kv-dt">PMP</dt>
+            <dd className="kv-dd">Punto de marchitez permanente: bajo este nivel la planta no se recupera.</dd>
+            <dt className="kv-dt">Agua útil</dt>
+            <dd className="kv-dd">Diferencia CC menos PMP disponible para el cultivo.</dd>
+          </dl>
+          <p className="manage-caption">Valores de referencia FAO-56 y Saxton &amp; Rawls, pendientes de validación local en Chupaca. Catálogo de consulta.</p>
         </div>
       )}
     </div>

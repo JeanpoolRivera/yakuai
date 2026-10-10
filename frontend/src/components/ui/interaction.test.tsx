@@ -4,6 +4,7 @@ import {Field,TextInput} from "./Field";
 import {Button} from "./Button";
 import {Modal} from "./Dialog";
 import {DataTable} from "./DataTable";
+import {Tabs} from "./Navigation";
 afterEach(()=>cleanup());
 describe("Componentes accesibles",()=>{
  it("asocia nombre y error con el campo sin id manual",()=>{
@@ -44,5 +45,22 @@ describe("Componentes accesibles",()=>{
   const close=vi.fn();render(<Modal title="Guardando" busy onClose={close}>Espera</Modal>);
   fireEvent.keyDown(document,{key:"Escape"});expect(close).not.toHaveBeenCalled();
   expect(screen.getByRole("button",{name:"Cerrar diálogo"})).toBeDisabled();
+ });
+ it("las pestañas se navegan con el teclado y mantienen el foco",()=>{
+  const change=vi.fn();
+  const options=[{value:"todos",label:"Todas"},{value:"criticas",label:"Críticas"}] as const;
+  render(<Tabs label="Filtrar alertas" value="todos" onChange={change} options={[...options]}/>);
+  const [todas,criticas]=screen.getAllByRole("button");
+  expect(todas).toHaveAttribute("aria-pressed","true");
+  expect(todas).toHaveAttribute("tabindex","0");
+  expect(criticas).toHaveAttribute("tabindex","-1");
+  fireEvent.keyDown(todas,{key:"ArrowRight"});
+  expect(change).toHaveBeenCalledWith("criticas");
+  expect(criticas).toHaveFocus();
+  fireEvent.keyDown(criticas,{key:"Home"});
+  expect(change).toHaveBeenCalledWith("todos");
+  expect(todas).toHaveFocus();
+  fireEvent.click(criticas);
+  expect(change).toHaveBeenCalledWith("criticas");
  });
 });

@@ -12,7 +12,21 @@ import {
   nowLocalInput,
   localInputToIso,
   todayInput,
+  todayShort,
+  todayLong,
 } from './format'
+
+describe('todayShort', () => {
+  it('retorna la fecha corta en español', () => {
+    expect(todayShort()).toMatch(/\d+ de \w+/)
+  })
+})
+
+describe('todayLong', () => {
+  it('retorna la fecha larga en español', () => {
+    expect(todayLong()).toContain(',')
+  })
+})
 
 describe('format', () => {
   describe('fmtDateTime', () => {

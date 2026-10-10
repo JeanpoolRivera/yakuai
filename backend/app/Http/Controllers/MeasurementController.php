@@ -19,7 +19,7 @@ class MeasurementController extends Controller
     {
         $query = Measurement::query()->with('sensor')->latest('measured_at');
 
-        $this->scopeToFarmer($query, $request);
+        $this->scopeToFarmerPlots($query, $request);
 
         if ($request->filled('sensor_id')) {
             $query->where('sensor_id', $request->integer('sensor_id'));

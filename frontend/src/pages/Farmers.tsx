@@ -17,6 +17,7 @@ import {
   PageHead,
   Pager,
   SearchInput,
+  SelectInput,
   TextInput,
 } from "../components/ui";
 import { useCollection } from "../hooks/useCollection";
@@ -44,6 +45,7 @@ export function Farmers(): React.JSX.Element {
   const [editing, setEditing] = useState<Farmer | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [active, setActive] = useState(true);
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
@@ -73,6 +75,7 @@ export function Farmers(): React.JSX.Element {
     setEditing(null);
     setName("");
     setPhone("");
+    setActive(true);
     setFieldErrors({});
     setOpen(true);
   }
@@ -81,6 +84,7 @@ export function Farmers(): React.JSX.Element {
     setEditing(f);
     setName(f.name);
     setPhone(f.phone ?? "");
+    setActive(f.is_active);
     setFieldErrors({});
     setOpen(true);
   }
@@ -94,7 +98,7 @@ export function Farmers(): React.JSX.Element {
     setSaving(true);
     setFieldErrors({});
     try {
-      const body = { name: name.trim(), phone: phone.trim() || undefined };
+      const body = { name: name.trim(), phone: phone.trim() || undefined, is_active: active };
       if (editing) {
         await updateFarmer(editing.id, body);
         toastOk("Agricultor actualizado.");
@@ -218,6 +222,16 @@ export function Farmers(): React.JSX.Element {
                 aria-invalid={Boolean(fieldErrors.phone)}
                 onChange={(e) => setPhone(e.target.value)}
               />
+            </Field>
+            <Field label="Estado" htmlFor="fa-active">
+              <SelectInput
+                id="fa-active"
+                value={active ? "activo" : "inactivo"}
+                onChange={(e) => setActive(e.target.value === "activo")}
+              >
+                <option value="activo">Activo</option>
+                <option value="inactivo">Inactivo</option>
+              </SelectInput>
             </Field>
           </form>
         </Modal>

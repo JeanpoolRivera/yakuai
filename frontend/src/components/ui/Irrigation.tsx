@@ -2,6 +2,10 @@ import type { ReactNode } from 'react';
 import { Icon } from './Icon';
 import { Badge } from './Feedback';
 
+/** Humedad y umbrales en porcentaje (0-100).
+ * El backend entrega `humedad_pct` en porcentaje y `umbral`/`pmp` en fracción.
+ * Los callers convierten la fracción a porcentaje antes de usar este componente.
+ */
 export function SoilMeter({
   actual,
   umbral,
@@ -11,16 +15,18 @@ export function SoilMeter({
   umbral: number | null;
   critico: number | null;
 }): React.JSX.Element {
-  if (actual === null || umbral === null) return <span className="tiny">Sin dato de humedad</span>;
+  if (actual === null || umbral === null || !Number.isFinite(actual) || !Number.isFinite(umbral)) return <span className="tiny">Sin dato de humedad</span>;
   const pct = Math.max(0, Math.min(100, actual));
-  const crit = critico ?? 0;
-  const state = actual <= crit ? "crit" : actual <= umbral ? "low" : "";
-  const label = actual <= crit ? "Crítico — regar hoy" : actual <= umbral ? "Bajo umbral" : "Adecuado";
+  const threshold = Math.max(0, Math.min(100, umbral));
+  const rawCritical = critico ?? 0;
+  const critical = Number.isFinite(rawCritical) ? Math.max(0, Math.min(100, rawCritical)) : 0;
+  const state = pct <= critical ? "crit" : pct <= threshold ? "low" : "";
+  const label = pct <= critical ? "Crítico — regar hoy" : pct <= threshold ? "Bajo umbral" : "Adecuado";
   return (
     <div className="soil">
       <div className="spread">
         <strong className="small num">{pct.toFixed(1)} %</strong>
-        <Badge tone={actual <= crit ? "critica" : actual <= umbral ? "riega" : "ok"}>{label}</Badge>
+        <Badge tone={pct <= critical ? "critica" : pct <= threshold ? "riega" : "ok"}>{label}</Badge>
       </div>
       <div
         className="soil-track"
@@ -33,8 +39,8 @@ export function SoilMeter({
         <div className={`soil-fill ${state}`} style={{ width: `${pct}%` }} />
       </div>
       <div className="soil-marks">
-        <span>PMP {critico !== null ? `${critico.toFixed(1)}%` : "—"}</span>
-        <span>Umbral {umbral.toFixed(1)}%</span>
+        <span>PMP {critico !== null ? `${critical.toFixed(1)}%` : "—"}</span>
+        <span>Umbral {threshold.toFixed(1)}%</span>
       </div>
     </div>
   );

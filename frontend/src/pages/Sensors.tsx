@@ -29,7 +29,7 @@ import {
 } from "../components/ui";
 import { useCollection } from "../hooks/useCollection";
 import { submitForm } from "../lib/dom";
-import { fmtNum, localInputToIso, nowLocalInput } from "../lib/format";
+import { ageLabel, fmtNum, localInputToIso, nowLocalInput } from "../lib/format";
 import { toastError, toastInfo, toastOk } from "../lib/toast";
 
 const TIPOS = [
@@ -45,6 +45,25 @@ const STATUS_LABEL: Record<string, string> = {
   anomalo: "En revisión",
   sin_datos: "Sin datos",
 };
+
+/* Rangos válidos por tipo (réplica de SensorNormalizer del backend, autoridad final). */
+function rangeMessage(type: string, raw: number): string | null {
+  if (!Number.isFinite(raw)) return "Escribe un valor numérico.";
+  switch (type) {
+    case "humedad":
+      return raw < 0 || raw > 1023 ? "YL-69 entrega 0–1023 en crudo. Revisa el valor." : null;
+    case "aire_temp":
+      return raw < -10 || raw > 60 ? "DHT11 mide de -10 a 60 °C. Revisa el valor." : null;
+    case "aire_hr":
+      return raw < 0 || raw > 100 ? "DHT11 mide humedad relativa de 0 a 100. Revisa el valor." : null;
+    case "lluvia":
+      return raw !== 0 && raw !== 1 ? "FC-37 solo avisa lluvia sí/no (valores 0 o 1). Revisa el valor." : null;
+    case "caudal":
+      return raw < 0 || raw > 60 ? "Caudal YF-S201: rango válido 0–60. Revisa el valor." : null;
+    default:
+      return null;
+  }
+}
 
 type Tab = "todos" | "ok" | "rev";
 
@@ -143,6 +162,12 @@ export function Sensors(): React.JSX.Element {
       toastError("Elige el sensor y escribe el valor crudo.");
       return;
     }
+    const sensor = sensors.find((s) => s.id === Number(mSensor));
+    const rangeError = sensor ? rangeMessage(sensor.type, Number(mRaw)) : null;
+    if (rangeError) {
+      toastError(rangeError);
+      return;
+    }
     setSending(true);
     try {
       const m = await createMeasurement({
@@ -237,6 +262,11 @@ export function Sensors(): React.JSX.Element {
                           <h3>{TIPOS.find((type) => type.value === s.type)?.label ?? s.type}</h3>
                           <p>{s.plot?.name ?? `Parcela #${s.plot_id}`}</p>
                           <div className="monitoring-device-meta"><span>Sensor #{s.id}</span><span>{s.model || "Sin modelo"}</span><span>Pin {s.pin ?? "—"}</span></div>
+                          {s.latest_measurement ? (
+                            <p className="tiny">Última lectura: {s.latest_measurement.norm_value ?? s.latest_measurement.raw_value}{s.type === "humedad" ? " %" : ""} · {ageLabel(s.latest_measurement.measured_at)}</p>
+                          ) : (
+                            <p className="tiny">Sin lecturas registradas.</p>
+                          )}
                         </div>
                         <div className="monitoring-device-status">
                           <Badge tone={s.status === "ok" ? "ok" : s.status}>{STATUS_LABEL[s.status] ?? s.status}</Badge>
@@ -354,18 +384,13 @@ export function Sensors(): React.JSX.Element {
                 </div>
               </fieldset>
             ) : (
-              <>
-                <Banner kind="info">
-                  YL-69 entrega 0–1023 en crudo. Referencias típicas: seco ≈ 1020, mojado ≈ 320.
-                </Banner>
-                <Banner kind="info">
+              <Banner kind="info">
                 {sType === "lluvia"
-                  ? "FC-37 solo avisa lluvia sí/no (valores 0 o 1). No aporta milímetros."
+                  ? "FC-37 solo avisa lluvia sí/no (valores 0 o 1). No aporta milímetros ni requiere calibración."
                   : sType === "caudal"
                     ? "Caudal YF-S201: rango válido 0–60."
                     : "DHT11: temperatura -10 a 60 °C, humedad relativa 0–100."}
-                </Banner>
-              </>
+              </Banner>
             )}
           </form>
         </Modal>

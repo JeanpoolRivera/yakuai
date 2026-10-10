@@ -1,5 +1,5 @@
 /* Validación del motor: 10 casos demo con matriz de aciertos (solo técnico/admin). */
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { friendlyError } from "../api/client";
 import { runValidation } from "../api/endpoints";
 import type { ValidationReport } from "../api/types";
@@ -17,10 +17,17 @@ import {
   Tabs,
 } from "../components/ui";
 import { useCollection } from "../hooks/useCollection";
-import { fmtNum } from "../lib/format";
+import { fmtNum, reasonLabel, resultLabel } from "../lib/format";
 import { toastError } from "../lib/toast";
 
 type Tab = "todos" | "ok" | "fallos";
+
+/* El detalle llega como "motivo [rango]": se traduce el motivo a lenguaje claro. */
+function detailLabel(detalle: string): string {
+  const [code, ...rest] = detalle.split(" ");
+  const mapped = reasonLabel(code);
+  return mapped === code ? detalle : `${mapped}${rest.length > 0 ? ` ${rest.join(" ")}` : ""}`;
+}
 
 export function Validation(): React.JSX.Element {
   const [report, setReport] = useState<ValidationReport | null>(null);
@@ -28,7 +35,11 @@ export function Validation(): React.JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("todos");
 
+  const runningRef = useRef(false);
+
   async function run(): Promise<void> {
+    if (runningRef.current) return;
+    runningRef.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -39,6 +50,7 @@ export function Validation(): React.JSX.Element {
       toastError(msg);
     } finally {
       setLoading(false);
+      runningRef.current = false;
     }
   }
 
@@ -139,12 +151,12 @@ export function Validation(): React.JSX.Element {
                   {coll.items.map((c, i) => (
                     <tr key={`${c.caso}-${i}`}>
                       <td>{c.caso}</td>
-                      <td className="muted">{c.esperado}</td>
-                      <td className="muted">{c.obtenido}</td>
+                      <td className="muted">{resultLabel(c.esperado)}</td>
+                      <td className="muted">{resultLabel(c.obtenido)}</td>
                       <td>
                         <Badge tone={c.ok ? "ok" : "mala"}>{c.ok ? "Correcto" : "Fallo"}</Badge>
                       </td>
-                      <td className="muted small">{c.detalle}</td>
+                      <td className="muted small">{detailLabel(c.detalle)}</td>
                     </tr>
                   ))}
                 </tbody>

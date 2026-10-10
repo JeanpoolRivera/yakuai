@@ -14,9 +14,9 @@ class SensorController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $query = Sensor::query()->with('plot');
+        $query = Sensor::query()->with(['plot', 'latestMeasurement']);
 
-        $this->scopeToFarmer($query, $request);
+        $this->scopeToFarmerPlots($query, $request);
 
         if ($request->filled('plot_id')) {
             $query->where('plot_id', $request->integer('plot_id'));

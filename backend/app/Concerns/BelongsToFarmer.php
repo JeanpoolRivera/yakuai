@@ -27,6 +27,25 @@ trait BelongsToFarmer
         return $query;
     }
 
+    /**
+     * Alcance para tablas sin columna farmer_id (sensores, mediciones,
+     * evaluaciones, riegos): filtra por las parcelas del agricultor.
+     */
+    protected function scopeToFarmerPlots(Builder $query, Request $request, string $column = 'plot_id'): Builder
+    {
+        $user = $request->user();
+
+        if ($user === null || $user->role !== 'agricultor') {
+            return $query;
+        }
+
+        $farmerId = $user->farmer_id;
+
+        return $query->whereIn($column, function ($sq) use ($farmerId): void {
+            $sq->select('id')->from('plots')->where('farmer_id', $farmerId);
+        });
+    }
+
     protected function farmerCanAccessPlot(Request $request, Plot $plot): bool
     {
         $user = $request->user();

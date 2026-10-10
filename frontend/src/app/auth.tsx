@@ -2,7 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { getToken, setToken } from "../api/client";
-import { login, loginPin, logout as apiLogout, me } from "../api/endpoints";
+import { login, logout as apiLogout, me } from "../api/endpoints";
 import type { AuthUser, Role } from "../api/types";
 
 export interface Session {
@@ -14,7 +14,6 @@ interface AuthCtx {
   session: Session | null;
   ready: boolean;
   signInPassword: (email: string, password: string) => Promise<void>;
-  signInPin: (email: string, pin: string) => Promise<void>;
   signOut: () => Promise<void>;
   role: Role | null;
   displayName: string;
@@ -93,14 +92,6 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     [persist],
   );
 
-  const signInPin = useCallback(
-    async (email: string, pin: string) => {
-      const res = await loginPin(email.trim(), pin);
-      persist(res.access_token, res.user);
-    },
-    [persist],
-  );
-
   const signOut = useCallback(async () => {
     try {
       if (getToken()) await apiLogout();
@@ -136,12 +127,11 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       session,
       ready,
       signInPassword,
-      signInPin,
       signOut,
       role: session?.user.role ?? null,
       displayName: session?.user.name ?? "",
     }),
-    [session, ready, signInPassword, signInPin, signOut],
+    [session, ready, signInPassword, signOut],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

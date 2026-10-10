@@ -21,7 +21,7 @@ class EvaluationController extends Controller
     {
         $query = Evaluation::query()->with('plot')->latest('evaluated_at');
 
-        $this->scopeToFarmer($query, $request);
+        $this->scopeToFarmerPlots($query, $request);
 
         if ($request->filled('plot_id') && $request->user()->role !== 'agricultor') {
             $query->where('plot_id', $request->integer('plot_id'));

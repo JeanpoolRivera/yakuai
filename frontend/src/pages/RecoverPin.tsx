@@ -6,6 +6,12 @@ import { ApiError } from "../api/client";
 import { recoverPin, resetPin } from "../api/endpoints";
 import { Icon, Modal, Button } from "../components/ui";
 
+/* Contacto de soporte visible en un solo lugar. Pendiente: servirlo desde configuración del backend. */
+const SUPPORT_CONTACT = {
+  display: "+51 981 749 857",
+  wa: "https://wa.me/51981749857",
+};
+
 type Step = "request" | "verify";
 
 export function RecoverPin(): React.JSX.Element {
@@ -19,8 +25,7 @@ export function RecoverPin(): React.JSX.Element {
   const [success, setSuccess] = useState<string | null>(null);
   const [showContact, setShowContact] = useState(false);
 
-  async function onRequest(e: FormEvent): Promise<void> {
-    e.preventDefault();
+  async function requestCode(): Promise<void> {
     if (busy) return;
     setError(null);
     setSuccess(null);
@@ -34,12 +39,18 @@ export function RecoverPin(): React.JSX.Element {
     try {
       const res = await recoverPin(email.trim().toLowerCase());
       setSuccess(res.message);
+      setRecoveryCode("");
       setStep("verify");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo procesar la solicitud.");
     } finally {
       setBusy(false);
     }
+  }
+
+  async function onRequest(e: FormEvent): Promise<void> {
+    e.preventDefault();
+    await requestCode();
   }
 
   async function onVerify(e: FormEvent): Promise<void> {
@@ -193,6 +204,11 @@ export function RecoverPin(): React.JSX.Element {
                   </>
                 )}
               </button>
+              <div className="access-recover">
+                <button type="button" className="link" disabled={busy} onClick={() => void requestCode()}>
+                  Reenviar código
+                </button>
+              </div>
             </form>
           )}
 
@@ -212,9 +228,9 @@ export function RecoverPin(): React.JSX.Element {
 
     </AuthLayout>
       {showContact ? <Modal title="Contactar a tu técnico" onClose={()=>setShowContact(false)}
-        foot={<><Button variant="outline" onClick={()=>setShowContact(false)}>Cerrar</Button><a href="https://wa.me/51981749857" target="_blank" rel="noreferrer" className="btn btn-primary">Abrir WhatsApp</a></>}>
+        foot={<><Button variant="outline" onClick={()=>setShowContact(false)}>Cerrar</Button><a href={SUPPORT_CONTACT.wa} target="_blank" rel="noreferrer" className="btn btn-primary">Abrir WhatsApp</a></>}>
         <p className="muted">Comunícate con tu técnico o administrador para recuperar tu PIN.</p>
-        <div className="contact-info"><p><strong>Teléfono:</strong> +51 981 749 857</p><p><strong>WhatsApp:</strong> +51 981 749 857</p><p><strong>Horario:</strong> Lunes a Viernes 8am - 5pm</p></div>
+        <div className="contact-info"><p><strong>Teléfono:</strong> {SUPPORT_CONTACT.display}</p><p><strong>WhatsApp:</strong> {SUPPORT_CONTACT.display}</p><p><strong>Horario:</strong> Lunes a Viernes 8am - 5pm</p></div>
       </Modal> : null}
     </>
   );

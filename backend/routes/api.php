@@ -8,6 +8,7 @@ use App\Http\Controllers\FarmerController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\IrrigationController;
 use App\Http\Controllers\MeasurementController;
+use App\Http\Controllers\MetricsController;
 use App\Http\Controllers\PlotController;
 use App\Http\Controllers\SensorController;
 use App\Http\Controllers\SoilTextureController;

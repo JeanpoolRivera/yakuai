@@ -111,6 +111,8 @@ export function Plots(): React.JSX.Element {
   const [step, setStep] = useState(1);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [drawInfo, setDrawInfo] = useState<string | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [mapTick, setMapTick] = useState(0);
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const step2TitleRef = useRef<HTMLHeadingElement>(null);
@@ -189,6 +191,30 @@ export function Plots(): React.JSX.Element {
     }));
     setDrawInfo(`Contorno de ${fmtNum(d.areaM2)} m². Revisa el paso 2 y confirma.`);
     setStep(2);
+  }
+
+  function useMyLocation(): void {
+    const geo = navigator.geolocation;
+    if (!geo) {
+      toastError("Tu dispositivo no ofrece geolocalización. Escribe las coordenadas a mano.");
+      return;
+    }
+    setLocating(true);
+    geo.getCurrentPosition(
+      (pos) => {
+        const lat = Number(pos.coords.latitude.toFixed(7));
+        const lng = Number(pos.coords.longitude.toFixed(7));
+        setDraft((prev) => ({ ...prev, latitude: String(lat), longitude: String(lng) }));
+        setMapTick((t) => t + 1);
+        setDrawInfo(`Ubicación fijada en ${lat}, ${lng}. Ajusta el punto o dibuja el contorno.`);
+        setLocating(false);
+      },
+      () => {
+        toastError("No se pudo obtener tu ubicación. Revisa los permisos del navegador.");
+        setLocating(false);
+      },
+      { enableHighAccuracy: false, timeout: 10000 },
+    );
   }
 
   function stepValid(n: number): string | null {
@@ -421,8 +447,14 @@ export function Plots(): React.JSX.Element {
                   1) Toca el mapa para fijar el lugar. 2) Con Marcar esquinas agrega todas las esquinas que necesites y pulsa Usar contorno. También puedes escribir los valores.
                   Acerca con + hasta ver bien tu terreno antes de marcar.
                 </Banner>
+                <div className="row">
+                  <Button variant="outline" size="sm" loading={locating} onClick={useMyLocation}>
+                    <Icon name="pin" size={15} /> Usar mi ubicación
+                  </Button>
+                </div>
                 <Suspense fallback={<Loading text="Cargando mapa…" />}>
                   <PlotMap
+                    key={mapTick}
                     plots={mapPoints}
                     editable
                     onDraw={onDraw}

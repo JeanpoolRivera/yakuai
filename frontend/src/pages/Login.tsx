@@ -54,6 +54,10 @@ export function Login(): React.JSX.Element {
       setFieldError("Escribe tu correo.");
       return;
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setFieldError("Escribe un correo válido.");
+      return;
+    }
     if (secret.length === 0) {
       setFieldError("Escribe tu contraseña o PIN.");
       return;

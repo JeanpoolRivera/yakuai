@@ -1,5 +1,6 @@
 /* Alertas calculadas: sensores callados/anómalos, incompletas y humedad crítica. */
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { friendlyError } from "../api/client";
 import { listAlerts } from "../api/endpoints";
 import type { AlertItem, Plot } from "../api/types";
@@ -20,6 +21,14 @@ function plotLabel(a: AlertWithPlot): string | null {
   if (a.plot_id) return `Parcela #${a.plot_id}`;
   return null;
 }
+
+/* Explicación en lenguaje claro por tipo de alerta (el mensaje del backend es el detalle). */
+const ALERT_HELP: Record<string, { hint: string }> = {
+  sensor_sin_datos: { hint: "El sensor no envía lecturas. Revisa su conexión o registra una lectura manual." },
+  sensor_anomalo: { hint: "El sensor reporta un valor imposible y está en revisión. Verifica el dispositivo." },
+  evaluacion_incompleta: { hint: "La última evaluación quedó incompleta por falta de datos. Complétalos y vuelve a evaluar." },
+  humedad_critica: { hint: "La humedad está en nivel crítico. Evalúa la parcela y riega hoy mismo." },
+};
 
 export function Alerts(): React.JSX.Element {
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
@@ -128,10 +137,16 @@ export function Alerts(): React.JSX.Element {
                       <span className="ops-alert-icon"><Icon name={a.tipo.startsWith("sensor") ? "sensor" : a.tipo.includes("critica") ? "alert" : "info"} size={20} /></span>
                       <div className="rowcard-body">
                         <p className="ops-alert-message">{a.mensaje}</p>
+                        {ALERT_HELP[a.tipo] ? <p className="tiny">{ALERT_HELP[a.tipo].hint}</p> : null}
                         {label ? <p className="tiny">{label}</p> : null}
                       </div>
                       <div className="rowcard-actions">
                         <Badge tone={toneOf(a)}>{a.tipo.replace(/_/g, " ")}</Badge>
+                        {a.plot_id !== null ? (
+                          <Link className="link small" to="/evaluar" state={{ plotId: a.plot_id }}>
+                            Ir a parcela <Icon name="arrow" size={14} />
+                          </Link>
+                        ) : null}
                       </div>
                     </article>
                   );

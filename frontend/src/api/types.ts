@@ -93,6 +93,7 @@ export interface Sensor {
   is_active: boolean;
   plot?: Plot;
   measurements?: Measurement[];
+  latest_measurement?: Measurement | null;
 }
 
 export type MeasurementQuality = "ok" | "anomalo";
@@ -200,13 +201,4 @@ export interface ValidationReport {
   total: number;
   passed: number;
   cases: ValidationCase[];
-}
-
-/** Respuesta paginada Laravel. */
-export interface Paginator<T> {
-  data: T[];
-  total: number;
-  current_page: number;
-  per_page: number;
-  last_page: number;
 }

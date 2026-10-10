@@ -9,7 +9,7 @@ window.fetch = async (input, init) => {
  const path = new URL(String(input), location.origin).pathname.replace("/api/v1/", "");
  const account = {...data.user,role};
  let result:unknown;
- if(path==="auth/login"||path==="auth/pin") result={user:account,access_token:"isolated-ui-fixture",token_type:"Bearer"};
+  if(path==="auth/login") result={user:account,access_token:"isolated-ui-fixture",token_type:"Bearer"};
  else if(path==="auth/me") result=account;
  else if(path==="auth/logout") result={message:"OK"};
  else if(path.includes("/weather")) result=data.forecast;

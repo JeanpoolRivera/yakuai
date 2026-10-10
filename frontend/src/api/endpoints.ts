@@ -21,10 +21,6 @@ export function login(email: string, secret: string): Promise<AuthPayload> {
   return api<AuthPayload>("auth/login", { method: "POST", body: { email, secret } });
 }
 
-export function loginPin(email: string, pin: string): Promise<AuthPayload> {
-  return api<AuthPayload>("auth/pin", { method: "POST", body: { email, pin } });
-}
-
 export function me(): Promise<AuthUser> {
   return api<AuthUser>("auth/me");
 }

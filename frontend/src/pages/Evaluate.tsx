@@ -1,11 +1,13 @@
 /* Evaluar riego: elige parcela → veredicto idempotente + historial + WhatsApp. */
 import { useEffect, useMemo, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { ApiError } from "../api/client";
 import {
   createIrrigation,
   evaluatePlot,
   getEvaluationMessage,
   listEvaluations,
+  listIrrigations,
   listPlots,
 } from "../api/endpoints";
 import type { Evaluation, Plot } from "../api/types";
@@ -24,15 +26,19 @@ import {
   VerdictCard,
 } from "../components/ui";
 import { toastError, toastInfo, toastOk } from "../lib/toast";
-import { badgeToneForResult, fmtDateTime, fmtNum, resultLabel, toNum } from "../lib/format";
+import { ageLabel, badgeToneForResult, fmtDateTime, fmtNum, reasonLabel, resultLabel, toNum } from "../lib/format";
 
-const REASON_LABEL: Record<string, string> = {
-  humedad_suficiente: "La tierra aún tiene agua suficiente.",
-  bajo_umbral: "La humedad bajó del umbral del cultivo.",
-  humedad_critica: "Humedad crítica: riega hoy mismo.",
-  lluvia_prevista_suficiente: "Viene lluvia suficiente en 6 h. Mejor espera.",
-  sin_humedad_valida: "Sin lectura de humedad válida (últimos 30 min).",
-  sin_clima_valido: "Sin pronóstico vigente (últimas 3 h).",
+const INCOMPLETE_HELP: Record<string, { text: string; to: string; action: string }> = {
+  sin_humedad_valida: {
+    text: "Registra una lectura reciente para poder decidir.",
+    to: "/sensores",
+    action: "Ir a sensores",
+  },
+  sin_clima_valido: {
+    text: "Actualiza el pronóstico de la parcela para poder decidir.",
+    to: "/clima",
+    action: "Ir a clima",
+  },
 };
 
 function verdictTitle(e: Evaluation): string {
@@ -54,17 +60,27 @@ export function Evaluate(): React.JSX.Element {
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const location = useLocation();
+  const requestedPlotId = useMemo(() => {
+    const state = location.state as { plotId?: unknown } | null;
+    return typeof state?.plotId === "number" ? state.plotId : null;
+  }, [location.state]);
+
   useEffect(() => {
     listPlots()
       .then((p) => {
         setPlots(p);
-        if (p.length === 1) setPlotId(p[0].id);
+        if (requestedPlotId !== null && p.some((x) => x.id === requestedPlotId)) {
+          setPlotId(requestedPlotId);
+        } else if (p.length === 1) {
+          setPlotId(p[0].id);
+        }
       })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : "No se pudieron cargar las parcelas.");
       })
       .finally(() => setLoadingPlots(false));
-  }, []);
+  }, [requestedPlotId]);
 
   async function loadHistory(id: number): Promise<void> {
     setLoadingHist(true);
@@ -132,6 +148,16 @@ export function Evaluate(): React.JSX.Element {
     if (!current || current.result !== "riega") return;
     setConfirming(true);
     try {
+      // El backend ignora plot_id para agricultor: filtramos en cliente.
+      const recent = await listIrrigations(current.plot_id);
+      const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+      const alreadyWatered = recent.some(
+        (r) => r.plot_id === current.plot_id && r.status === "activo" && new Date(r.occurred_at).getTime() >= dayAgo,
+      );
+      if (alreadyWatered) {
+        toastInfo("Esta parcela ya tiene un riego registrado en las últimas 24 horas. Revisa el historial antes de regar de nuevo.");
+        return;
+      }
       const avg =
         current.min_liters && current.max_liters
           ? Math.round((Number(current.min_liters) + Number(current.max_liters)) / 2)
@@ -153,6 +179,7 @@ export function Evaluate(): React.JSX.Element {
   }
 
   const snap = current?.inputs_snapshot ?? {};
+  // Backend: humedad_pct en porcentaje; umbral/pmp en fracción. SoilMeter espera porcentaje.
   const hum = typeof snap.humedad_pct === "number" ? snap.humedad_pct : null;
   const umb = typeof snap.umbral === "number" ? snap.umbral * 100 : null;
   const pmp = typeof snap.pmp === "number" ? snap.pmp * 100 : null;
@@ -213,7 +240,7 @@ export function Evaluate(): React.JSX.Element {
           ) : (
             <VerdictCard
               tone={current.result}
-              kicker={`${plot?.name ?? `Parcela #${current.plot_id}`} · ${fmtDateTime(current.evaluated_at)}`}
+              kicker={`${plot?.name ?? `Parcela #${current.plot_id}`} · ${fmtDateTime(current.evaluated_at)} · ${ageLabel(current.evaluated_at)}`}
               title={verdictTitle(current)}
               amount={
                 current.result === "riega" && current.min_liters && current.max_liters
@@ -242,7 +269,15 @@ export function Evaluate(): React.JSX.Element {
                 </div>
               }
             >
-              <p className="small">{REASON_LABEL[current.reason] ?? current.reason}</p>
+              <p className="small">{reasonLabel(current.reason)}</p>
+              {current.result === "incompleta" && INCOMPLETE_HELP[current.reason] ? (
+                <p className="small">
+                  {INCOMPLETE_HELP[current.reason].text}{" "}
+                  <Link className="link small" to={INCOMPLETE_HELP[current.reason].to}>
+                    {INCOMPLETE_HELP[current.reason].action} <Icon name="arrow" size={14} />
+                  </Link>
+                </p>
+              ) : null}
               <SoilMeter actual={hum} umbral={umb} critico={pmp} />
               <details className="disclosure small">
                 <summary>
@@ -284,7 +319,7 @@ export function Evaluate(): React.JSX.Element {
         </section>
       </div>
 
-      <Card title="Historial de evaluaciones" sub="Consulta los resultados anteriores de la parcela seleccionada." label="Evaluaciones anteriores">
+      <Card title="Historial de evaluaciones" sub="Consulta los resultados anteriores de la parcela seleccionada (últimas 20)." label="Evaluaciones anteriores">
         {plotId === null ? (
           <p className="muted small">Elige una parcela para ver su historial.</p>
         ) : loadingHist ? (
@@ -317,7 +352,7 @@ export function Evaluate(): React.JSX.Element {
                         ? `${fmtNum(h.min_liters)}–${fmtNum(h.max_liters)} L`
                         : "—"}
                     </td>
-                    <td role="cell" data-label="Motivo" className="muted">{REASON_LABEL[h.reason] ?? h.reason}</td>
+                    <td role="cell" data-label="Motivo" className="muted">{reasonLabel(h.reason)}</td>
                   </tr>
                 ))}
               </tbody>

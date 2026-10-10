@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isFarmerRole, roleLabel } from './permissions'
+import { isFarmerRole, isStaffRole, roleLabel } from './permissions'
 
 describe('permissions', () => {
   describe('isFarmerRole', () => {
@@ -17,6 +17,28 @@ describe('permissions', () => {
 
     it('retorna false para null', () => {
       expect(isFarmerRole(null)).toBe(false)
+    })
+  })
+
+  describe('isStaffRole', () => {
+    it('retorna true para admin', () => {
+      expect(isStaffRole('admin')).toBe(true)
+    })
+
+    it('retorna true para tecnico', () => {
+      expect(isStaffRole('tecnico')).toBe(true)
+    })
+
+    it('retorna false para agricultor', () => {
+      expect(isStaffRole('agricultor')).toBe(false)
+    })
+
+    it('retorna false para rol desconocido', () => {
+      expect(isStaffRole('soporte')).toBe(false)
+    })
+
+    it('retorna false para null', () => {
+      expect(isStaffRole(null)).toBe(false)
     })
   })
 

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Sensor extends Model
 {
@@ -25,5 +26,11 @@ class Sensor extends Model
     public function measurements(): HasMany
     {
         return $this->hasMany(Measurement::class);
+    }
+
+    /** Última lectura por fecha de medición (una sola consulta, sin N+1). */
+    public function latestMeasurement(): HasOne
+    {
+        return $this->hasOne(Measurement::class)->latestOfMany('measured_at');
     }
 }

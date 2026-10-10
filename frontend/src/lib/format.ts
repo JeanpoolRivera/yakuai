@@ -62,6 +62,20 @@ export function resultLabel(v: string | null | undefined): string {
   return RESULT_LABEL[v] ?? v;
 }
 
+export const REASON_LABEL: Record<string, string> = {
+  humedad_suficiente: "La tierra aún tiene agua suficiente.",
+  bajo_umbral: "La humedad bajó del umbral del cultivo.",
+  humedad_critica: "Humedad crítica: riega hoy mismo.",
+  lluvia_prevista_suficiente: "Viene lluvia suficiente en 6 h. Mejor espera.",
+  sin_humedad_valida: "Sin lectura de humedad válida (últimos 30 min).",
+  sin_clima_valido: "Sin pronóstico vigente (últimas 3 h).",
+};
+
+export function reasonLabel(v: string | null | undefined): string {
+  if (!v) return "—";
+  return REASON_LABEL[v] ?? v;
+}
+
 /** Tono de badge según resultado + criticidad. */
 export function badgeToneForResult(result: string, critical: boolean): string {
   if (critical) return "critica";
@@ -91,4 +105,14 @@ export function todayInput(): string {
   const d = new Date();
   const p = (n: number): string => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** Fecha actual corta para cabeceras (vista America/Lima). */
+export function todayShort(): string {
+  return new Date().toLocaleDateString("es-PE", { day: "numeric", month: "long", timeZone: "America/Lima" });
+}
+
+/** Fecha actual larga para cabeceras (vista America/Lima). */
+export function todayLong(): string {
+  return new Date().toLocaleDateString("es-PE", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Lima" });
 }

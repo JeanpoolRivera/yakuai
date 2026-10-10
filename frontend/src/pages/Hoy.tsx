@@ -2,10 +2,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { friendlyError } from "../api/client";
-import { listEvaluations, listPlots } from "../api/endpoints";
+import { listEvaluations, listPlots, listSensors } from "../api/endpoints";
 import type { Evaluation } from "../api/types";
-import { Badge, Banner, Empty, Icon, Loading, SoilMeter } from "../components/ui";
-import { badgeToneForResult, fmtDateTime, fmtNum, resultLabel } from "../lib/format";
+import { Badge, Banner, Empty, Icon, Loading, SearchInput, SoilMeter, Tabs } from "../components/ui";
+import { ageLabel, badgeToneForResult, fmtDateTime, fmtNum, resultLabel } from "../lib/format";
 
 type Filter = "todas" | "riega" | "no" | "espera" | "incompleta";
 type Sort = "reciente" | "antiguo";
@@ -23,6 +23,8 @@ export function Hoy(): React.JSX.Element {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [plotCount, setPlotCount] = useState(0);
+  const [sensorsOk, setSensorsOk] = useState(0);
+  const [sensorsTotal, setSensorsTotal] = useState(0);
   const [latest, setLatest] = useState<Evaluation[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
@@ -34,8 +36,10 @@ export function Hoy(): React.JSX.Element {
     else setLoading(true);
     setError(null);
     try {
-      const [plots, evals] = await Promise.all([listPlots(), listEvaluations()]);
+      const [plots, evals, sens] = await Promise.all([listPlots(), listEvaluations(), listSensors()]);
       setPlotCount(plots.length);
+      setSensorsTotal(sens.length);
+      setSensorsOk(sens.filter((s) => s.status === "ok" && s.is_active).length);
       setLatest(latestPerPlot(evals));
     } catch (err) {
       setError(friendlyError(err, "No se pudo cargar tu información."));
@@ -92,44 +96,68 @@ export function Hoy(): React.JSX.Element {
     );
 
   const urgentes = latest.filter((e) => e.result === "riega").length;
+  const counts: Record<Filter, number> = {
+    todas: latest.length,
+    riega: latest.filter((e) => e.result === "riega").length,
+    no: latest.filter((e) => e.result === "no").length,
+    espera: latest.filter((e) => e.result === "espera").length,
+    incompleta: latest.filter((e) => e.result === "incompleta").length,
+  };
 
   return (
-    <div className="page monitoring-page farmer-today">
-      <header className="monitoring-section-head">
-        <div>
+    <div className="page hoy">
+      <header className="hoy-hero" data-state={urgentes > 0 ? "alert" : "calm"}>
+        <div className="hoy-hero-main">
           <p className="eyebrow">Tu jornada</p>
-          <h1>Hoy en tu campo</h1>
-          <p>Consulta las recomendaciones más recientes y decide tu próximo riego.</p>
+          <h1>{urgentes > 0 ? `${urgentes} ${urgentes === 1 ? "parcela pide agua" : "parcelas piden agua"} hoy` : "Nada urgente por ahora"}</h1>
+          <p>{urgentes > 0 ? "Riega en la ventana 05:30–07:00 para perder menos agua." : "Consulta las últimas evaluaciones y revisa de nuevo cuando el sistema lo indique."}</p>
+          <div className="row">
+            <Link className="btn btn-primary btn-lg" to="/evaluar">
+              Evaluar riego <Icon name="arrow" size={17} />
+            </Link>
+            <button
+              type="button"
+              className="btn btn-sm hoy-ghost"
+              onClick={() => void load(true)}
+              disabled={refreshing}
+            >
+              {refreshing ? (
+                <>
+                  <span className="spinner" aria-hidden="true" />
+                  Actualizando…
+                </>
+              ) : (
+                <>
+                  <Icon name="refresh" size={15} />
+                  Actualizar
+                </>
+              )}
+            </button>
+          </div>
         </div>
-        <button
-          type="button"
-          className="btn btn-outline btn-sm"
-          onClick={() => void load(true)}
-          disabled={refreshing}
-        >
-          {refreshing ? (
-            <>
-              <span className="spinner" aria-hidden="true" />
-              Actualizando…
-            </>
-          ) : (
-            <>
-              <Icon name="refresh" size={15} />
-              Actualizar
-            </>
-          )}
-        </button>
+        <div className="hoy-hero-side">
+          <span className="hoy-hero-icon" aria-hidden="true"><Icon name="clock" size={26} /></span>
+          <div>
+            <span>Ventana de riego</span>
+            <strong>05:30 – 07:00</strong>
+          </div>
+        </div>
       </header>
 
-      <section className="monitoring-workspace" aria-labelledby="hoy-title">
-        <div className="monitoring-directory">
-          <p className="eyebrow">Recomendación de hoy</p>
-          <h2 id="hoy-title">{urgentes > 0 ? `${urgentes} ${urgentes === 1 ? "parcela pide agua" : "parcelas piden agua"} hoy` : "Nada urgente por ahora"}</h2>
-          <p>{urgentes > 0 ? "Riega en la ventana 05:30–07:00 para perder menos agua." : "Consulta las últimas evaluaciones y revisa de nuevo cuando el sistema lo indique."}</p>
-          <div className="ops-actions"><Link className="btn btn-primary" to="/evaluar">Evaluar riego <Icon name="arrow" size={16} /></Link></div>
+      <div className="hoy-stats" aria-label="Resumen de tu campo">
+        <div className="hoy-stat">
+          <span className="hoy-stat-icon" aria-hidden="true"><Icon name="map" size={20} /></span>
+          <div><strong>{fmtNum(plotCount)}</strong><span>{plotCount === 1 ? "Parcela registrada" : "Parcelas registradas"}</span></div>
         </div>
-        <aside className="monitoring-aside"><Icon name="map" size={24} /><span>Tu campo</span><strong>{fmtNum(plotCount)}</strong><p>{plotCount === 1 ? "Parcela registrada" : "Parcelas registradas"}</p></aside>
-      </section>
+        <div className="hoy-stat">
+          <span className="hoy-stat-icon" aria-hidden="true"><Icon name="drop" size={20} /></span>
+          <div><strong>{fmtNum(urgentes)}</strong><span>{urgentes === 1 ? "Pide agua hoy" : "Piden agua hoy"}</span></div>
+        </div>
+        <div className="hoy-stat">
+          <span className="hoy-stat-icon" aria-hidden="true"><Icon name="sensor" size={20} /></span>
+          <div><strong>{fmtNum(sensorsOk)} de {fmtNum(sensorsTotal)}</strong><span>Sensores operativos</span></div>
+        </div>
+      </div>
 
       {latest.length === 0 ? (
         <Empty
@@ -143,41 +171,26 @@ export function Hoy(): React.JSX.Element {
           }
         />
       ) : (
-        <section className="stack" aria-label="Últimas recomendaciones">
-          <div className="ops-section-head">
-            <div>
-              <h2 className="section-title">Tus parcelas, de un vistazo</h2>
-              <p className="muted small">Última recomendación disponible para cada parcela.</p>
-            </div>
-            <span className="tiny">{filtered.length} de {latest.length}</span>
-          </div>
-
-          <div className="ops-toolbar">
-            <div className="searchbox">
-              <span className="search-icon" aria-hidden="true">
-                <Icon name="search" size={16} />
-              </span>
-              <input
-                className="input"
-                type="search"
-                placeholder="Buscar parcela…"
-                aria-label="Buscar parcela"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-            <select
-              className="select"
+        <section className="hoy-list" aria-label="Últimas recomendaciones">
+          <div className="hoy-toolbar">
+            <Tabs<Filter>
+              label="Filtrar por estado"
               value={filter}
-              onChange={(e) => setFilter(e.target.value as Filter)}
-              aria-label="Filtrar por estado"
-            >
-              <option value="todas">Todas</option>
-              <option value="riega">Piden riego</option>
-              <option value="no">No riegan</option>
-              <option value="espera">Esperan</option>
-              <option value="incompleta">Incompletas</option>
-            </select>
+              onChange={(v) => setFilter(v)}
+              options={[
+                { value: "todas", label: `Todas (${counts.todas})` },
+                { value: "riega", label: `Piden riego (${counts.riega})` },
+                { value: "no", label: `No riegan (${counts.no})` },
+                { value: "espera", label: `Esperan (${counts.espera})` },
+                { value: "incompleta", label: `Incompletas (${counts.incompleta})` },
+              ]}
+            />
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Buscar parcela…"
+              label="Buscar parcela"
+            />
             <select
               className="select"
               value={sort}
@@ -187,6 +200,7 @@ export function Hoy(): React.JSX.Element {
               <option value="reciente">Más reciente</option>
               <option value="antiguo">Más antiguo</option>
             </select>
+            <span className="tiny" aria-live="polite">{filtered.length} de {latest.length}</span>
           </div>
 
           {filtered.length === 0 ? (
@@ -196,32 +210,32 @@ export function Hoy(): React.JSX.Element {
               hint="Prueba con otra búsqueda o filtro."
             />
           ) : (
-            <div className="ops-recommendations">
+            <div className="hoy-cards">
               {filtered.map((e) => {
                 const snap = e.inputs_snapshot ?? {};
                 const hum = typeof snap.humedad_pct === "number" ? snap.humedad_pct : null;
                 const umb = typeof snap.umbral === "number" ? snap.umbral * 100 : null;
                 const pmp = typeof snap.pmp === "number" ? snap.pmp * 100 : null;
                 return (
-                  <article className="ops-recommendation" key={e.id}>
-                    <div className="rowcard-body stack-sm">
-                      <div className="spread">
+                  <article className="hoy-card" data-tone={badgeToneForResult(e.result, e.is_critical)} key={e.id}>
+                    <div className="hoy-card-head">
+                      <div>
                         <strong>{e.plot?.name ?? `Parcela #${e.plot_id}`}</strong>
-                        <Badge tone={badgeToneForResult(e.result, e.is_critical)}>
-                          {e.is_critical ? "Crítica" : resultLabel(e.result)}
-                        </Badge>
+                        <span className="tiny hoy-card-time"><Icon name="clock" size={14} /> {fmtDateTime(e.evaluated_at)} · {ageLabel(e.evaluated_at)}</span>
                       </div>
-                      {e.result === "riega" && e.min_liters && e.max_liters ? (
-                        <p className="ops-water-amount">
-                          {fmtNum(e.min_liters)}–{fmtNum(e.max_liters)} L
-                        </p>
-                      ) : null}
-                      <SoilMeter actual={hum} umbral={umb} critico={pmp} />
-                      <p className="tiny ops-card-time"><Icon name="clock" size={14} /> {fmtDateTime(e.evaluated_at)}</p>
-                      <Link className="link small" to="/evaluar">
-                        Ver detalle <Icon name="arrow" size={14} />
-                      </Link>
+                      <Badge tone={badgeToneForResult(e.result, e.is_critical)}>
+                        {e.is_critical ? "Crítica" : resultLabel(e.result)}
+                      </Badge>
                     </div>
+                    {e.result === "riega" && e.min_liters && e.max_liters ? (
+                      <p className="hoy-amount num">
+                        {fmtNum(e.min_liters)}–{fmtNum(e.max_liters)} <span>L</span>
+                      </p>
+                    ) : null}
+                    <SoilMeter actual={hum} umbral={umb} critico={pmp} />
+                    <Link className="btn btn-outline btn-sm btn-block" to="/evaluar" state={{ plotId: e.plot_id }}>
+                      Ver qué hacer <Icon name="arrow" size={15} />
+                    </Link>
                   </article>
                 );
               })}

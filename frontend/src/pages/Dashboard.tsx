@@ -15,7 +15,7 @@ import {
   Skeletons,
   Stat,
 } from "../components/ui";
-import { badgeToneForResult, fmtDateTime, fmtNum, resultLabel } from "../lib/format";
+import { ageLabel, badgeToneForResult, fmtDateTime, fmtNum, resultLabel, todayLong } from "../lib/format";
 
 export function Dashboard(): React.JSX.Element {
   const [loading, setLoading] = useState(true);
@@ -27,6 +27,7 @@ export function Dashboard(): React.JSX.Element {
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [recent, setRecent] = useState<Evaluation[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
 
   async function load(isRefresh = false): Promise<void> {
     if (isRefresh) setRefreshing(true);
@@ -46,6 +47,7 @@ export function Dashboard(): React.JSX.Element {
       setPiden(m.evaluations_riega);
       setAlerts(a);
       setRecent(e);
+      setUpdatedAt(new Date().toISOString());
     } catch (err) {
       setError(friendlyError(err, "No se pudo cargar el resumen."));
     } finally {
@@ -62,11 +64,11 @@ export function Dashboard(): React.JSX.Element {
     (a) => a.tipo.includes("critica") || a.tipo === "humedad_critica",
   ).length;
 
-  const today = new Date().toLocaleDateString("es-PE", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
+  const prioritarias = [...alerts]
+    .sort((a, b) => Number(b.tipo.includes("critica")) - Number(a.tipo.includes("critica")))
+    .slice(0, 8);
+
+  const today = todayLong();
 
   return (
     <div className="page dashboard-page">
@@ -93,10 +95,18 @@ export function Dashboard(): React.JSX.Element {
         }/>
       {error ? <Banner kind="bad">{error} <button className="link" onClick={() => void load()}>Reintentar</button></Banner> : loading ? <Skeletons n={4}/> : <>
         <div className="stats dashboard-stats">
-          <Stat value={fmtNum(plots)} label="Parcelas en seguimiento" icon="map" sub="Unidades de cultivo registradas"/>
-          <Stat value={fmtNum(piden)} label="Necesitan riego" icon="drop" tone={piden > 0 ? "warn" : "ok"} sub="Según su última evaluación"/>
-          <Stat value={sensorsTotal ? `${sensorsOk}/${sensorsTotal}` : "0"} label="Sensores operativos" icon="sensor" tone={sensorsOk < sensorsTotal ? "warn" : "ok"} sub="Dispositivos activos con datos"/>
-          <Stat value={fmtNum(alerts.length)} label="Alertas por revisar" icon="bell" tone={criticas ? "bad" : alerts.length ? "warn" : "ok"} sub={criticas ? `${criticas} de prioridad crítica` : "Señales del campo"}/>
+          <Link className="stat-link" to="/parcelas">
+            <Stat value={fmtNum(plots)} label="Parcelas en seguimiento" icon="map" sub="Unidades de cultivo registradas"/>
+          </Link>
+          <Link className="stat-link" to="/evaluar">
+            <Stat value={fmtNum(piden)} label="Necesitan riego" icon="drop" tone={piden > 0 ? "warn" : "ok"} sub="Según su última evaluación"/>
+          </Link>
+          <Link className="stat-link" to="/sensores">
+            <Stat value={sensorsTotal ? `${sensorsOk}/${sensorsTotal}` : "0"} label="Sensores operativos" icon="sensor" tone={sensorsOk < sensorsTotal ? "warn" : "ok"} sub="Dispositivos activos con datos"/>
+          </Link>
+          <Link className="stat-link" to="/alertas">
+            <Stat value={fmtNum(alerts.length)} label="Alertas por revisar" icon="bell" tone={criticas ? "bad" : alerts.length ? "warn" : "ok"} sub={criticas ? `${criticas} de prioridad crítica` : "Señales del campo"}/>
+          </Link>
         </div>
         <section className="daily-brief" aria-labelledby="daily-brief-title">
           <div className="daily-brief-main">
@@ -116,17 +126,17 @@ export function Dashboard(): React.JSX.Element {
               {key:"result",label:"Decisión",render:e=><Badge tone={badgeToneForResult(e.result,e.is_critical)}>{e.is_critical?"Crítica":resultLabel(e.result)}</Badge>},
             ]}/>}
           </Card>
-          <Card title="Requieren atención" sub={alerts.length ? `${alerts.length} señales para revisar` : "Seguimiento del campo"}
+          <Card title="Requieren atención" sub={alerts.length ? `${alerts.length} señales para revisar${criticas ? " · críticas primero" : ""}` : "Seguimiento del campo"}
             action={<Link className="icon-link" to="/alertas" aria-label="Ver todas las alertas"><Icon name="arrow" size={18}/></Link>}>
             {alerts.length === 0 ? <Empty icon="check" title="Todo al día" hint="No hay alertas pendientes en tus parcelas."/> :
-            <div className="attention-list">{alerts.slice(0,5).map((alert,i)=><div className="attention-item" key={`${alert.tipo}-${alert.plot_id}-${i}`}>
+            <div className="attention-list">{prioritarias.map((alert,i)=><div className="attention-item" key={`${alert.tipo}-${alert.plot_id}-${i}`}>
               <span className={"attention-symbol"+(alert.tipo.includes("critica")?" critical":"")}><Icon name={alert.tipo.startsWith("sensor")?"sensor":"alert"} size={17}/></span>
               <div><p>{alert.mensaje}</p><span className="tiny">{alert.plot_id ? `Parcela #${alert.plot_id}` : "Aviso general"}</span></div>
             </div>)}</div>}
             {alerts.length>0?<Link className="btn btn-outline btn-block" to="/alertas">Revisar alertas <Icon name="arrow" size={15}/></Link>:null}
           </Card>
         </div>
-        <div className="dashboard-context"><span><Icon name="pin" size={15}/>Chupaca, Junín</span><span>{today}</span></div>
+        <div className="dashboard-context"><span><Icon name="pin" size={15}/>Chupaca, Junín</span><span>{today}</span><span>Actualizado {ageLabel(updatedAt)}</span></div>
       </>}
     </div>
   );
