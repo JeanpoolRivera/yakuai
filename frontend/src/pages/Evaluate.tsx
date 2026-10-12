@@ -1,6 +1,7 @@
 /* Evaluar riego: elige parcela → veredicto idempotente + historial + WhatsApp. */
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { ArrowRight, ChevronDown, Clock, Gauge, LoaderCircle, Map as MapIcon } from "lucide-react";
 import { ApiError } from "../api/client";
 import {
   createIrrigation,
@@ -11,22 +12,20 @@ import {
   listPlots,
 } from "../api/endpoints";
 import type { Evaluation, Plot } from "../api/types";
-import {
-  Badge,
-  Banner,
-  Button,
-  Card,
-  Empty,
-  Field,
-  Icon,
-  Loading,
-  PageHead,
-  SelectInput,
-  SoilMeter,
-  VerdictCard,
-} from "../components/ui";
+import { PageHead } from "../components/shadcn/page-head";
+import { Badge, badgeVariantForTone } from "../components/shadcn/badge";
+import { Banner, Empty, Loading } from "../components/shadcn/feedback";
+import { Button } from "../components/shadcn/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/shadcn/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/shadcn/table";
+import { SoilMeter } from "../components/shadcn/soil-meter";
+import { VerdictCard, type VerdictTone } from "../components/shadcn/verdict-card";
+import { FormField } from "../components/forms/FormField";
 import { toastError, toastInfo, toastOk } from "../lib/toast";
 import { ageLabel, badgeToneForResult, fmtDateTime, fmtNum, reasonLabel, resultLabel, toNum } from "../lib/format";
+
+const SELECT_CLS =
+  "h-12 w-full rounded-sm border border-neutral-400 bg-white px-3 text-sm text-neutral-800 transition-all hover:border-primary-600 focus-visible:border-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600/15 disabled:cursor-not-allowed disabled:opacity-50";
 
 const INCOMPLETE_HELP: Record<string, { text: string; to: string; action: string }> = {
   sin_humedad_valida: {
@@ -185,7 +184,7 @@ export function Evaluate(): React.JSX.Element {
   const pmp = typeof snap.pmp === "number" ? snap.pmp * 100 : null;
 
   return (
-    <div className="page ops-page">
+    <div>
       <PageHead
         eyebrow="Planificación del riego"
         title="Evaluar riego"
@@ -193,53 +192,78 @@ export function Evaluate(): React.JSX.Element {
         crumbs="YakuAI / Evaluar"
       />
 
-      <div className="ops-evaluation-grid">
-        <Card title="Selecciona una parcela" sub="La recomendación utiliza sus datos de suelo, cultivo y clima." label="Seleccionar parcela">
-          {loadingPlots ? (
-            <Loading text="Cargando parcelas…" />
-          ) : error ? (
-            <Banner kind="bad">{error}</Banner>
-          ) : plots.length === 0 ? (
-            <Empty icon="map" title="Sin parcelas" hint="Tu técnico debe registrar tu parcela primero." />
-          ) : (
-            <>
-              <Field label="Parcela" required htmlFor="ev-plot">
-                <SelectInput
-                  id="ev-plot"
-                  value={plotId ?? ""}
-                  onChange={(e) => setPlotId(e.target.value ? Number(e.target.value) : null)}
-                >
-                  <option value="">Selecciona…</option>
-                  {plots.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} · {p.farmer?.name ?? ""} · {p.crop?.name ?? ""}
-                    </option>
-                  ))}
-                </SelectInput>
-              </Field>
-              {plot ? (
-                <dl className="ops-plot-facts">
-                  <div><dt>Cultivo</dt><dd>{plot.crop?.name ?? "—"}</dd></div>
-                  <div><dt>Superficie</dt><dd>{fmtNum(plot.area_m2)} m²</dd></div>
-                  <div><dt>Siembra</dt><dd>{plot.sowing_date}</dd></div>
-                  <div><dt>Sistema de riego</dt><dd>{plot.irrigation_system}</dd></div>
-                </dl>
-              ) : null}
-              <div className="ops-step-note"><Icon name="gauge" size={18} /><p>Evalúa las condiciones actuales para saber si es momento de regar.</p></div>
-              <Button variant="action" size="lg" block loading={busy} disabled={plotId === null} onClick={() => void onEvaluate()}>
-                Evaluar riego
-              </Button>
-              <p className="tiny">Si ya evaluaste esta parcela en esta misma hora, se mostrará el mismo resultado.</p>
-            </>
-          )}
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
+        <Card aria-label="Seleccionar parcela">
+          <CardHeader>
+            <CardTitle>Selecciona una parcela</CardTitle>
+            <CardDescription>La recomendación utiliza sus datos de suelo, cultivo y clima.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            {loadingPlots ? (
+              <Loading text="Cargando parcelas…" />
+            ) : error ? (
+              <Banner kind="bad">{error}</Banner>
+            ) : plots.length === 0 ? (
+              <Empty
+                icon={<MapIcon className="h-5 w-5" aria-hidden="true" />}
+                title="Sin parcelas"
+                hint="Tu técnico debe registrar tu parcela primero."
+              />
+            ) : (
+              <>
+                <FormField label="Parcela" required htmlFor="ev-plot">
+                  <select
+                    id="ev-plot"
+                    className={SELECT_CLS}
+                    value={plotId ?? ""}
+                    onChange={(e) => setPlotId(e.target.value ? Number(e.target.value) : null)}
+                  >
+                    <option value="">Selecciona…</option>
+                    {plots.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} · {p.farmer?.name ?? ""} · {p.crop?.name ?? ""}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+                {plot ? (
+                  <dl className="grid grid-cols-2 gap-2 rounded-md bg-neutral-100 p-3 text-sm">
+                    <div><dt className="text-xs text-neutral-500">Cultivo</dt><dd className="font-medium text-neutral-800">{plot.crop?.name ?? "—"}</dd></div>
+                    <div><dt className="text-xs text-neutral-500">Superficie</dt><dd className="font-medium tabular-nums text-neutral-800">{fmtNum(plot.area_m2)} m²</dd></div>
+                    <div><dt className="text-xs text-neutral-500">Siembra</dt><dd className="font-medium text-neutral-800">{plot.sowing_date}</dd></div>
+                    <div><dt className="text-xs text-neutral-500">Sistema de riego</dt><dd className="font-medium text-neutral-800">{plot.irrigation_system}</dd></div>
+                  </dl>
+                ) : null}
+                <p className="flex items-start gap-2 text-sm text-neutral-600">
+                  <Gauge className="mt-0.5 h-[18px] w-[18px] shrink-0 text-primary-700" aria-hidden="true" />
+                  Evalúa las condiciones actuales para saber si es momento de regar.
+                </p>
+                <Button size="lg" className="w-full" disabled={plotId === null || busy} onClick={() => void onEvaluate()}>
+                  {busy ? (
+                    <>
+                      <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" />
+                      Evaluar riego
+                    </>
+                  ) : (
+                    <>Evaluar riego</>
+                  )}
+                </Button>
+                <p className="text-xs text-neutral-500">Si ya evaluaste esta parcela en esta misma hora, se mostrará el mismo resultado.</p>
+              </>
+            )}
+          </CardContent>
         </Card>
 
-        <section className="stack ops-result" aria-live="polite" aria-label="Resultado">
+        <section aria-live="polite" aria-label="Resultado" className="min-w-0">
           {!current ? (
-            <Empty icon="gauge" title="Tu recomendación aparecerá aquí" hint="Selecciona una parcela y pulsa Evaluar riego para consultar el resultado y los datos que lo respaldan." />
+            <Empty
+              icon={<Gauge className="h-5 w-5" aria-hidden="true" />}
+              title="Tu recomendación aparecerá aquí"
+              hint="Selecciona una parcela y pulsa Evaluar riego para consultar el resultado y los datos que lo respaldan."
+            />
           ) : (
             <VerdictCard
-              tone={current.result}
+              tone={current.result as VerdictTone}
               kicker={`${plot?.name ?? `Parcela #${current.plot_id}`} · ${fmtDateTime(current.evaluated_at)} · ${ageLabel(current.evaluated_at)}`}
               title={verdictTitle(current)}
               amount={
@@ -253,64 +277,82 @@ export function Evaluate(): React.JSX.Element {
                 hum !== null ? `Humedad ${hum.toFixed(1)}%` : "Humedad —",
               ]}
               action={
-                <div className="row">
-                  <Button variant="outline" size="sm" loading={sharing} onClick={() => void onShare()}>
-                    Compartir por WhatsApp
+                <>
+                  <Button variant="outline" size="sm" disabled={sharing} onClick={() => void onShare()}>
+                    {sharing ? (
+                      <>
+                        <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                        Compartir por WhatsApp
+                      </>
+                    ) : (
+                      <>Compartir por WhatsApp</>
+                    )}
                   </Button>
                   {current.result === "riega" ? (
-                    <Button variant="action" size="sm" loading={confirming} onClick={() => void onConfirmIrrigation()}>
-                      Ya regué
+                    <Button size="sm" disabled={confirming} onClick={() => void onConfirmIrrigation()}>
+                      {confirming ? (
+                        <>
+                          <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                          Ya regué
+                        </>
+                      ) : (
+                        <>Ya regué</>
+                      )}
                     </Button>
                   ) : null}
-                  {current.is_critical ? <Badge tone="critica">Prioridad</Badge> : null}
-                  <Badge tone={badgeToneForResult(current.result, current.is_critical)}>
+                  {current.is_critical ? <Badge variant="destructive">Prioridad</Badge> : null}
+                  <Badge variant={badgeVariantForTone(badgeToneForResult(current.result, current.is_critical))}>
                     {resultLabel(current.result)}
                   </Badge>
-                </div>
+                </>
               }
             >
-              <p className="small">{reasonLabel(current.reason)}</p>
+              <p className="text-sm text-neutral-700">{reasonLabel(current.reason)}</p>
               {current.result === "incompleta" && INCOMPLETE_HELP[current.reason] ? (
-                <p className="small">
+                <p className="text-sm text-neutral-700">
                   {INCOMPLETE_HELP[current.reason].text}{" "}
-                  <Link className="link small" to={INCOMPLETE_HELP[current.reason].to}>
-                    {INCOMPLETE_HELP[current.reason].action} <Icon name="arrow" size={14} />
+                  <Link
+                    className="inline-flex items-center gap-1 text-sm font-medium text-primary-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600/15"
+                    to={INCOMPLETE_HELP[current.reason].to}
+                  >
+                    {INCOMPLETE_HELP[current.reason].action} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                   </Link>
                 </p>
               ) : null}
               <SoilMeter actual={hum} umbral={umb} critico={pmp} />
-              <details className="disclosure small">
-                <summary>
-                  Ver datos usados (trazabilidad) <Icon name="chevron" size={14} />
+              <details className="rounded-md border border-neutral-200 bg-white/60 text-sm">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-3 font-medium text-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600/15 [&::-webkit-details-marker]:hidden">
+                  Ver datos usados (trazabilidad)
+                  <ChevronDown className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
                 </summary>
-                <div className="disclosure-body">
-                  <dl className="kv">
-                    <dt className="kv-dt">ET₀ / ETc</dt>
-                    <dd className="kv-dd">
+                <div className="grid gap-2 border-t border-neutral-200 p-3">
+                  <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
+                    <dt className="text-neutral-500">ET₀ / ETc</dt>
+                    <dd className="font-medium tabular-nums text-neutral-800">
                       {toNum(snap.et0_mm_dia)?.toFixed(2) ?? "—"} / {toNum(snap.etc_mm_dia)?.toFixed(2) ?? "—"} mm/día
                     </dd>
-                    <dt className="kv-dt">Umbral / Lámina neta</dt>
-                    <dd className="kv-dd">
+                    <dt className="text-neutral-500">Umbral / Lámina neta</dt>
+                    <dd className="font-medium tabular-nums text-neutral-800">
                       {typeof snap.umbral === "number" ? `${(snap.umbral * 100).toFixed(2)}%` : "—"} /{" "}
                       {typeof snap.lamina_neta_mm === "number" ? `${snap.lamina_neta_mm.toFixed(1)} mm` : "—"}
                     </dd>
-                    <dt className="kv-dt">Volumen bruto</dt>
-                    <dd className="kv-dd">
+                    <dt className="text-neutral-500">Volumen bruto</dt>
+                    <dd className="font-medium tabular-nums text-neutral-800">
                       {typeof snap.volumen_bruto_L === "number" ? `${fmtNum(snap.volumen_bruto_L)} L` : "—"}
                     </dd>
-                    <dt className="kv-dt">Lluvia prevista 6 h</dt>
-                    <dd className="kv-dd">
+                    <dt className="text-neutral-500">Lluvia prevista 6 h</dt>
+                    <dd className="font-medium tabular-nums text-neutral-800">
                       {typeof snap.rain_mm === "number" ? `${snap.rain_mm} mm` : "—"} (
                       {typeof snap.rain_prob === "number" ? `${Math.round(snap.rain_prob * 100)}%` : "—"})
                     </dd>
-                    <dt className="kv-dt">Suelo / Kc / Zr</dt>
-                    <dd className="kv-dd">
+                    <dt className="text-neutral-500">Suelo / Kc / Zr</dt>
+                    <dd className="font-medium text-neutral-800">
                       {String(snap.soil_code ?? "—")} · Kc {String(snap.kc ?? "—")} · Zr {String(snap.zr_m ?? "—")} m
                     </dd>
-                    <dt className="kv-dt">Etapa</dt>
-                    <dd className="kv-dd">{current.stage ? `Etapa ${current.stage}` : "—"}</dd>
-                    <dt className="kv-dt">Revisar</dt>
-                    <dd className="kv-dd">{current.next_at ? fmtDateTime(current.next_at) : "Sin próxima revisión"}</dd>
+                    <dt className="text-neutral-500">Etapa</dt>
+                    <dd className="font-medium text-neutral-800">{current.stage ? `Etapa ${current.stage}` : "—"}</dd>
+                    <dt className="text-neutral-500">Revisar</dt>
+                    <dd className="font-medium text-neutral-800">{current.next_at ? fmtDateTime(current.next_at) : "Sin próxima revisión"}</dd>
                   </dl>
                 </div>
               </details>
@@ -319,46 +361,54 @@ export function Evaluate(): React.JSX.Element {
         </section>
       </div>
 
-      <Card title="Historial de evaluaciones" sub="Consulta los resultados anteriores de la parcela seleccionada (últimas 20)." label="Evaluaciones anteriores">
-        {plotId === null ? (
-          <p className="muted small">Elige una parcela para ver su historial.</p>
-        ) : loadingHist ? (
-          <Loading text="Cargando historial…" />
-        ) : history.length === 0 ? (
-          <Empty icon="clock" title="Sin historial" hint="Esta parcela aún no tiene evaluaciones." />
-        ) : (
-          <div className="table-wrap responsive-table" tabIndex={0} role="region" aria-label="Historial de evaluaciones">
-            <table className="tbl" role="table">
-              <caption className="sr-only">Historial de evaluaciones de la parcela</caption>
-              <thead role="rowgroup">
-                <tr role="row">
-                  <th scope="col" role="columnheader">Fecha</th>
-                  <th scope="col" role="columnheader">Resultado</th>
-                  <th scope="col" role="columnheader">Cantidad</th>
-                  <th scope="col" role="columnheader">Motivo</th>
-                </tr>
-              </thead>
-              <tbody role="rowgroup">
-                {history.map((h) => (
-                  <tr role="row" key={h.id}>
-                    <td role="cell" data-label="Fecha">{fmtDateTime(h.evaluated_at)}</td>
-                    <td role="cell" data-label="Resultado">
-                      <Badge tone={badgeToneForResult(h.result, h.is_critical)}>
-                        {h.is_critical ? "Crítica" : resultLabel(h.result)}
-                      </Badge>
-                    </td>
-                    <td role="cell" data-label="Cantidad" className="num">
-                      {h.min_liters && h.max_liters
-                        ? `${fmtNum(h.min_liters)}–${fmtNum(h.max_liters)} L`
-                        : "—"}
-                    </td>
-                    <td role="cell" data-label="Motivo" className="muted">{reasonLabel(h.reason)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <Card className="mt-4" aria-label="Evaluaciones anteriores">
+        <CardHeader>
+          <CardTitle>Historial de evaluaciones</CardTitle>
+          <CardDescription>Consulta los resultados anteriores de la parcela seleccionada (últimas 20).</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {plotId === null ? (
+            <p className="text-sm text-neutral-500">Elige una parcela para ver su historial.</p>
+          ) : loadingHist ? (
+            <Loading text="Cargando historial…" />
+          ) : history.length === 0 ? (
+            <Empty
+              icon={<Clock className="h-5 w-5" aria-hidden="true" />}
+              title="Sin historial"
+              hint="Esta parcela aún no tiene evaluaciones."
+            />
+          ) : (
+            <div className="relative w-full overflow-x-auto rounded-md border border-neutral-200" role="region" aria-label="Historial de evaluaciones" tabIndex={0}>
+              <Table>
+                <caption className="sr-only">Historial de evaluaciones de la parcela</caption>
+                <TableHeader>
+                  <TableRow className="bg-neutral-50 hover:bg-neutral-50">
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Resultado</TableHead>
+                    <TableHead className="text-right tabular-nums">Cantidad</TableHead>
+                    <TableHead>Motivo</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {history.map((h) => (
+                    <TableRow key={h.id}>
+                      <TableCell>{fmtDateTime(h.evaluated_at)}</TableCell>
+                      <TableCell>
+                        <Badge variant={badgeVariantForTone(badgeToneForResult(h.result, h.is_critical))}>
+                          {h.is_critical ? "Crítica" : resultLabel(h.result)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {h.min_liters && h.max_liters ? `${fmtNum(h.min_liters)}–${fmtNum(h.max_liters)} L` : "—"}
+                      </TableCell>
+                      <TableCell className="text-neutral-500">{reasonLabel(h.reason)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
       </Card>
     </div>
   );

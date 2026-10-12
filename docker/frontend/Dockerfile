@@ -1,4 +1,6 @@
-FROM node:22-alpine
+# Debian slim (glibc): comparte node_modules del host vía volumen.
+# Alpine (musl) rompe los binarios nativos de Tailwind v4 instalados en el host (ver MEJORAS.md E-22).
+FROM node:22-slim
 
 WORKDIR /app
 

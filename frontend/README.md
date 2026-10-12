@@ -6,15 +6,16 @@ Consume `api/v1` del backend Laravel; el backend es la fuente de verdad
 
 ## Stack
 
-React 19 + Vite + react-router-dom + Leaflet (+ leaflet-draw para el contorno
-de parcelas). Sin UI kits externos: sistema de diseño propio en
-`src/styles/tokens.css` + `src/styles/app.css`.
+React 19 + Vite + react-router-dom + Leaflet (dibujo propio, sin leaflet-draw).
+UI: shadcn/ui (primitivas Radix, copy-paste en `src/components/shadcn/`) +
+Tailwind CSS v4 (`src/styles/globals.css` + `src/lib/theme.ts`) + Recharts +
+TanStack Table + sonner + react-hook-form/zod + lucide-react.
 
 ## Estructura
 
 ```text
 src/
-  main.tsx            entrada (router + AuthProvider)
+  main.tsx            entrada (router + AuthProvider + globals.css)
   app/
     App.tsx           rutas y puertas por rol
     auth.tsx          sesión (token Sanctum + usuario, cierre auto en 401)
@@ -22,16 +23,18 @@ src/
     client.ts         fetch tipado, {data}/paginados, ApiError, 422-incompleta con data
     types.ts          tipos del contrato backend
     endpoints.ts      una función por recurso
-  lib/                formato es-PE, permisos de vista, geo, toast, dom
+  lib/                theme (tokens), utils (cn), formato es-PE, permisos, geo, toast (sonner), dom
   hooks/              useCollection (buscar/filtrar/paginar en cliente)
   components/
-    ui.tsx            kit: botones, badges, banners, modales, tabs, veredicto…
-    layout.tsx        TechShell (sidebar+topbar) y FarmerShell (bottomnav)
-    PlotMap.tsx       Leaflet en chunk separado (lazy)
-    Toasts.tsx
+    shadcn.tsx        barrel: 50+ componentes (base + patrones + soil-meter + verdict + datatable…)
+    shadcn/           base shadcn + plot-map (Leaflet) + toaster (sonner)
+    charts/           wrappers Recharts (Line/Area/Bar)
+    forms/            FormField (a11y), FormSection, Wizard
+    layout/           Brand, NavSidebar, BottomNav, Topbar, TechShell, FarmerShell
+    AuthLayout.tsx    acceso (Login/RecoverPin, intacto)
   pages/              Login, Hoy, Dashboard, Evaluate, Plots, Farmers, Sensors,
-                      Weather, Irrigations, Alerts, Catalogs, Validation
-  styles/             tokens (única fuente visual) + componentes/layout
+                      Weather, Irrigations, Alerts, Catalogs, Validation, RecoverPin
+  styles/             globals.css (tokens @theme) + login.css (acceso)
 ```
 
 ## Roles

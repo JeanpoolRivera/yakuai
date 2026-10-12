@@ -11,7 +11,7 @@ const api = vi.hoisted(()=>({
  updatePlot:vi.fn(),
 }));
 vi.mock("../api/endpoints",()=>api);
-vi.mock("../components/PlotMap",()=>({PlotMap:()=><div data-testid="plot-map"/>}));
+vi.mock("../components/shadcn/plot-map",()=>({PlotMap:()=><div data-testid="plot-map"/>}));
 afterEach(()=>{
  cleanup();
  vi.clearAllMocks();

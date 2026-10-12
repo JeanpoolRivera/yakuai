@@ -1,6 +1,7 @@
 /* Riegos: anotar aplicado, comparar con recomendado, corregir/anular con motivo. */
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import { LoaderCircle, Plus } from "lucide-react";
 import { ApiError, friendlyError } from "../api/client";
 import {
   correctIrrigation,
@@ -10,30 +11,38 @@ import {
   voidIrrigation,
 } from "../api/endpoints";
 import type { Irrigation, Plot } from "../api/types";
-import {
-  Badge,
-  Banner,
-  Button,
-  Confirm,
-  Empty,
-  Field,
-  Loading,
-  Modal,
-  PageHead,
-  Pager,
-  SearchInput,
-  SelectInput,
-  Stat,
-  TextInput,
-} from "../components/ui";
+import { PageHead } from "../components/shadcn/page-head";
+import { Stat } from "../components/shadcn/Stat";
+import { Badge } from "../components/shadcn/badge";
+import { Banner, Empty, Loading } from "../components/shadcn/feedback";
+import { Button } from "../components/shadcn/button";
+import { Confirm } from "../components/shadcn/confirm";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../components/shadcn/dialog";
+import { Input } from "../components/shadcn/input";
+import { PaginationControls } from "../components/shadcn/PaginationControls";
+import { SearchInput } from "../components/shadcn/search-input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/shadcn/table";
+import { FormField } from "../components/forms/FormField";
 import { useCollection } from "../hooks/useCollection";
 import { submitForm } from "../lib/dom";
 import { fmtDateTime, fmtNum, localInputToIso, nowLocalInput, toNum } from "../lib/format";
 import { toastError, toastOk } from "../lib/toast";
 
+const SELECT_CLS =
+  "h-12 w-full rounded-sm border border-neutral-400 bg-white px-3 text-sm text-neutral-800 transition-all hover:border-primary-600 focus-visible:border-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600/15 disabled:cursor-not-allowed disabled:opacity-50";
+
+const DATE_CLS =
+  "h-12 rounded-sm border border-neutral-400 bg-white px-3 text-sm text-neutral-800 transition-all hover:border-primary-600 focus-visible:border-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600/15";
+
 function desvioTone(desv: number): string {
   if (Math.abs(desv) <= 100) return "ok";
   return desv > 0 ? "warn" : "bad";
+}
+
+function desvioVariant(tone: string): "success" | "warning" | "destructive" {
+  if (tone === "warn") return "warning";
+  if (tone === "bad") return "destructive";
+  return "success";
 }
 
 export function Irrigations(): React.JSX.Element {
@@ -175,13 +184,17 @@ export function Irrigations(): React.JSX.Element {
   }
 
   return (
-    <div className="page ops-page">
+    <div>
       <PageHead
         eyebrow="Historial"
         title="Riegos aplicados"
         desc="Registra el agua aplicada y compárala con la recomendación de cada parcela."
         crumbs="YakuAI / Riegos"
-        actions={<Button onClick={openCreate}>Anotar riego</Button>}
+        actions={
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4" aria-hidden="true" /> Anotar riego
+          </Button>
+        }
       />
 
       {loading ? (
@@ -189,28 +202,32 @@ export function Irrigations(): React.JSX.Element {
       ) : error ? (
         <Banner kind="bad">
           {error}{" "}
-          <button className="link" onClick={() => void load()}>
+          <Button variant="link" size="sm" onClick={() => void load()}>
             Reintentar
-          </button>
+          </Button>
         </Banner>
       ) : (
         <>
-          <div className="stats">
-            <Stat value={fmtNum(activos.length)} label="Riegos activos" icon="drop" sub="Registros válidos en el historial" />
-            <Stat value={`${fmtNum(totalAgua)} L`} label="Agua total aplicada" icon="gauge" sub="Volumen acumulado de los riegos activos" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Stat value={fmtNum(activos.length)} label="Riegos activos" sub="Registros válidos en el historial" />
+            <Stat value={`${fmtNum(totalAgua)} L`} label="Agua total aplicada" sub="Volumen acumulado de los riegos activos" />
           </div>
 
-          <section className="stack ops-register" aria-label="Historial de riegos">
-            <div className="ops-section-head"><div><h2 className="section-title">Registro de aplicaciones</h2><p className="muted small">Recomendación, consumo real y trazabilidad de cada riego.</p></div></div>
-            <div className="toolbar">
+          <section aria-label="Historial de riegos" className="mt-4 grid gap-3">
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight text-neutral-800">Registro de aplicaciones</h2>
+              <p className="mt-1 text-sm text-neutral-600">Recomendación, consumo real y trazabilidad de cada riego.</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
               <SearchInput
                 value={coll.query}
                 onChange={coll.setQuery}
                 placeholder="Buscar por parcela o nota…"
                 label="Buscar riegos"
+                className="min-w-[200px] flex-1"
               />
               <input
-                className="input"
+                className={DATE_CLS}
                 type="date"
                 aria-label="Desde"
                 value={fDesde}
@@ -221,7 +238,7 @@ export function Irrigations(): React.JSX.Element {
                 }}
               />
               <input
-                className="input"
+                className={DATE_CLS}
                 type="date"
                 aria-label="Hasta"
                 value={fHasta}
@@ -244,185 +261,226 @@ export function Irrigations(): React.JSX.Element {
                   Limpiar
                 </Button>
               ) : null}
-              <span className="tiny">{coll.total} registros</span>
+              <span className="text-xs text-neutral-500">{coll.total} registros</span>
             </div>
             {coll.total === 0 ? (
               <Empty
-                icon="drop"
                 title={hasFilter ? "Sin coincidencias" : "Aún no hay riegos"}
                 hint={hasFilter ? "Prueba con otra búsqueda o período." : "Anota cada riego real para comparar con lo recomendado."}
                 action={hasFilter ? undefined : <Button onClick={openCreate}>Anotar riego</Button>}
               />
             ) : (
               <>
-                <div className="table-wrap responsive-table" tabIndex={0} role="region" aria-label="Historial de riegos">
-                  <table className="tbl" role="table">
+                <div className="relative w-full overflow-x-auto rounded-md border border-neutral-200" role="region" aria-label="Historial de riegos" tabIndex={0}>
+                  <Table>
                     <caption className="sr-only">Riegos aplicados con recomendada, aplicada, desvío y estado</caption>
-                    <thead role="rowgroup">
-                      <tr role="row">
-                        <th scope="col" role="columnheader">Fecha</th>
-                        <th scope="col" role="columnheader">Parcela</th>
-                        <th scope="col" role="columnheader">Recomendada</th>
-                        <th scope="col" role="columnheader">Aplicada</th>
-                        <th scope="col" role="columnheader">Desvío</th>
-                        <th scope="col" role="columnheader">Estado</th>
-                        <th scope="col" role="columnheader">
-                          <span className="tiny">Acciones</span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody role="rowgroup">
+                    <TableHeader>
+                      <TableRow className="bg-neutral-50 hover:bg-neutral-50">
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Parcela</TableHead>
+                        <TableHead className="text-right tabular-nums">Recomendada</TableHead>
+                        <TableHead className="text-right tabular-nums">Aplicada</TableHead>
+                        <TableHead>Desvío</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>
+                          <span className="text-xs font-normal text-neutral-500">Acciones</span>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {coll.items.map((r) => {
                         const rec = toNum(r.recommended_liters);
                         const apl = toNum(r.applied_liters) ?? 0;
                         const desv = rec === null ? null : apl - rec;
                         return (
-                          <tr role="row" key={r.id}>
-                            <td role="cell" data-label="Fecha"><div>
-                              <strong>{fmtDateTime(r.occurred_at)}</strong>
-                              <div className="tiny">Registro #{r.id}</div>
-                              {r.note ? <div className="tiny">{r.note}</div> : null}
-                            </div></td>
-                            <td role="cell" data-label="Parcela">{r.plot?.name ?? `#${r.plot_id}`}</td>
-                            <td role="cell" data-label="Recomendada" className="num">{rec === null ? "—" : `${fmtNum(rec)} L`}</td>
-                            <td role="cell" data-label="Aplicada" className="num"><strong>{fmtNum(apl)} L</strong></td>
-                            <td role="cell" data-label="Desvío">
+                          <TableRow key={r.id}>
+                            <TableCell>
+                              <div>
+                                <strong className="font-semibold">{fmtDateTime(r.occurred_at)}</strong>
+                                <div className="text-xs text-neutral-500">Registro #{r.id}</div>
+                                {r.note ? <div className="text-xs text-neutral-500">{r.note}</div> : null}
+                              </div>
+                            </TableCell>
+                            <TableCell>{r.plot?.name ?? `#${r.plot_id}`}</TableCell>
+                            <TableCell className="text-right tabular-nums">{rec === null ? "—" : `${fmtNum(rec)} L`}</TableCell>
+                            <TableCell className="text-right tabular-nums"><strong className="font-semibold">{fmtNum(apl)} L</strong></TableCell>
+                            <TableCell>
                               {desv === null ? (
                                 "—"
                               ) : (
-                                <Badge tone={desvioTone(desv)}>
+                                <Badge variant={desvioVariant(desvioTone(desv))}>
                                   {desv > 0 ? "+" : ""}
                                   {fmtNum(desv)} L
                                 </Badge>
                               )}
-                            </td>
-                            <td role="cell" data-label="Estado">
-                              <Badge tone={r.status === "activo" ? "activo" : r.status === "anulado" ? "mala" : "vencido"}>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={r.status === "activo" ? "success" : r.status === "anulado" ? "destructive" : "secondary"}>
                                 {r.status}
                               </Badge>
-                            </td>
-                            <td role="cell" data-label="Acciones">
+                            </TableCell>
+                            <TableCell>
                               {r.status === "activo" ? (
-                                <span className="rowcard-actions">
+                                <span className="flex flex-wrap gap-1.5">
                                   <Button variant="outline" size="sm" onClick={() => { setCorrecting(r); setCApplied(String(r.applied_liters)); setCMotivo(""); }}>
                                     Corregir
                                   </Button>
-                                  <Button variant="danger-outline" size="sm" onClick={() => { setVoiding(r); setVMotivo(""); setConfirmVoid(false); }}>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => { setVoiding(r); setVMotivo(""); setConfirmVoid(false); }}
+                                    className="border-danger-100 text-danger-600 hover:bg-danger-50 hover:text-danger-600"
+                                  >
                                     Anular
                                   </Button>
                                 </span>
                               ) : (
-                                <span className="tiny">—</span>
+                                <span className="text-xs text-neutral-500">—</span>
                               )}
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         );
                       })}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
-                <Pager page={coll.page} pages={coll.pages} onPage={coll.setPage} count={`${coll.total} en total`} />
+                <PaginationControls
+                  page={coll.page}
+                  pages={coll.pages}
+                  onPageChange={coll.setPage}
+                  count={`${coll.total} en total`}
+                />
               </>
             )}
           </section>
         </>
       )}
 
-      {open ? (
-        <Modal title="Anotar riego" sub="Registra el agua que realmente aplicaste." onClose={() => setOpen(false)} busy={saving}
-          foot={
-            <>
-              <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>
-                Cancelar
-              </Button>
-              <Button loading={saving} onClick={() => submitForm("riego-form")}>
-                Guardar
-              </Button>
-            </>
-          }
-        >
-          <form className="ops-irrigation-form" id="riego-form" onSubmit={(e) => void onCreate(e)}>
-            <div className="form-grid">
-              <Field label="Parcela" required htmlFor="rg-plot" error={fieldErrors.plot_id?.[0]}>
-                <SelectInput id="rg-plot" value={fPlot} onChange={(e) => setFPlot(e.target.value)}>
+      <Dialog
+        open={open}
+        onOpenChange={(o) => {
+          if (!o && !saving) setOpen(false);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Anotar riego</DialogTitle>
+            <DialogDescription>Registra el agua que realmente aplicaste.</DialogDescription>
+          </DialogHeader>
+          <form id="riego-form" onSubmit={(e) => void onCreate(e)} className="grid gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField label="Parcela" required htmlFor="rg-plot" error={fieldErrors.plot_id?.[0]}>
+                <select id="rg-plot" className={SELECT_CLS} value={fPlot} onChange={(e) => setFPlot(e.target.value)}>
                   <option value="">Selecciona…</option>
                   {plots.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}
                     </option>
                   ))}
-                </SelectInput>
-              </Field>
-              <Field label="Fecha del riego" required htmlFor="rg-at" hint="Día/mes/año, hora:minuto · ej. 12/09/2026 06:30" error={fieldErrors.occurred_at?.[0]}>
-                <TextInput id="rg-at" type="datetime-local" max={nowLocalInput()} value={fAt} onChange={(e) => setFAt(e.target.value)} />
-              </Field>
+                </select>
+              </FormField>
+              <FormField label="Fecha del riego" required htmlFor="rg-at" hint="Día/mes/año, hora:minuto · ej. 12/09/2026 06:30" error={fieldErrors.occurred_at?.[0]}>
+                <Input id="rg-at" type="datetime-local" max={nowLocalInput()} value={fAt} onChange={(e) => setFAt(e.target.value)} />
+              </FormField>
             </div>
-            <div className="form-grid">
-              <Field label="Agua aplicada (L)" required htmlFor="rg-apl" error={fieldErrors.applied_liters?.[0]}>
-                <TextInput id="rg-apl" inputMode="decimal" placeholder="Ej. 4800" value={fApplied} onChange={(e) => setFApplied(e.target.value)} />
-              </Field>
-              <Field label="Recomendada (L, opcional)" htmlFor="rg-rec" error={fieldErrors.recommended_liters?.[0]}>
-                <TextInput id="rg-rec" inputMode="decimal" placeholder="Ej. 4650" value={fRecommended} onChange={(e) => setFRecommended(e.target.value)} />
-              </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField label="Agua aplicada (L)" required htmlFor="rg-apl" error={fieldErrors.applied_liters?.[0]}>
+                <Input id="rg-apl" inputMode="decimal" placeholder="Ej. 4800" value={fApplied} onChange={(e) => setFApplied(e.target.value)} />
+              </FormField>
+              <FormField label="Recomendada (L, opcional)" htmlFor="rg-rec" error={fieldErrors.recommended_liters?.[0]}>
+                <Input id="rg-rec" inputMode="decimal" placeholder="Ej. 4650" value={fRecommended} onChange={(e) => setFRecommended(e.target.value)} />
+              </FormField>
             </div>
-            <Field label="Nota (opcional)" htmlFor="rg-note" error={fieldErrors.note?.[0]}>
-              <TextInput id="rg-note" placeholder="Riego de prueba" value={fNote} onChange={(e) => setFNote(e.target.value)} />
-            </Field>
+            <FormField label="Nota (opcional)" htmlFor="rg-note" error={fieldErrors.note?.[0]}>
+              <Input id="rg-note" placeholder="Riego de prueba" value={fNote} onChange={(e) => setFNote(e.target.value)} />
+            </FormField>
           </form>
-        </Modal>
-      ) : null}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button disabled={saving} onClick={() => submitForm("riego-form")}>
+              {saving ? (
+                <>
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  Guardar
+                </>
+              ) : (
+                <>Guardar</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {correcting ? (
-        <Modal title={`Corregir riego #${correcting.id}`} sub="Se crea un registro nuevo; el anterior queda como «corregido»." onClose={() => setCorrecting(null)} busy={busy}
-          foot={
-            <>
-              <Button variant="outline" onClick={() => setCorrecting(null)} disabled={busy}>
-                Cancelar
-              </Button>
-              <Button loading={busy} onClick={() => void onCorrect()}>
-                Guardar corrección
-              </Button>
-            </>
-          }
-        >
-          <Field label="Agua aplicada corregida (L)" required htmlFor="rg-cap">
-            <TextInput id="rg-cap" inputMode="decimal" value={cApplied} onChange={(e) => setCApplied(e.target.value)} />
-          </Field>
-          <Field label="Motivo" hint="Queda en la auditoría." required htmlFor="rg-cmo">
-            <TextInput id="rg-cmo" placeholder="Medí mal el contador" value={cMotivo} onChange={(e) => setCMotivo(e.target.value)} />
-          </Field>
-        </Modal>
-      ) : null}
+      <Dialog
+        open={correcting !== null}
+        onOpenChange={(o) => {
+          if (!o && !busy) setCorrecting(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{correcting ? `Corregir riego #${correcting.id}` : "Corregir riego"}</DialogTitle>
+            <DialogDescription>Se crea un registro nuevo; el anterior queda como «corregido».</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <FormField label="Agua aplicada corregida (L)" required htmlFor="rg-cap">
+              <Input id="rg-cap" inputMode="decimal" value={cApplied} onChange={(e) => setCApplied(e.target.value)} />
+            </FormField>
+            <FormField label="Motivo" hint="Queda en la auditoría." required htmlFor="rg-cmo">
+              <Input id="rg-cmo" placeholder="Medí mal el contador" value={cMotivo} onChange={(e) => setCMotivo(e.target.value)} />
+            </FormField>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCorrecting(null)} disabled={busy}>
+              Cancelar
+            </Button>
+            <Button disabled={busy} onClick={() => void onCorrect()}>
+              {busy ? (
+                <>
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  Guardar corrección
+                </>
+              ) : (
+                <>Guardar corrección</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {voiding && !confirmVoid ? (
-        <Modal
-          title={`Anular riego #${voiding.id}`}
-          sub="Escribe el motivo y confirma en el siguiente paso. No se puede deshacer."
-          onClose={() => setVoiding(null)}
-          busy={busy}
-          foot={
-            <>
-              <Button variant="outline" onClick={() => setVoiding(null)} disabled={busy}>
-                Cancelar
-              </Button>
-              <Button
-                variant="danger"
-                disabled={vMotivo.trim() === ""}
-                onClick={() => {
-                  if (vMotivo.trim() === "") return;
-                  setConfirmVoid(true);
-                }}
-              >
-                Continuar
-              </Button>
-            </>
-          }
-        >
-          <Field label="Motivo de anulación" required htmlFor="rg-vmo" hint="Quedará en la auditoría junto al registro.">
-            <TextInput id="rg-vmo" placeholder="No se regó" value={vMotivo} onChange={(e) => setVMotivo(e.target.value)} />
-          </Field>
-        </Modal>
-      ) : null}
+      <Dialog
+        open={voiding !== null && !confirmVoid}
+        onOpenChange={(o) => {
+          if (!o && !busy) setVoiding(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{voiding ? `Anular riego #${voiding.id}` : "Anular riego"}</DialogTitle>
+            <DialogDescription>Escribe el motivo y confirma en el siguiente paso. No se puede deshacer.</DialogDescription>
+          </DialogHeader>
+          <FormField label="Motivo de anulación" required htmlFor="rg-vmo" hint="Quedará en la auditoría junto al registro.">
+            <Input id="rg-vmo" placeholder="No se regó" value={vMotivo} onChange={(e) => setVMotivo(e.target.value)} />
+          </FormField>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVoiding(null)} disabled={busy}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={vMotivo.trim() === ""}
+              onClick={() => {
+                if (vMotivo.trim() === "") return;
+                setConfirmVoid(true);
+              }}
+            >
+              Continuar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {voiding && confirmVoid ? (
         <Confirm

@@ -1,18 +1,27 @@
 /* Alertas calculadas: sensores callados/anómalos, incompletas y humedad crítica. */
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { ArrowRight, Bell, Check, Droplet, Info, Radio, TriangleAlert } from "lucide-react";
 import { friendlyError } from "../api/client";
 import { listAlerts } from "../api/endpoints";
 import type { AlertItem, Plot } from "../api/types";
-import { Badge, Banner, Empty, Icon, Loading, PageHead, Pager, SearchInput, Stat, Tabs } from "../components/ui";
+import { PageHead } from "../components/shadcn/page-head";
+import { Stat } from "../components/shadcn/Stat";
+import { Badge } from "../components/shadcn/badge";
+import { Banner, Empty, Loading } from "../components/shadcn/feedback";
+import { Button } from "../components/shadcn/button";
+import { FilterTabs } from "../components/shadcn/filter-tabs";
+import { PaginationControls } from "../components/shadcn/PaginationControls";
+import { SearchInput } from "../components/shadcn/search-input";
 import { useCollection } from "../hooks/useCollection";
+import { colors } from "../lib/theme";
 
 type Tab = "todas" | "criticas" | "sensores";
 type AlertWithPlot = AlertItem & { plot?: Plot };
 
-function toneOf(a: AlertItem): string {
+function toneOf(a: AlertItem): "critica" | "sensor" | "incompleta" {
   if (a.tipo.includes("critica")) return "critica";
-  if (a.tipo.startsWith("sensor")) return "vencido";
+  if (a.tipo.startsWith("sensor")) return "sensor";
   return "incompleta";
 }
 
@@ -66,7 +75,7 @@ export function Alerts(): React.JSX.Element {
   const shown = coll.items;
 
   return (
-    <div className="page ops-page">
+    <div>
       <PageHead
         eyebrow="Vigilancia"
         title="Alertas"
@@ -79,84 +88,140 @@ export function Alerts(): React.JSX.Element {
       ) : error ? (
         <Banner kind="bad">
           {error}{" "}
-          <button className="link" onClick={() => void load()}>
+          <Button variant="link" size="sm" onClick={() => void load()}>
             Reintentar
-          </button>
+          </Button>
         </Banner>
       ) : (
-        <section className="stack" aria-label="Lista de alertas">
-          <div className="stats">
-            <Stat value={String(alerts.length)} label="Avisos detectados" icon="bell" sub="Estado actual del campo" />
-            <Stat value={String(criticas.length)} label="Humedad crítica" icon="drop" tone={criticas.length ? "bad" : "ok"} sub="Parcelas que requieren atención" />
-            <Stat value={String(sensores.length)} label="Avisos de sensores" icon="sensor" tone={sensores.length ? "warn" : "ok"} sub="Disponibilidad y calidad de los datos" />
-          </div>
-          <div className="ops-register stack">
-          <div className="ops-section-head"><div><h2 className="section-title">Bandeja de alertas</h2><p className="small muted">Filtra por prioridad o encuentra una parcela.</p></div></div>
-          {criticas.length > 0 ? (
-            <Banner kind="warn">
-              {criticas.length} {criticas.length === 1 ? "alerta crítica" : "alertas críticas"}: revisa esas parcelas hoy.
-            </Banner>
-          ) : null}
-          <div className="toolbar">
-            <Tabs<Tab>
-              label="Filtrar alertas"
-              value={tab}
-              onChange={(v) => {
-                setTab(v);
-                coll.setPage(1);
-              }}
-              options={[
-                { value: "todas", label: `Todas (${alerts.length})` },
-                { value: "criticas", label: `Críticas (${criticas.length})` },
-                { value: "sensores", label: `Sensores (${sensores.length})` },
-              ]}
+        <section aria-label="Lista de alertas" className="grid gap-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Stat
+              value={String(alerts.length)}
+              label="Avisos detectados"
+              icon={<Bell className="h-[18px] w-[18px]" aria-hidden="true" />}
+              sub="Estado actual del campo"
             />
-            <SearchInput
-              value={coll.query}
-              onChange={coll.setQuery}
-              placeholder="Buscar por mensaje o parcela…"
-              label="Buscar alertas"
+            <Stat
+              value={String(criticas.length)}
+              label="Humedad crítica"
+              icon={<Droplet className="h-[18px] w-[18px]" aria-hidden="true" />}
+              tone={criticas.length ? "bad" : "ok"}
+              sub="Parcelas que requieren atención"
+            />
+            <Stat
+              value={String(sensores.length)}
+              label="Avisos de sensores"
+              icon={<Radio className="h-[18px] w-[18px]" aria-hidden="true" />}
+              tone={sensores.length ? "warn" : "ok"}
+              sub="Disponibilidad y calidad de los datos"
             />
           </div>
-          <span className="tiny" aria-live="polite">
-            {coll.total} {coll.total === 1 ? "alerta" : "alertas"}
-          </span>
-          {shown.length === 0 ? (
-            <Empty
-              icon="check"
-              title={coll.query ? "Sin coincidencias" : tab === "todas" ? "Sin alertas pendientes" : "Nada en esta vista"}
-              hint={coll.query ? "Prueba con otro mensaje o parcela." : tab === "todas" ? "No hay avisos activos sobre las parcelas o los sensores." : "Cambia de pestaña para ver otras alertas."}
-            />
-          ) : (
-            <>
-              <div className="ops-alert-list">
-                {shown.map((a, i) => {
-                  const label = plotLabel(a as AlertWithPlot);
-                  return (
-                    <article className={`ops-alert-item ${a.tipo.includes("critica") ? "ops-alert-critical" : ""}`} key={`${a.tipo}-${a.plot_id}-${i}`}>
-                      <span className="ops-alert-icon"><Icon name={a.tipo.startsWith("sensor") ? "sensor" : a.tipo.includes("critica") ? "alert" : "info"} size={20} /></span>
-                      <div className="rowcard-body">
-                        <p className="ops-alert-message">{a.mensaje}</p>
-                        {ALERT_HELP[a.tipo] ? <p className="tiny">{ALERT_HELP[a.tipo].hint}</p> : null}
-                        {label ? <p className="tiny">{label}</p> : null}
-                      </div>
-                      <div className="rowcard-actions">
-                        <Badge tone={toneOf(a)}>{a.tipo.replace(/_/g, " ")}</Badge>
-                        {a.plot_id !== null ? (
-                          <Link className="link small" to="/evaluar" state={{ plotId: a.plot_id }}>
-                            Ir a parcela <Icon name="arrow" size={14} />
-                          </Link>
-                        ) : null}
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-              {coll.total > 10 ? (
-                <Pager page={coll.page} pages={coll.pages} onPage={coll.setPage} count={`${coll.total} en total`} />
-              ) : null}
-            </>
-          )}
+
+          <div className="grid gap-3">
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight text-neutral-800">Bandeja de alertas</h2>
+              <p className="mt-1 text-sm text-neutral-600">Filtra por prioridad o encuentra una parcela.</p>
+            </div>
+            {criticas.length > 0 ? (
+              <Banner kind="warn">
+                {criticas.length} {criticas.length === 1 ? "alerta crítica" : "alertas críticas"}: revisa esas parcelas hoy.
+              </Banner>
+            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              <FilterTabs<Tab>
+                label="Filtrar alertas"
+                value={tab}
+                onChange={(v) => {
+                  setTab(v);
+                  coll.setPage(1);
+                }}
+                options={[
+                  { value: "todas", label: `Todas (${alerts.length})` },
+                  { value: "criticas", label: `Críticas (${criticas.length})` },
+                  { value: "sensores", label: `Sensores (${sensores.length})` },
+                ]}
+              />
+              <SearchInput
+                value={coll.query}
+                onChange={coll.setQuery}
+                placeholder="Buscar por mensaje o parcela…"
+                label="Buscar alertas"
+                className="min-w-[200px] flex-1"
+              />
+            </div>
+            <span className="text-xs text-neutral-500" aria-live="polite">
+              {coll.total} {coll.total === 1 ? "alerta" : "alertas"}
+            </span>
+            {shown.length === 0 ? (
+              <Empty
+                icon={<Check className="h-5 w-5" aria-hidden="true" />}
+                title={coll.query ? "Sin coincidencias" : tab === "todas" ? "Sin alertas pendientes" : "Nada en esta vista"}
+                hint={coll.query ? "Prueba con otro mensaje o parcela." : tab === "todas" ? "No hay avisos activos sobre las parcelas o los sensores." : "Cambia de pestaña para ver otras alertas."}
+              />
+            ) : (
+              <>
+                <div className="grid gap-2">
+                  {shown.map((a, i) => {
+                    const label = plotLabel(a as AlertWithPlot);
+                    const critical = a.tipo.includes("critica");
+                    const tone = toneOf(a);
+                    return (
+                      <article
+                        key={`${a.tipo}-${a.plot_id}-${i}`}
+                        className="flex gap-3 rounded-lg border border-l-4 border-neutral-200 bg-white p-4 shadow-card"
+                        style={{ borderLeftColor: critical ? colors.danger[500] : tone === "sensor" ? colors.warning[500] : colors.neutral[400] }}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={
+                            critical
+                              ? "text-danger-600"
+                              : tone === "sensor"
+                                ? "text-warning-600"
+                                : "text-info-600"
+                          }
+                        >
+                          {a.tipo.startsWith("sensor") ? (
+                            <Radio className="h-5 w-5" />
+                          ) : critical ? (
+                            <TriangleAlert className="h-5 w-5" />
+                          ) : (
+                            <Info className="h-5 w-5" />
+                          )}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-neutral-800">{a.mensaje}</p>
+                          {ALERT_HELP[a.tipo] ? <p className="mt-1 text-xs text-neutral-500">{ALERT_HELP[a.tipo].hint}</p> : null}
+                          {label ? <p className="mt-1 text-xs text-neutral-500">{label}</p> : null}
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-2">
+                          <Badge variant={critical ? "destructive" : tone === "sensor" ? "warning" : "secondary"}>
+                            {a.tipo.replace(/_/g, " ")}
+                          </Badge>
+                          {a.plot_id !== null ? (
+                            <Link
+                              to="/evaluar"
+                              state={{ plotId: a.plot_id }}
+                              className="inline-flex items-center gap-1 text-sm font-medium text-primary-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600/15"
+                            >
+                              Ir a parcela <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                            </Link>
+                          ) : null}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+                {coll.total > 10 ? (
+                  <PaginationControls
+                    page={coll.page}
+                    pages={coll.pages}
+                    onPageChange={coll.setPage}
+                    count={`${coll.total} en total`}
+                  />
+                ) : null}
+              </>
+            )}
           </div>
         </section>
       )}

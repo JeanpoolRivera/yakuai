@@ -1,9 +1,16 @@
 /* Catálogos FAO (solo lectura): cultivos/etapas y suelos. */
 import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, Layers, Sprout } from "lucide-react";
 import { listCrops, listSoils } from "../api/endpoints";
 import type { Crop, SoilTexture } from "../api/types";
-import { Badge, Banner, Card, Empty, Icon, Loading, PageHead, SearchInput } from "../components/ui";
+import { PageHead } from "../components/shadcn/page-head";
+import { Badge } from "../components/shadcn/badge";
+import { Banner, Empty, Loading } from "../components/shadcn/feedback";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/shadcn/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/shadcn/table";
+import { SearchInput } from "../components/shadcn/search-input";
 import { fmtNum, toNum } from "../lib/format";
+import { cn } from "../lib/utils";
 
 const ETAPAS: Record<string, string> = {
   ini: "Inicio",
@@ -45,7 +52,7 @@ export function Catalogs(): React.JSX.Element {
   }, []);
 
   return (
-    <div className="page manage-page">
+    <div>
       <PageHead
         eyebrow="Referencia"
         title="Cultivos y suelos"
@@ -58,141 +65,157 @@ export function Catalogs(): React.JSX.Element {
       ) : error ? (
         <Banner kind="bad">{error}</Banner>
       ) : (
-        <div className="stack">
-          <div className="manage-reference">
-            <span className="manage-icon"><Icon name="layers" size={24} /></span>
-            <div><p className="eyebrow">Biblioteca agronómica</p><h2>Una base técnica para cada recomendación</h2><p>Parámetros FAO-56 y Saxton &amp; Rawls. Catálogo de consulta; los cambios los realiza el administrador.</p></div>
-            <Badge tone="neutro">Solo lectura</Badge>
+        <div className="grid gap-4">
+          <div className="flex items-start gap-3 rounded-lg border border-neutral-200 bg-white p-4 shadow-card">
+            <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-primary-50 text-primary-700">
+              <Layers className="h-6 w-6" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-2xs font-semibold uppercase tracking-wider text-primary-700">Biblioteca agronómica</p>
+              <h2 className="mt-1 text-xl font-semibold tracking-tight text-neutral-800">Una base técnica para cada recomendación</h2>
+              <p className="mt-1 text-sm text-neutral-600">Parámetros FAO-56 y Saxton &amp; Rawls. Catálogo de consulta; los cambios los realiza el administrador.</p>
+            </div>
+            <Badge variant="secondary" className="shrink-0">Solo lectura</Badge>
           </div>
+
           <SearchInput
             value={query}
             onChange={setQuery}
             placeholder="Buscar cultivo o textura de suelo…"
             label="Buscar en catálogos"
           />
-          <div className="manage-catalog-grid">
-          <Card label="Cultivos y etapas" title="Cultivos y etapas" sub="Coeficientes de cultivo (Kc), duración y profundidad de raíces.">
-            {cropList.length === 0 ? (
-              <Empty icon="sprout" title={query ? "Sin coincidencias" : "Sin cultivos"} hint={query ? "Prueba con otro nombre." : "El servidor aún no cargó el catálogo."} />
-            ) : (
-              <div className="rows">
-                {cropList.map((c) => {
-                  const open = visibleOpen === c.id;
-                  const panelId = `crop-panel-${c.id}`;
-                  return (
-                    <article className="manage-crop" key={c.id}>
-                      <button
-                        className="spread accordion-btn manage-crop-toggle"
-                        aria-expanded={open}
-                        aria-controls={panelId}
-                        onClick={() => setOpenCrop(open ? null : c.id)}
-                      >
-                        <span>
-                          <strong>{c.name}</strong>
-                          <span className="tiny accordion-sub">
-                            {c.scientific_name ?? c.code}
-                          </span>
-                        </span>
-                        <span className="row">
-                          <Badge tone="neutro">{c.stages?.length ?? 0} etapas</Badge>
-                          <span
-                            aria-hidden="true"
-                            className={`accordion-chevron${open ? " open" : ""}`}
-                          >
-                            <Icon name="chevron" size={16} />
-                          </span>
-                        </span>
-                      </button>
-                      {open ? (
-                        <div className="table-wrap mt-3" id={panelId}>
-                          <table className="tbl">
-                            <caption className="sr-only">Etapas del cultivo {c.name}</caption>
-                            <thead>
-                              <tr>
-                                <th scope="col">Etapa</th>
-                                <th scope="col" className="num">Días</th>
-                                <th scope="col" className="num">Kc</th>
-                                <th scope="col" className="num">Raíz (m)</th>
-                                <th scope="col" className="num">p</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {(c.stages ?? []).map((s) => (
-                                <tr key={s.id}>
-                                  <td title={ETAPAS[s.stage] ?? s.stage}>{ETAPAS[s.stage] ?? s.stage}</td>
-                                  <td className="num">{s.days}</td>
-                                  <td className="num">{s.kc}</td>
-                                  <td className="num">{s.root_depth_m}</td>
-                                  <td className="num">{s.depletion_fraction}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : null}
-                    </article>
-                  );
-                })}
-              </div>
-            )}
-          </Card>
 
-          <Card
-            label="Texturas de suelo"
-            title="Texturas de suelo"
-            sub="Capacidad de campo y punto de marchitez en fracción volumétrica."
-          >
-            {soilList.length === 0 ? (
-              <Empty icon="layers" title={query ? "Sin coincidencias" : "Sin suelos"} hint={query ? "Prueba con otro nombre." : "El servidor aún no cargó el catálogo."} />
-            ) : (
-              <div className="table-wrap">
-                <table className="tbl">
-                  <caption className="sr-only">Texturas de suelo con capacidad de campo y marchitez</caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">Textura</th>
-                      <th scope="col" className="num">CC</th>
-                      <th scope="col" className="num">PMP</th>
-                      <th scope="col" className="num">Agua útil</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {soilList.map((s) => {
-                      const cc = toNum(s.field_capacity) ?? 0;
-                      const pmp = toNum(s.wilting_point) ?? 0;
+          <div className="grid items-start gap-4 xl:grid-cols-2">
+            <Card aria-label="Cultivos y etapas">
+              <CardHeader>
+                <CardTitle>Cultivos y etapas</CardTitle>
+                <CardDescription>Coeficientes de cultivo (Kc), duración y profundidad de raíces.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {cropList.length === 0 ? (
+                  <Empty
+                    icon={<Sprout className="h-5 w-5" aria-hidden="true" />}
+                    title={query ? "Sin coincidencias" : "Sin cultivos"}
+                    hint={query ? "Prueba con otro nombre." : "El servidor aún no cargó el catálogo."}
+                  />
+                ) : (
+                  <div className="grid gap-2">
+                    {cropList.map((c) => {
+                      const open = visibleOpen === c.id;
+                      const panelId = `crop-panel-${c.id}`;
                       return (
-                        <tr key={s.code}>
-                          <td>
-                            <strong>{s.name}</strong>
-                            <div className="tiny mono">{s.code}</div>
-                          </td>
-                          <td className="num">{fmtNum(cc, 3)}</td>
-                          <td className="num">{fmtNum(pmp, 3)}</td>
-                          <td className="num">{fmtNum(cc - pmp, 3)}</td>
-                        </tr>
+                        <article key={c.id} className="rounded-md border border-neutral-200">
+                          <button
+                            type="button"
+                            aria-expanded={open}
+                            aria-controls={panelId}
+                            onClick={() => setOpenCrop(open ? null : c.id)}
+                            className="flex w-full items-center justify-between gap-3 p-3 text-left transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600/25"
+                          >
+                            <span className="min-w-0">
+                              <strong className="block truncate font-semibold text-neutral-800">{c.name}</strong>
+                              <span className="block truncate text-xs text-neutral-500">
+                                {c.scientific_name ?? c.code}
+                              </span>
+                            </span>
+                            <span className="flex shrink-0 items-center gap-2">
+                              <Badge variant="secondary">{c.stages?.length ?? 0} etapas</Badge>
+                              <ChevronDown
+                                aria-hidden="true"
+                                className={cn("h-4 w-4 text-neutral-500 transition-transform", open && "rotate-180")}
+                              />
+                            </span>
+                          </button>
+                          {open ? (
+                            <div id={panelId} className="border-t border-neutral-200 p-3">
+                              <Table>
+                                <caption className="sr-only">Etapas del cultivo {c.name}</caption>
+                                <TableHeader>
+                                  <TableRow className="bg-neutral-50 hover:bg-neutral-50">
+                                    <TableHead>Etapa</TableHead>
+                                    <TableHead className="text-right tabular-nums">Días</TableHead>
+                                    <TableHead className="text-right tabular-nums">Kc</TableHead>
+                                    <TableHead className="text-right tabular-nums">Raíz (m)</TableHead>
+                                    <TableHead className="text-right tabular-nums">p</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {(c.stages ?? []).map((s) => (
+                                    <TableRow key={s.id}>
+                                      <TableCell title={ETAPAS[s.stage] ?? s.stage}>{ETAPAS[s.stage] ?? s.stage}</TableCell>
+                                      <TableCell className="text-right tabular-nums">{s.days}</TableCell>
+                                      <TableCell className="text-right tabular-nums">{s.kc}</TableCell>
+                                      <TableCell className="text-right tabular-nums">{s.root_depth_m}</TableCell>
+                                      <TableCell className="text-right tabular-nums">{s.depletion_fraction}</TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          ) : null}
+                        </article>
                       );
                     })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card aria-label="Texturas de suelo">
+              <CardHeader>
+                <CardTitle>Texturas de suelo</CardTitle>
+                <CardDescription>Capacidad de campo y punto de marchitez en fracción volumétrica.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {soilList.length === 0 ? (
+                  <Empty
+                    icon={<Layers className="h-5 w-5" aria-hidden="true" />}
+                    title={query ? "Sin coincidencias" : "Sin suelos"}
+                    hint={query ? "Prueba con otro nombre." : "El servidor aún no cargó el catálogo."}
+                  />
+                ) : (
+                  <Table>
+                    <caption className="sr-only">Texturas de suelo con capacidad de campo y marchitez</caption>
+                    <TableHeader>
+                      <TableRow className="bg-neutral-50 hover:bg-neutral-50">
+                        <TableHead>Textura</TableHead>
+                        <TableHead className="text-right tabular-nums">CC</TableHead>
+                        <TableHead className="text-right tabular-nums">PMP</TableHead>
+                        <TableHead className="text-right tabular-nums">Agua útil</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {soilList.map((s) => {
+                        const cc = toNum(s.field_capacity) ?? 0;
+                        const pmp = toNum(s.wilting_point) ?? 0;
+                        return (
+                          <TableRow key={s.code}>
+                            <TableCell>
+                              <strong className="font-semibold">{s.name}</strong>
+                              <div className="font-mono text-xs text-neutral-500">{s.code}</div>
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">{fmtNum(cc, 3)}</TableCell>
+                            <TableCell className="text-right tabular-nums">{fmtNum(pmp, 3)}</TableCell>
+                            <TableCell className="text-right tabular-nums">{fmtNum(cc - pmp, 3)}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
           </div>
-          <dl className="kv" aria-label="Significado de los parámetros">
-            <dt className="kv-dt">Kc</dt>
-            <dd className="kv-dd">Coeficiente de cultivo: cuánta agua usa la planta en cada etapa.</dd>
-            <dt className="kv-dt">Zr · Raíz (m)</dt>
-            <dd className="kv-dd">Profundidad de raíces que el riego debe alcanzar.</dd>
-            <dt className="kv-dt">p</dt>
-            <dd className="kv-dd">Fracción de agotamiento permitido antes de regar.</dd>
-            <dt className="kv-dt">CC</dt>
-            <dd className="kv-dd">Capacidad de campo: agua que el suelo retiene tras drenar.</dd>
-            <dt className="kv-dt">PMP</dt>
-            <dd className="kv-dd">Punto de marchitez permanente: bajo este nivel la planta no se recupera.</dd>
-            <dt className="kv-dt">Agua útil</dt>
-            <dd className="kv-dd">Diferencia CC menos PMP disponible para el cultivo.</dd>
+
+          <dl aria-label="Significado de los parámetros" className="grid gap-x-8 gap-y-3 rounded-lg border border-neutral-200 bg-white p-4 shadow-card sm:grid-cols-2">
+            <div><dt className="font-mono text-sm font-semibold text-primary-700">Kc</dt><dd className="mt-0.5 text-sm text-neutral-600">Coeficiente de cultivo: cuánta agua usa la planta en cada etapa.</dd></div>
+            <div><dt className="font-mono text-sm font-semibold text-primary-700">Zr · Raíz (m)</dt><dd className="mt-0.5 text-sm text-neutral-600">Profundidad de raíces que el riego debe alcanzar.</dd></div>
+            <div><dt className="font-mono text-sm font-semibold text-primary-700">p</dt><dd className="mt-0.5 text-sm text-neutral-600">Fracción de agotamiento permitido antes de regar.</dd></div>
+            <div><dt className="font-mono text-sm font-semibold text-primary-700">CC</dt><dd className="mt-0.5 text-sm text-neutral-600">Capacidad de campo: agua que el suelo retiene tras drenar.</dd></div>
+            <div><dt className="font-mono text-sm font-semibold text-primary-700">PMP</dt><dd className="mt-0.5 text-sm text-neutral-600">Punto de marchitez permanente: bajo este nivel la planta no se recupera.</dd></div>
+            <div><dt className="font-mono text-sm font-semibold text-primary-700">Agua útil</dt><dd className="mt-0.5 text-sm text-neutral-600">Diferencia CC menos PMP disponible para el cultivo.</dd></div>
           </dl>
-          <p className="manage-caption">Valores de referencia FAO-56 y Saxton &amp; Rawls, pendientes de validación local en Chupaca. Catálogo de consulta.</p>
+          <p className="text-xs text-neutral-500">Valores de referencia FAO-56 y Saxton &amp; Rawls, pendientes de validación local en Chupaca. Catálogo de consulta.</p>
         </div>
       )}
     </div>

@@ -1,10 +1,13 @@
+import { Lock } from "lucide-react";
 import { ROUTE_TITLES } from "./navigation";
 /* YakuAI — rutas y puertas por rol. */
 import { Suspense, lazy } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "./auth";
-import { FarmerShell, TechShell } from "../components/layout";
-import { Button, Empty, Loading } from "../components/ui";
+import { FarmerShell } from "../components/layout/FarmerShell";
+import { TechShell } from "../components/layout/TechShell";
+import { Button } from "../components/shadcn/button";
+import { Empty, Loading } from "../components/shadcn/feedback";
 import { isFarmerRole, isStaffRole } from "../lib/permissions";
 import { Dashboard } from "../pages/Dashboard";
 import { Hoy } from "../pages/Hoy";
@@ -56,13 +59,15 @@ function ShellRoutes(): React.JSX.Element {
   if (!isStaffRole(role)) {
     // Rol no reconocido por esta versión: vista restringida sin navegación.
     return (
-      <main className="page">
-        <Empty
-          icon="lock"
-          title="Sesión no reconocida"
-          hint="Tu cuenta tiene un rol que esta versión no reconoce. Cierra sesión o contacta a tu técnico."
-          action={<Button variant="outline" onClick={exit}>Cerrar sesión</Button>}
-        />
+      <main className="mx-auto grid min-h-dvh w-full max-w-[88rem] place-items-center p-4">
+        <div className="w-full max-w-md">
+          <Empty
+            icon={<Lock className="h-5 w-5" aria-hidden="true" />}
+            title="Sesión no reconocida"
+            hint="Tu cuenta tiene un rol que esta versión no reconoce. Cierra sesión o contacta a tu técnico."
+            action={<Button variant="outline" onClick={exit}>Cerrar sesión</Button>}
+          />
+        </div>
       </main>
     );
   }

@@ -1,1632 +1,479 @@
-# MEJORAS.md — Plan maestro de implementación del frontend YakuAI
+# MEJORAS.md — Rediseño total del frontend (shadcn/ui + Tailwind CSS v4)
 
-## 1. Objetivo general y alcance
-
-### 1.1 Objetivo general
-Definir, ordenar y controlar **todas las implementaciones necesarias del frontend YakuAI**, comenzando por la corrección y estabilización técnica, y continuando con el rediseño funcional y visual de cada módulo.
-
-### 1.2 Alcance
-- Sistema: **YakuAI — apoyo a la decisión de riego**.
-- Frontend: React + TypeScript + Vite.
-- API: Laravel bajo `/api/v1`.
-- Roles: `admin`, `tecnico`, `agricultor`.
-- No incluye cambios de lógica de negocio del backend salvo dependencias o contratos necesarios.
-
-### 1.3 Restricciones obligatorias
-- Conservar el diseño visual actual del **Login** como referencia de identidad visual.
-- Conservar el diseño visual actual del **sidebar**.
-- Rediseñar los demás módulos funcional y visualmente desde cero cuando sea necesario.
-- No introducir funcionalidades innecesarias.
-- No eliminar funcionalidades esenciales.
-- No comenzar una fase sin cumplir el checkpoint anterior.
-
-## 2. Diagnóstico y hallazgos
-
-### 2.1 Hallazgos críticos
-- `H-01`: Inconsistencias en visualización y lógica del umbral de humedad.
-- `H-02`: Posible acceso/redirección incorrecta según rol.
-- `H-03`: Rutas sensibles potencialmente accesibles sin la protección adecuada.
-- `H-04`: Formularios con campos/validadores inconsistentes según tipo de sensor.
-- `H-05`: Riesgo de sobreriego por falta de validación contextual.
-
-### 2.2 Hallazgos funcionales y de UX
-- `H-06`: Datos no persistentes o state local que se pierde.
-- `H-07`: Flujos con demasiados pasos o fricción innecesaria.
-- `H-08`: Textos técnicos sin explicación en lenguaje claro.
-- `H-09`: Estados visuales inconsistentes.
-- `H-10`: Falta de explicación en validaciones/fallos.
-- `H-11`: Falta de indicadores de frescura de datos.
-- `H-12`: Controles duplicados o desincronizados.
-- `H-13`: Datos por defecto regionales hardcodeados.
-- `H-14`: Datos de contacto/soporte hardcodeados.
-- `H-15`: Posible código, imports, dependencias o componentes sin uso.
-
-## 3. ETAPA I — Corrección, limpieza y estabilización
-
-**Estado general de la etapa:** `EN PROGRESO`
-
-### Fase FT-1.1 — Corrección del umbral de humedad
-**Estado:** `COMPLETADO`
-
-#### Problemas
-- `H-01`
-
-#### Archivos/componentes involucrados
-- `frontend/src/components/ui/Irrigation.tsx`
-- `frontend/src/pages/Evaluate.tsx`
-
-#### Tareas
-- [x] Revisar cómo se interpreta `umbral`.
-- [x] Asegurar coherencia entre valor, porcentaje mostrado y estado.
-- [x] No alterar visualmente el componente salvo que sea necesario para corregir la lógica.
-- [x] Verificar los estados: suficiente, bajo umbral y crítico.
-
-#### Resultado esperado
-- El umbral mostrado coincide con el umbral usado para decidir.
-
-#### Pruebas y aceptación
-- [x] Probar valores por encima, cerca y por debajo del umbral.
-- [x] Verificar que no hay incoherencias entre número y estado visual.
-
-#### Avance 2026-10-10
-- Hallazgo verificado: `humedad_pct` llega en porcentaje y `umbral`/`pmp` en fracción; la conversión `* 100` en `Evaluate.tsx` es intencional.
-- Cambios: normalización defensiva en `SoilMeter`, contrato documentado en porcentaje y comentario de unidades en `Evaluate.tsx`.
-- Verificación: `npm test` 80/80 en verde (incluye 4 tests nuevos de `SoilMeter`); `npm run lint` 0 errores; `npx tsc -b` sin errores.
-- Nota de entorno: las pruebas se ejecutaron en contenedor `node:22-alpine` porque el Node de Windows no puede usar los binarios Linux de `node_modules`; solo se tocó caché ignorada por git.
-- Observación: `Hoy.tsx` usa la misma conversión y quedó pendiente de revisión al tocar su módulo.
-
-#### Checkpoint
-- No avanzar a `ET-2.3` sin completar esta fase.
+> **Nota de reemplazo (2026-10-11):** este archivo fue vaciado y reescrito por orden expresa del usuario.
+> El contenido anterior (plan maestro ETAPA I / ETAPA II / PARTE III VD-0…VD-12, 1632 líneas)
+> **no se perdió**: está versionado en git y se recupera con:
+> `git show HEAD:MEJORAS.md` (commit `74f86e8`).
+> Este documento es ahora la referencia única de la sesión de rediseño total.
 
 ---
 
-### Fase FT-1.2 — Claridad del rol tras el inicio de sesión
-**Estado:** `COMPLETADO`
+## 1. Alcance y decisiones
 
-#### Problemas
-- `H-02`
+### 1.1 Qué cambia y qué NO cambia
 
-#### Archivos/componentes involucrados
-- `frontend/src/app/auth.tsx`
-- `frontend/src/pages/Login.tsx`
+| Capa | ¿Cambia? | Detalle |
+|------|----------|---------|
+| Presentación del frontend (componentes, estilos, layouts, 13 páginas) | **SÍ** | Rediseño total con shadcn/ui + Tailwind v4 |
+| Lógica del frontend (`api/`, `hooks/`, `lib/format`, `lib/permissions`, `lib/geo`, `features/`, `app/auth.tsx`, `app/navigation.ts`) | **NO** | Cero cambios |
+| Backend (Laravel), BD, Docker, infra | **NO** | Cero cambios |
+| Contratos API `/api/v1` | **NO** | Cero cambios |
+| Tests (lógica) | Parcial | Solo se actualizan selectores/classNames en Fase 3 |
 
-#### Tareas
-- [x] Revisar exposición del rol en la sesión.
-- [x] Mostrar el rol detectado sin alterar el diseño del Login.
-- [x] Asegurar coherencia entre sesión, rol y navegación.
+### 1.2 Stack decidido
 
-#### Resultado esperado
-- El usuario sabe con qué rol ingresó.
+**shadcn/ui (copy-paste, primitivas Radix) + Tailwind CSS v4 + Recharts + TanStack Table + date-fns + sonner + react-hook-form + zod.**
 
-#### Pruebas y aceptación
-- [x] Probar login como `admin`, `tecnico` y `agricultor`.
-- [x] Verificar redirección y comportamiento por rol.
+Motivos (análisis comparativo vs MUI / Mantine / Chakra / Headless UI, sesión 2026-10-11):
+1. Mobile-first real para agricultores (Tailwind responsive + bundle mínimo).
+2. Bundle mínimo (~20 KB vs 67–335 KB) para conectividad rural.
+3. Control total del diseño agrícola propio (sin look Material/Mantine genérico).
+4. Mapas (Leaflet ya instalado) + charts + forms complejos sin licencias de pago.
+5. Ownership: componentes en el repo, sin vendor lock-in ni breaking changes externos.
+6. Accesibilidad AAA vía primitivas Radix.
 
-#### Avance 2026-10-10
-- Hallazgo: el contexto ya exponía `role`; el sidebar técnico ya mostraba el rol, pero `FarmerShell` nunca lo mostraba.
-- Cambios: `FarmerShell` ahora muestra `Agricultor · Mi campo` con el rol detectado; se eliminó la ruta muerta `signInPin`/`loginPin` (`POST auth/pin` no existe en el backend; el login unificado `auth/login` ya maneja el PIN por rol).
-- `Login.tsx` no requirió cambios: usa el login unificado y su diseño quedó intacto.
-- Verificación: `npm test` 81/81 en verde; `npm run lint` 0 errores; `npx tsc -b` sin errores.
-- Pendiente manual: login real contra backend con usuarios de cada rol en entorno staging.
+### 1.3 Estructura: evolución, no ruptura
 
-#### Checkpoint
-- No avanzar a `ET-2.1` ni `ET-2.11` sin completar esta fase.
+Se mantiene la arquitectura de carpetas. Cambios:
+- `components/ui/` (PascalCase, legacy) → convive con `components/ui/*.tsx` (minúsculas, shadcn) durante la migración.
+- Nuevo: `components/shadcn/` (26 componentes + barrel `shadcn.tsx`), `components/layout/`, `components/charts/`, `components/forms/`, `lib/theme.ts`, `lib/utils.ts` (`cn` + alias `@`), `styles/globals.css`.
+- `styles/*.css` legacy (7 archivos + tokens) se reemplazan por **un solo** `styles/globals.css` en Fase 4.
 
----
+### 1.4 Restricciones heredadas
 
-### Fase FT-1.3 — Protección de rutas sensibles
-**Estado:** `COMPLETADO`
-
-#### Problemas
-- `H-03`
-
-#### Archivos/componentes involucrados
-- `frontend/src/app/navigation.ts`
-- `frontend/src/app/auth.tsx`
-- Rutas sensibles del frontend.
-
-#### Tareas
-- [x] Revisar la navegación disponible por rol.
-- [x] Impedir acceso indebido a paneles técnicos.
-- [x] Usar redirección suave, no bloqueo excesivo.
-
-#### Resultado esperado
-- Solo los roles autorizados pueden usar módulos sensibles.
-
-#### Pruebas y aceptación
-- [x] Probar acceso directo por URL con cada rol.
-- [x] Verificar redirección o vista restringida apropiada.
-
-#### Avance 2026-10-10
-- Hallazgo: las guardas por rol ya existían (`STAFF_ONLY` + redirección suave a `/`); el hueco era un rol desconocido, que caía al panel técnico completo.
-- Cambios: nuevo `isStaffRole` en `permissions.ts`; `App.tsx` muestra vista restringida con cierre de sesión para roles no reconocidos.
-- Backend verificado como autoridad real: middleware `yakuai`, `authorize()` por rol y scoping por agricultor.
-- Verificación: `npm test` 87/87 en verde; `npm run lint` 0 errores; `npx tsc -b` sin errores.
-
-#### Checkpoint
-- No avanzar a `ET-2.11` sin completar esta fase.
+- Colorimetría y tipografía del **Login** son la fuente del Design System (extraídas 1:1 de `tokens.css` + `login.css`).
+- Todo lo demás (espaciado, radios, sombras, breakpoints, z-index, transiciones, layout) a criterio experto, future-proof.
 
 ---
 
-### Fase FT-1.4 — Calibración condicional por tipo de sensor
-**Estado:** `COMPLETADO`
+## 2. Inventario actual (2026-10-11, rama `master`, 2 commits)
 
-#### Problemas
-- `H-04`
+### 2.1 Frontend
 
-#### Archivos/componentes involucrados
-- `frontend/src/pages/Sensors.tsx`
+```
+frontend/src/
+├── api/            # client.ts, endpoints.ts, types.ts (INTOCABLE)
+├── app/            # App.tsx, auth.tsx, navigation.ts (INTOCABLE salvo imports en Fase 4)
+├── components/
+│   ├── layout.tsx      # TechShell + FarmerShell + Brand (legacy, a separar en Fase 2)
+│   ├── AuthLayout.tsx  # (legacy)
+│   ├── LineChart.tsx   # SVG propio (a reemplazar por Recharts en Fase 2)
+│   ├── PlotMap.tsx     # Leaflet (a envolver en Fase 2)
+│   ├── Toasts.tsx      # (a reemplazar por sonner en Fase 2)
+│   ├── ui.tsx          # Barrel LEGACY restaurado (NO TOCAR hasta Fase 3)
+│   └── ui/             # PascalCase legacy + minúsculas shadcn (nuevos, §4)
+├── design-system/  # OverviewUI.tsx (untracked, preexistente)
+├── features/       # overview/useOverview.ts (untracked, preexistente)
+├── hooks/          # useCollection.ts (INTOCABLE)
+├── lib/            # format.ts, permissions.ts, geo.ts, toast.ts, dom.ts (INTOCABLES)
+│   ├── theme.ts    # NUEVO (tokens TS, §3)
+│   └── utils.ts    # NUEVO (cn + format — ver E-16)
+├── pages/          # 13 páginas + 13 .test.tsx (se rediseñan en Fase 3)
+├── styles/         # index.css + 7 legacy (se reemplazan en Fase 4)
+│   └── globals.css # NUEVO (Tailwind v4 @theme — ver E-04, E-05, E-11, E-12, E-13)
+├── main.tsx        # importa ./styles/index.css (cambio programado Fase 4, ver E-05)
+└── qa-preview.tsx
+```
 
-#### Tareas
-- [x] Mostrar calibración solamente para el tipo de sensor que la requiere.
-- [x] Mostrar mensajes específicos para lluvia, temperatura, humedad relativa y caudal.
-- [x] Mantener el diseño general del formulario.
+### 2.2 Páginas (13) y orden de rediseño (Fase 3)
 
-#### Resultado esperado
-- El formulario no solicita datos innecesarios o inválidos.
+| # | Página | Ruta | Qué valida |
+|---|--------|------|------------|
+| 1 | Login | `/login` | Auth layout, forms, panel story oscuro |
+| 2 | RecoverPin | `/recuperar-pin` | Steps, reenvío, contacto |
+| 3 | Dashboard | `/` (equipo) | DataTable, charts, stats, prioridades |
+| 4 | Hoy | `/` (agricultor) | Mobile-first, bottom nav, timeline |
+| 5 | Plots | `/parcelas` | Mapa + DataTable + wizard dibujo |
+| 6 | Sensors | `/sensores` | Tiempo real, estados, mapa |
+| 7 | Irrigations | `/riegos` | Filtros fecha, timeline, modales |
+| 8 | Evaluate | `/evaluar` | Wizard, soil-meter, verdict, date pickers |
+| 9 | Catalogs | `/catalogos` | Acordeón, tabs, search, glosario |
+| 10 | Farmers | `/agricultores` | CRUD, search, paginación |
+| 11 | Alerts | `/alertas` | Lista, filtros severidad, acciones |
+| 12 | Weather | `/clima` | Charts, cards pronóstico |
+| 13 | Validation | `/validacion` | Comparativas, métricas, reportes |
 
-#### Pruebas y aceptación
-- [x] Probar registro para los cinco tipos de sensor.
-- [x] Verificar campos mostrados/ocultos.
+### 2.3 Backend
 
-#### Avance 2026-10-10
-- Hallazgo: la calibración ya estaba condicionada a humedad; el problema real era el banner duplicado de YL-69 en los demás tipos.
-- Cambios: eliminado el banner YL-69 de la rama no-humedad; FC-37 aclara que no requiere calibración.
-- Verificación: `npm test` 90/90 en verde (incluye 3 tests nuevos de `Sensors.test.tsx`); `npm run lint` 0 errores; `npx tsc -b` sin errores.
-
-#### Checkpoint
-- No avanzar a `ET-2.6` sin completar esta fase.
-
----
-
-### Fase FT-1.5 — Validación contextual antes de confirmar riego
-**Estado:** `COMPLETADO`
-
-#### Problemas
-- `H-05`
-
-#### Archivos/componentes involucrados
-- `frontend/src/pages/Evaluate.tsx`
-
-#### Tareas
-- [x] Consultar riegos recientes antes de confirmar un nuevo riego.
-- [x] Mostrar advertencia clara si ya hubo riego reciente.
-- [x] Evitar bloqueos innecesarios cuando el riego sea válido.
-
-#### Resultado esperado
-- Se reduce el riesgo de sobreriego sin afectar casos válidos.
-
-#### Pruebas y aceptación
-- [x] Probar escenario con riego reciente.
-- [x] Probar escenario sin riego reciente.
-
-#### Avance 2026-10-10
-- Hallazgo: el backend ignora `plot_id` para agricultor también en riegos, así que se filtra en cliente como el historial.
-- Cambios: `onConfirmIrrigation` consulta riegos activos de la parcela y bloquea con advertencia si hay uno en las últimas 24 horas.
-- Verificación: `npm test` 92/92 en verde (incluye 2 tests nuevos de `Evaluate.test.tsx`); `npm run lint` 0 errores; `npx tsc -b` sin errores.
-
-#### Checkpoint
-- No avanzar a `ET-2.3` sin completar esta fase.
+Intacto. Archivo stray preexistente sin trackear: `backend/NUL` (no generado en esta sesión; pendiente eliminar).
 
 ---
 
-### Fase FT-1.6 — Limpieza de código y dependencias
-**Estado:** `COMPLETADO`
+## 3. Design System (fuente: Login actual + criterio experto)
 
-#### Problemas
-- `H-15`
+### 3.1 Colorimetría — EXACTA del Login (`tokens.css`)
 
-#### Archivos/componentes involucrados
-- `frontend/src/pages/*.tsx`
-- `frontend/src/components/**/*.tsx`
-- `frontend/src/api/*`
-- `frontend/package.json`
+Verde primario: `#edf7f2 / #d9eee4 / #bee0d2 / #97c9b7 / #399279 / #207c63 / #146852 / #103e38 / #092e2b`.
+Semánticos: success `#24734d`, warning `#99610b`, danger `#b7353d`, info `#326899`
+(+ variantes `-bg/-border/-text` y strengths `#15803d / #b45309 / #b91c1c`).
+Neutros: `#f8fafb / #f4f6f8 / #e1e7ec / #a5b3bd / #667b87 / #5d727f / #4d626f / #172b36`.
+Dark story: bg `#092e2b`, card `#103e38`, border `#165349`, text `#fff`, muted `#c5d9d4`, accent `#d6e8a9`.
+Veredictos: riega `#fff8ea`, no `#eff8f2`, espera `#eff6fc`, incompleta `#f5f6f7`.
 
-#### Tareas
-- [x] Detectar imports no usados.
-- [x] Detectar componentes sin uso.
-- [x] Detectar endpoints sin uso.
-- [x] Revisar funciones duplicadas.
-- [x] Verificar dependencias innecesarias.
+### 3.2 Tipografía — EXACTA del Login
 
-#### Resultado esperado
-- Frontend más limpio y mantenible.
+Inter / Segoe UI / system; mono SFMono/Consolas.
+Escala: 10px kicker · 12px tiny · 13px small/labels · **14px base** · 16px · 18px · 24px · 32px (h1 login) · 40/48/64px story.
+Line-height: 1.25 titulares / 1.55 cuerpo / 1.75 story. Tracking: -0.055em títulos, +0.08/+0.12em kickers.
 
-#### Pruebas y aceptación
-- [x] Build sin errores.
-- [x] Tests principales sin regresiones.
+### 3.3 Resto — criterio experto future-proof (implementado en `lib/theme.ts` + `styles/globals.css`)
 
-#### Avance 2026-10-10
-- Sin imports sin uso (`tsc` con `noUnusedLocals` en verde); todos los endpoints tienen consumidor.
-- Eliminados `IconButton` y `Paginator`, sin usos verificados.
-- Fechas de cabecera centralizadas en `todayShort`/`todayLong` (Dashboard ganó `timeZone America/Lima`).
-- Todas las dependencias de `package.json` están en uso.
-- `LineChart.tsx` está definido pero sin imports: queda pendiente su eliminación manual (sin herramienta de borrado disponible).
-- Verificación: `npm test` 94/94 en verde; `npm run lint` 0 errores; `npm run build` limpio.
+Espaciado base 4px (0–128px) · Radios 3/6/8/12/16/24/full · Sombras xs–2xl + focus rings por semántico ·
+Breakpoints 360/480/768/1024/1280/1536/1920 · z-index 100–900 · Transiciones 120/160/240/320ms `cubic-bezier(.2,.8,.2,1)` ·
+Layout: sidebar 248px, topbar 68px, container 1408px, touch 44px.
+
+**Regla de sincronía:** CSS (`globals.css` `@theme`) manda; `theme.ts` lo refleja para uso en JS. Cambiar siempre ambos.
 
 ---
 
-### Fase FT-1.7 — Optimización de componentes reutilizables
-**Estado:** `COMPLETADO`
+## 4. FASE 1 — Setup base · Estado: `COMPLETADO` (2026-10-11)
 
-#### Problemas
-- Inconsistencias de props, accesibilidad y componentes duplicados.
+### 4.1 Hecho (verificado en disco el 2026-10-11)
 
-#### Archivos/componentes involucrados
-- `frontend/src/components/ui/*`
+- [x] `frontend/src/lib/theme.ts` — tokens TS completos + types.
+- [x] `frontend/src/lib/utils.ts` — `cn()` + `format` (ver E-16).
+- [x] `frontend/src/styles/globals.css` — Tailwind v4 `@theme` con todos los tokens (con defectos: E-11, E-12, E-13).
+- [x] `frontend/components.json` — config shadcn/ui (style new-york, css → `src/styles/globals.css`, alias `@/*`, iconLibrary lucide).
+- [x] `frontend/package.json` — deps añadidas: 21 `@radix-ui/*` (sin pagination, correcto), `@tanstack/react-table`, `class-variance-authority`, `clsx`, `cmdk`, `date-fns`, `lucide-react`, `recharts`, `react-hook-form`, `sonner`, `tailwind-merge`, `zod`, `@hookform/resolvers`; dev: `tailwindcss@4.3.3` + `@tailwindcss/vite@4.3.3` (correcto; `postcss/autoprefixer` eliminados, correcto en v4).
+- [x] 26 componentes shadcn en `frontend/src/components/shadcn/*.tsx`: accordion, avatar, badge, button, card, checkbox, collapsible, dialog, dropdown-menu, form, input, label, navigation-menu, pagination, radio-group, scroll-area, select, separator, sheet, slider, switch, table, tabs, textarea, toast, tooltip (+ barrel `src/components/shadcn.tsx`). Ubicación `shadcn/` en vez de `ui/` por E-19.
+- [x] Limpieza de raíz: eliminados `node_modules/`, `package.json`, `package-lock.json` y `home/...` creados por error (ver E-01).
+- [x] `frontend/src/components/ui.tsx` restaurado a legacy (build actual no roto por este frente).
 
-#### Tareas
-- [x] Revisar props y tipos.
-- [x] Revisar accesibilidad: focos, ARIA, contraste y teclado.
-- [x] Evitar cambios visuales innecesarios en esta etapa.
-- [x] Mantener compatibilidad con páginas existentes.
+### 4.2 Errores de implementación detectados (todos PENDIENTES de corrección)
 
-#### Resultado esperado
-- Base de componentes lista para el rediseño.
+| ID | Archivo | Síntoma verificado | Causa | Solución | Estado |
+|----|---------|-------------------|-------|----------|--------|
+| E-01 | (raíz repo) | `npm install` creó `node_modules/`, `package.json`, `package-lock.json` y `home/jeanpool/...` en la RAÍZ | Comandos ejecutados con cwd en raíz (PowerShell + rutas UNC/WSL); `mkdir -p` con ruta Linux creó árbol anidado | Raíz limpiada. Regla: todo `npm/npx` vía WSL con cwd=`frontend/` (ver E-20) | Corregido 2026-10-11 |
+| E-02 | `frontend/node_modules` | **No contenía** `@radix-ui/*`, `recharts`, ni `tailwindcss` | Los installs exitosos cayeron en la raíz (E-01) | `npm install` ejecutado vía WSL en `frontend/`: 124 paquetes, 321 auditados | Corregido 2026-10-11 |
+| E-03 | 25 componentes nuevos | Importaban `@/lib/utils` sin resolver | Sin alias `@` en `tsconfig.app.json`, `vite.config.ts`, `vitest.config.ts` | Añadidos `paths: {"@/*": ["src/*"]}` + `resolve.alias` en vite y vitest | Corregido 2026-10-11 |
+| E-04 | `vite.config.ts` | Sin plugin Tailwind; `globals.css` v4 (`@theme`) no se procesaba | Config intacta legacy | Añadido `@tailwindcss/vite` a plugins (server/proxy intactos) | Corregido 2026-10-11 |
+| E-05 | `main.tsx` | Importa `./styles/index.css`; `globals.css` huérfano | Cambio diferido a propósito | Cambiar a `./styles/globals.css` **en Fase 4** (no antes) | Programado |
+| E-06 | `shadcn/form.tsx` | `import * as Slot` inválido + import `cva` sin usar (+ conflicto de refs TS2322 en Field/Control) | Plantilla copiada sin adaptar | `import { Slot }`; quitado `cva`; Field/Control sin `forwardRef` (wrappers sin ref) | Corregido 2026-10-11 |
+| E-07 | `shadcn/slider.tsx` | `SliderPrimitive.TickMark` inexistente en API Radix → error `tsc` | Línea inventada | Línea eliminada | Corregido 2026-10-11 |
+| E-08 | `shadcn/checkbox.tsx` | Check invisible (`text-primary-700` sobre `bg-primary-700`) | Token mal aplicado | `text-white` en checked | Corregido 2026-10-11 |
+| E-09 | `shadcn/separator.tsx` | `React.ElementRef<typeof React.Fragment>` inválido → error `tsc` | Implementación casera | Reescrito con `@radix-ui/react-separator` | Corregido 2026-10-11 |
+| E-10 | `shadcn/pagination.tsx` | **Archivo inexistente** (falló su creación) | Llamada `write` sin `filePath` | Creado sin Radix (no existe `@radix-ui/react-pagination`): nav + links + ellipsis, etiquetas en español | Corregido 2026-10-11 |
+| E-11 | `styles/globals.css` (`*:focus-visible`) | `ring: 3px solid …` no es propiedad CSS válida (ignorada) | Confusión Tailwind↔CSS | Reemplazado por `box-shadow: var(--shadow-focus)` | Corregido 2026-10-11 |
+| E-12 | `styles/globals.css:2` | `@import "tailwindcss/preflight"` redundante/riesgoso en v4 | Plantilla v3 | Eliminado (preflight incluido en `@import "tailwindcss"`) | Corregido 2026-10-11 |
+| E-13 | `toast/select/dialog/…` + `accordion/collapsible` | Clases `animate-in/fade-in-0/zoom-in-95/slide-in-*`, `animate-accordion-*`, `animate-collapsible-*` sin definición | Dependencia omitida | **Decisión aplicada:** instalado `tw-animate-css@^1.0.0` + `@import` en `globals.css` | Corregido 2026-10-11 |
+| E-14 | `shadcn/switch.tsx` | Truco `after:` + `peer-data` no canónico | Estilo improvisado | Reescrito patrón canónico (track + `Thumb` con `translate-x`) | Corregido 2026-10-11 |
+| E-15 | (barrel) | Componentes nuevos sin export central | Reversión de seguridad (correcta) | Creado `src/components/shadcn.tsx` (26 exports); `ui.tsx` legacy se retira en Fase 3 por página | Corregido 2026-10-11 |
+| E-16 | `lib/utils.ts` vs `lib/format.ts` | `format` duplicaba `lib/format.ts` (verificado: 0 usos del duplicado) | Utilidad creada sin auditar legacy | Duplicado eliminado; `lib/format.ts` queda canónico; `utils.ts` solo exporta `cn` | Corregido 2026-10-11 |
+| E-17 | `shadcn/navigation-menu.tsx` | Estructura de viewport/contenido custom divergía del patrón shadcn | Adaptación libre | Reescrito al patrón canónico (content/viewport/indicator + clases de motion) | Corregido 2026-10-11 |
+| E-18 | `MEJORAS.md` (working copy) | Apareció **vacío (0 líneas)** en esta sesión; causa desconocida | Sin determinar (no fue edición manual registrada) | Restaurado desde HEAD; reescrito por orden del usuario. Contenido previo recuperable (`§9`) | Registrado |
+| E-19 | `tsc -b` | `TS1149`: `ui/button.tsx` vs `ui/Button.tsx` y `ui/dialog.tsx` vs `ui/Dialog.tsx` difieren solo en casing | Nuevos (minúsculas) y legacy (PascalCase) en el mismo directorio | **Resuelto:** nuevos movidos a `src/components/shadcn/`; legacy intacto en `src/components/ui/`; barrel + imports + `components.json` actualizados | Corregido 2026-10-11 |
+| E-20 | `npm install` (Windows→WSL) | `EISDIR` en `node_modules/.bin/*`: npm de Windows no maneja symlinks Linux del mount `\\wsl.localhost` | CWD/entorno incorrecto | **Resuelto:** installs y comandos node vía `wsl -d Ubuntu` (Linux nativo). Regla: todo `npm/npx` se ejecuta en WSL, nunca desde PowerShell contra el mount | Corregido 2026-10-11 |
+| E-21 | `frontend/dist/` | `EACCES rmdir dist/assets` en `npm run build`: `dist/` y `dist/assets/` pertenecían a **root** (build Docker 2026-10-10) | Artefacto generado por contenedor | **Resuelto por el usuario 2026-10-11:** `sudo rm -rf frontend/dist` + `npm run build` limpio (✓ 6.00s, 1713 módulos, `dist/` regenerado con su usuario) | Corregido |
+| E-22 | Servicio `frontend` en crash-loop | `Cannot find module '../lightningcss.linux-x64-musl.node'`: imagen `node:22-alpine` (musl) + volumen `./frontend:/app` monta el `node_modules` del host (glibc) sin binario musl. Introducido por Tailwind v4 (binario nativo; v3 era JS puro) | Incompatibilidad libc host/contenedor | `docker/frontend/Dockerfile`: base `node:22-alpine` → `node:22-slim` (glibc, igual que el host). Requiere `docker compose up --build` | Corregido (pendiente rebuild por el usuario) |
 
-#### Pruebas y aceptación
-- [x] Tests de UI relevantes.
-- [x] Inspección visual en páginas clave.
+### 4.3 Cierre de Fase 1 (verificado 2026-10-11, vía WSL)
 
-#### Avance 2026-10-10
-- Hallazgo: tonos `neutro`/`demo` sin clase CSS; resto de variantes, verdictos, soil y stats cubiertos.
-- Cambios: clases `.b-neutro`/`.b-demo` con tokens existentes (sin cambio visual, igualan el estilo base); test de teclado y foco para `Tabs`.
-- Props y tipos verificados compatibles; accesibilidad de `Modal`/`Field` ya cubierta por tests.
-- Verificación: `npm test` 95/95 en verde; `npm run lint` 0 errores; `npm run build` limpio.
-- Pendiente manual: inspección visual en navegador de páginas clave.
-
-#### Checkpoint obligatorio de ETAPA I
-- No comenzar ETAPA II sin completar `FT-1.1` a `FT-1.7`.
-
----
-
-## 4. ETAPA II — Rediseño funcional y visual por módulo
-
-**Estado general de la etapa:** `COMPLETADO`
-
-### Fase ET-2.1 — Login
-**Estado:** `COMPLETADO`
-
-#### Objetivo
-Conservar el diseño actual y mejorar funcionamiento interno, sesión y redirección por rol.
-
-#### Interfaces
-- `AuthLayout`
-- Formulario de ingreso
-- Recuperación de PIN
-
-#### Tareas
-- [x] Conservar colores, tipografía y distribución del Login.
-- [x] Mejorar validación de correo.
-- [x] Mantener contraseña/PIN con mostrar/ocultar.
-- [x] Mantener detección de Bloq Mayús.
-- [x] Asegurar token, sesión y redirección por rol.
-- [x] Comparar capturas contra el diseño actual.
-
-#### Archivos
-- `frontend/src/pages/Login.tsx`
-- `frontend/src/components/AuthLayout.tsx`
-- `frontend/src/app/auth.tsx`
-
-#### Criterios de aceptación
-- [x] Diseño visual idéntico.
-- [x] Login con contraseña y PIN funciona por rol.
-
-#### Avance 2026-10-10
-- Cambios: validación inmediata de formato de correo en `Login.tsx` (mismo mensaje y estilo de error existente); sin toques a `AuthLayout` ni estilos.
-- Token, sesión y redirección por rol ya asegurados en `FT-1.2`/`FT-1.3` y cubiertos por `App.test.tsx`.
-- Verificación: `npm test` 100/100 en verde (incluye 5 tests nuevos de `Login.test.tsx`); `npm run lint` 0 errores; `npx tsc -b` sin errores.
-- Pendiente manual: comparación de capturas contra el diseño actual y login real en staging.
+- [x] Corregidos E-02, E-03, E-04 (install + alias `@` + plugin Tailwind v4).
+- [x] Corregidos E-06, E-07, E-08, E-09, E-10, E-11, E-12, E-14, E-16, E-17, E-19.
+- [x] E-13 decidido y aplicado (`tw-animate-css`).
+- [x] Creado E-15 (`src/components/shadcn.tsx`, 26 exports).
+- [x] `npx tsc -b` → 0 errores. `npm run lint` → 0 errores (17 warnings preexistentes en páginas legacy). `npm test` → 21 archivos, **139/139** (igual que marca VD-1 en HEAD). `vite build` → ✓ 2.74s (outDir temporal por E-21).
+- [x] `main.tsx`/`index.css` intactos (E-05 programado para Fase 4).
+- [x] Regla operativa fijada: todo `npm/npx` se ejecuta en WSL con cwd=`frontend/` (E-20).
 
 ---
 
-### Fase ET-2.2 — Hoy / panel del agricultor
-**Estado:** `COMPLETADO`
+## 5. FASE 2 — Componentes core YakuAI · Estado: `COMPLETADO` (2026-10-11)
 
-#### Objetivo
-Mostrar qué parcelas requieren atención hoy, con recomendaciones claras y datos frescos.
+Orden aplicado: `F2-8` → `F2-1` → `F2-2` → `F2-4` → `F2-3` → `F2-5` → `F2-6` → `F2-7`.
+Verificación: `tsc` 0 errores · `lint` 0 errores (17 warnings legacy, archivos nuevos limpios) · tests 139/139.
+Verificación por componente: `tsc` + `lint` + render aislado (story en `qa-preview.tsx` o test) sin romper páginas legacy.
 
-#### Secciones necesarias
-- Resumen de la jornada.
-- Estadísticas: parcelas, urgentes y sensores.
-- Buscador.
-- Filtros por estado.
-- Orden por fecha.
-- Lista con última recomendación por parcela.
-- Acceso directo a evaluar.
+### F2-8 — Patrones sin equivalente shadcn directo (PRIMERO)
 
-#### Tareas
-- [x] Diseñar estructura desde cero.
-- [x] Mostrar únicamente la última evaluación por parcela.
-- [x] Agregar indicador de antigüedad: “hace X min/horas”.
-- [x] Agregar badges claros: riega, no riega, espera e incompleta.
-- [x] Implementar búsqueda y filtros.
-- [x] Preseleccionar parcela al ir a Evaluar.
-- [x] Estados de carga, vacío y error.
+| Archivo | Spec |
+|---------|------|
+| `components/shadcn/page-head.tsx` | `PageHead({eyebrow?, title, description?, actions?})`. Patrón único de cabecera (§3): eyebrow + título + descripción + acciones. Reemplaza `Surface.tsx:PageHead`. |
+| `components/shadcn/stat.tsx` | `Stat({label, value, hint?, to?, tone?})`. Cifra tabular + enlace opcional. Reemplaza `Surface.tsx:Stat`. |
+| `components/shadcn/feedback.tsx` | `Empty({icon?, title, hint?, action?})`, `Loading({text?})`, `Skeletons`, `Banner({tone, children})`. Reemplaza `Feedback.tsx`. Banner usa `bg-*-50/border-*/text-*` + icono + palabra. |
+| `components/shadcn/search-input.tsx` | `SearchInput({value, onChange, placeholder?})`: shadcn `input` + icono lupa + clear. Reemplaza `Field.tsx:SearchInput`. |
+| `components/shadcn/stepper.tsx` | `Stepper({steps, current})` + `Pager` (paginación simple legacy `Navigation.tsx:Pager`). Stepper de puntos numerados para wizards; Pager prev/next con `useCollection` (`hooks/useCollection.ts` INTOCABLE). |
+| `components/shadcn/confirm.tsx` | `Confirm` sobre shadcn `dialog` (título + mensaje + acciones). Reemplaza `Dialog.tsx:Confirm`. |
 
-#### Archivos
-- `frontend/src/pages/Hoy.tsx`
-- Componentes UI reutilizables.
+### F2-1 — `SoilMeter` v2
 
-#### Criterios de aceptación
-- [x] Última recomendación visible por parcela.
-- [x] Filtros y búsqueda funcionan.
-- [x] Navegación directa a Evaluar funciona.
+- Archivo: `components/shadcn/soil-meter.tsx`. Exportar en `shadcn.tsx`.
+- Contrato (de `components/ui/Irrigation.tsx:9-18`, NO cambiar lógica): props `{actual, umbral, critico}` en **porcentaje 0–100** (el caller convierte fracción→% antes).
+- Estados: `pct<=critical` → "Crítico — regar hoy" (badge `critica`); `<=threshold` → "Bajo umbral" (`riega`); else "Adecuado" (`ok`). Nulo/no-finito → "Sin dato de humedad".
+- Visual: pista redondeada h-10px, fill por estado, marcas PMP/umbral en pastilla legible, cifra `tabular-nums`.
+- A11y: `role=progressbar` + `aria-valuenow/min/max/label` (conservar del legacy).
+- Usan: Hoy (F3-4), Evaluate (F3-8).
 
-#### Avance 2026-10-10
-- Estructura validada contra el objetivo; deltas implementados sin rediseño innecesario.
-- Cambios: antigüedad relativa junto a cada fecha (`ageLabel`); estadística de sensores operativos; `Link` a Evaluar con `state.plotId` y preselección en `Evaluate.tsx`.
-- Verificación: `npm test` 104/104 en verde (incluye 3 tests nuevos de `Hoy.test.tsx` y preselección en `Evaluate.test.tsx`); `npm run lint` 0 errores; `npx tsc -b` sin errores.
+### F2-2 — `VerdictCard`
 
----
+- Archivo: `components/shadcn/verdict-card.tsx`. Exportar en `shadcn.tsx`.
+- Contrato (de `Irrigation.tsx:56-72`): `{tone: riega|no|espera|incompleta, kicker, title, amount?, chips[], action?, children?}`.
+- Iconos (conservar mapa): riega=drop, no=check, espera=cloud, incompleta=alert (lucide directo).
+- Fondos `bg-verdict-*-bg` + borde semántico + badge textual (nunca solo color).
+- Usan: Evaluate (F3-8). Variante hero de página (pantalla completa) se compone en la página, no aquí.
 
-### Fase ET-2.3 — Evaluar riego
-**Estado:** `COMPLETADO`
-**Dependencias:** `FT-1.1`, `FT-1.5`
+### F2-4 — Charts (Recharts)
 
-#### Objetivo
-Convertir datos de suelo, cultivo y clima en una recomendación clara, trazable y accionable.
+- Archivos: `components/charts/{LineChart,AreaChart,BarChart}.tsx` (+ exportar vía `components/charts.ts` o `shadcn.tsx`).
+- Compat: props `{data: {label, value}[], height=200, color=primary-700, unit?}` (igual que `LineChart.tsx:8-13` actual) para migración directa.
+- `ResponsiveContainer` obligatorio; tooltip con `unit`; vacío → "Sin datos para graficar." (mismo texto legacy).
+- Paleta primary + semáforos; cifras tabulares. Reemplaza `LineChart.tsx` SVG en Fase 4.
+- Usan: Sensors, Weather, Dashboard (F3).
 
-#### Secciones necesarias
-- Selección de parcela.
-- Resultado principal.
-- Rango de litros cuando corresponda.
-- Indicadores de confianza, horario y humedad.
-- Datos usados/trazabilidad.
-- Acciones: WhatsApp y confirmar riego.
-- Historial de la parcela.
+### F2-3 — `PlotMap` wrapper
 
-#### Tareas
-- [x] Diseñar resultado principal desde cero.
-- [x] Distinguir claramente riega, no, espera e incompleta.
-- [x] Mostrar explicación en lenguaje claro.
-- [x] Implementar validación de riego reciente.
-- [x] Integrar compartir por WhatsApp.
-- [x] Implementar historial compacto.
-- [x] Estados de carga, vacío, error e incompleto.
+- Archivo: `components/shadcn/plot-map.tsx`. Re-exporta y estiliza `components/PlotMap.tsx` (Leaflet + OSM INTACTOS como proveedor).
+- Contrato (de `PlotMap.tsx:31-42`): `{plots: {id,name,latitude,longitude,farmerName?}[], editable?, onDraw(DrawResult)?, focus?, zoom?}`; `DrawResult={ring, lat, lng, areaM2}`.
+- Defaults: `CHUPACA [-12.0667,-75.2833]`; colores de dibujo (`MARKER_EDGE #285942`, `SKETCH_EDGE #b3541e`…) → migrar a tokens primary/warning.
+- Chrome de dibujo ("Fijar punto / Marcar esquinas / Usar contorno") con shadcn `button`; mapa `min-h 280px` móvil + botón ubicación; región `aria-label` + instrucciones `sr-only` (conservar).
+- Usan: Plots (F3-5). `PlotMap.tsx` legacy se retira en Fase 4.
 
-#### Archivos
-- `frontend/src/pages/Evaluate.tsx`
-- `frontend/src/components/ui/Irrigation.tsx`
+### F2-5 — Forms (RHF + zod)
 
-#### Criterios de aceptación
-- [x] Evaluación idempotente por hora.
-- [x] Validación de riego reciente funciona.
-- [x] Trazabilidad comprensible para el agricultor.
+- Archivos: `components/forms/{FormField,FormSection,Wizard}.tsx`.
+- `FormField`: shadcn `form.tsx:FormField/FormItem/FormLabel/FormControl/FormMessage` + `input/select/textarea` + hint + error asociado (`aria-describedby`).
+- `FormSection`: fieldset con título + descripción + grid 1col móvil / 2col escritorio.
+- `Wizard`: `steps[]`, estado `current`, validación zod por paso, `Stepper` F2-8, botones Atrás/Continuar (táctil ≥52px agricultor).
+- Usan: Evaluate (selector + confirmación), Plots (wizard 3 pasos), Irrigations (anotar/corregir/anular), Farmers (registro/edición), Sensors (registro + lectura), RecoverPin (pasos).
 
-#### Avance 2026-10-10
-- Núcleo ya cumplía el objetivo (veredicto, trazabilidad, WhatsApp, historial, idempotencia); deltas implementados sin rediseño innecesario.
-- Cambios: guía accionable en incompletas con enlace a Sensores/Clima según motivo; antigüedad relativa en el veredicto; límite del historial explicitado (últimas 20).
-- Verificación: `npm test` 106/106 en verde (incluye 2 tests nuevos de incompletas); `npm run lint` 0 errores; `npx tsc -b` sin errores.
+### F2-6 — Layouts
 
----
+- Archivos: `components/layout/{Brand,NavSidebar,BottomNav,Topbar,TechShell,FarmerShell}.tsx`.
+- Fuente: `components/layout.tsx:10-93` (Brand, TechShell, FarmerShell) + `app/navigation.ts` (`NAVIGATION` 3 grupos/10 ítems, `FARMER_NAVIGATION` 4 ítems, `ROUTE_TITLES`).
+- Preservar comportamiento: skip-link, drawer ≤1000px con foco trampeado + Escape, `<Toasts/>` (luego sonner), `document.title` por crumb, redirección por rol en `App.tsx` (NO tocar lógica).
+- Visual nuevo con Tailwind: sidebar colapsable desktop / `sheet` móvil; bottomnav fija agricultor; topbar con breadcrumb + fecha + avatar (`initial()` de `lib/format.ts`).
+- `AuthLayout.tsx` y Login intactos (no se tocan).
 
-### Fase ET-2.4 — Parcelas y mapa
-**Estado:** `COMPLETADO`
+### F2-7 — Toaster (sonner)
 
-#### Objetivo
-Gestionar parcelas con ubicación, área, cultivo, suelo y riego.
+- Archivos: `components/shadcn/toaster.tsx` (`<Toaster>` sonner con tokens) + bridge en `lib/toast.ts` (auditar: páginas usan `toastError/toastOk/toastInfo` — mantener firmas, cambiar implementación a sonner).
+- Variantes: default / success / destructive. `Toasts.tsx` legacy se retira en Fase 4.
+- Verificar que ningún test legacy dependa del DOM de `Toasts` (revisar `test/fixtures` + mocks si falla).
 
-#### Secciones necesarias
-- Resumen de parcelas registradas, activas y superficie.
-- Mapa interactivo.
-- Lista con búsqueda.
-- Asistente de creación/edición en tres pasos.
-- Página de detalle o edición.
+Salida Fase 2: todo lo anterior renderizando aislado + `tsc`/`lint`/`tests` verdes + MEJORAS §5 marcado por componente.
 
-#### Tareas
-- [x] Rediseñar lista y detalle desde cero.
-- [x] Rediseñar asistente en tres pasos.
-- [x] Implementar geolocalización opcional.
-- [x] Integrar cálculo/validación del área.
-- [x] Validar latitud, longitud, área y eficiencia.
-- [x] Cargar cultivos, suelos y agricultores.
-- [x] Estados de carga, vacío y error.
+### Cierre 2026-10-11 (todo verificado)
 
-#### Archivos
-- `frontend/src/pages/Plots.tsx`
-- `frontend/src/components/PlotMap.tsx`
-- `frontend/src/lib/geo.ts`
-
-#### Criterios de aceptación
-- [x] Crear y editar parcela funciona.
-- [x] Validaciones impiden datos inválidos.
-- [x] Mapa y lista permanecen sincronizados.
-
-#### Avance 2026-10-10
-- Asistente y validaciones ya cumplían el objetivo; deltas implementados sin rediseño innecesario.
-- Cambios: botón opcional "Usar mi ubicación" en el paso 2 (rellena lat/long y recentra el mapa); el dibujo existente sigue calculando el área.
-- Verificación: `npm test` 112/112 en verde (incluye 4 tests nuevos de `geo.test.tsx` y 2 de `Plots.test.tsx`); `npm run lint` 0 errores; `npx tsc -b` sin errores.
+- [x] F2-8: `page-head, stat, feedback (Banner/Empty/Loading/Skeletons), search-input, stepper (Stepper/Pager), confirm` — mismas APIs legacy (iconos `string` → `ReactNode` lucide; `Stat` añade `to?`).
+- [x] F2-1/F2-2: `soil-meter` (lógica % + estados legacy intactos) y `verdict-card` (4 tonos, mapa de iconos legacy).
+- [x] F2-4: `charts/{LineChart,AreaChart,BarChart}` Recharts, props compatibles con `LineChart.tsx` legacy.
+- [x] F2-3: `shadcn/plot-map` envuelve `PlotMap.tsx` (Leaflet OSM intacto).
+- [x] F2-5: `forms/{FormField (cloneElement a11y),FormSection,Wizard}` (RHF/zod en páginas Fase 3).
+- [x] F2-6: `layout/{Brand,NavSidebar,BottomNav,Topbar,TechShell,FarmerShell}` (misma navegación/roles; drawer→`sheet` móvil).
+- [x] F2-7: `shadcn/toaster` sonner tokenizado. Puente `lib/toast.ts` + reemplazo `<Toasts/>` diferidos a Fase 4 (páginas aún usan legacy).
+- [x] Barrel `shadcn.tsx` (44 exports). Colisión `FormField` resuelta: barrel exporta el wrapper `forms/`; primitivas `shadcn/form` por ruta profunda.
+- [x] Corrección global: tonos `*-200/400/800` inexistentes → `*-100/600` del tema (toast, stat, feedback, verdict).
 
 ---
 
-### Fase ET-2.5 — Agricultores
-**Estado:** `COMPLETADO`
+## 6. FASE 3 — Rediseño de las 13 páginas · Estado: `COMPLETADO` (2026-10-11)
 
-#### Objetivo
-Gestionar el directorio de agricultores, contacto y parcelas asociadas.
+Verificación: `tsc` 0 errores · `lint` 0 errores (19 warnings: 17 legacy + 2 fast-refresh benignos en barrels) · tests 21 archivos / **139/139**.
 
-#### Secciones necesarias
-- Resumen de agricultores.
-- Buscador por nombre o teléfono.
-- Directorio con estado y parcelas.
-- Registro y edición.
-- Acción de contacto por WhatsApp.
+Orden: Login → RecoverPin → Dashboard → Hoy → Plots → Sensors → Irrigations → Evaluate → Catalogs → Farmers → Alerts → Weather → Validation.
 
-#### Tareas
-- [x] Rediseñar directorio desde cero.
-- [x] Mostrar parcelas asociadas.
-- [x] Implementar registro y edición con validación.
-- [x] Generar enlace WhatsApp solamente cuando haya teléfono.
-- [x] Paginación y búsqueda.
-- [x] Estados de carga, vacío y error.
+Por página: rediseñar con F2 + shadcn → actualizar su `.test.tsx` (solo selectores/classNames, sin cambiar casos) → `vitest` + `lint` + `tsc` verdes → commit.
+Regla: la primera página que usa un compartido fija su visual; las siguientes reutilizan.
+Al cerrar cada página se retiran sus estilos legacy que queden huérfanos (`login.css`, `shell.css`, `operations.css`, `management.css`, `monitoring.css`, `workspace-v2.css`, `app.css`).
+Convención: tamaños medidos 2026-10-11 (líneas incl. imports). Endpoints = `api/endpoints.ts` (INTOCABLE). Legacy-ui = `components/ui.tsx`.
 
-#### Archivos
-- `frontend/src/pages/Farmers.tsx`
+### F3-1 — Login (`pages/Login.tsx`, 236 líneas)
 
-#### Criterios de aceptación
-- [x] Crear, buscar, editar y ver agricultores funciona.
-- [x] Teléfono y WhatsApp se comportan correctamente.
+- Preservar: `useAuth().signInPassword`, validación email/PIN, `passwordStrength`, caps-lock hint, `hintFor` por status, `AuthLayout` + story panel (INTACTOS), footer.
+- Reemplazar: `Icon` → lucide; `access-*` CSS → shadcn `input`/`button` + `form.tsx` + `Banner` (F2-8) para `access-alert`; `access-strength` con tokens success/warning/danger.
+- Test: `Login.test.tsx` (53 líneas). Roles: n/a (pública).
 
-#### Avance 2026-10-10
-- Directorio ya cumplía el objetivo; hueco real: el estado se mostraba pero no se podía editar.
-- Cambios: selector Activo/Inactivo en el modal, enviado en crear y editar (soportado por backend y tipos).
-- Verificación: `npm test` 116/116 en verde (incluye 4 tests nuevos de `Farmers.test.tsx`); `npm run lint` 0 errores; `npx tsc -b` sin errores.
+### F3-2 — RecoverPin (`pages/RecoverPin.tsx`, 237 líneas)
 
----
+- Preservar: flujo `recoverPin` → `resetPin` (email → código → PIN), reenvío, modal contacto, `useNavigate`, `AuthLayout` (INTACTO).
+- Reemplazar: `Icon/Modal/Button` legacy → shadcn `dialog` + `button`; pasos con `Wizard`/`Stepper` (F2-5/F2-8).
+- Test: `RecoverPin.test.tsx` (63 líneas).
 
-### Fase ET-2.6 — Sensores y lecturas
-**Estado:** `COMPLETADO`
-**Dependencias:** `FT-1.4`
+### F3-3 — Dashboard (`pages/Dashboard.tsx`, 143 líneas, equipo)
 
-#### Objetivo
-Administrar sensores, calibración y lecturas con estados claros.
+- Preservar: `listAlerts/listEvaluations/listPlots/listSensors/getMetricsSummary`, KPIs enlazados, frescura, críticas primero (ET-2.12).
+- Reemplazar: `PageHead/DataTable/Badge/Banner/Card/Empty/Icon/Skeletons/Stat` → F2-8 + shadcn `table/card/badge` + TanStack donde aplique.
+- Test: `Dashboard.test.tsx` (51 líneas). Fija visual de: `PageHead`, `Stat`, `DataTable` patterns, `Skeletons`.
 
-#### Secciones necesarias
-- Resumen operativo/en revisión.
-- Filtros por estado.
-- Buscador.
-- Lista con parcela, modelo, estado y última lectura.
-- Registro de sensor.
-- Registro manual de lectura.
+### F3-4 — Hoy (`pages/Hoy.tsx`, 248 líneas, agricultor, mobile-first)
 
-#### Tareas
-- [x] Rediseñar lista y formularios desde cero.
-- [x] Implementar calibración condicional por tipo.
-- [x] Validar rangos por tipo de sensor.
-- [x] Manejar lectura aceptada, duplicada y en cuarentena.
-- [x] Mostrar última lectura y antigüedad.
-- [x] Estados de carga, vacío y error.
+- Preservar: `listEvaluations/listPlots/listSensors`, `latestPerPlot`, filtros `Filter/Sort`, `search`.
+- Reemplazar: `Badge/Banner/Empty/Icon/Loading/SearchInput/SoilMeter/Tabs` → F2-1 + F2-8 + shadcn. CTA táctil ≥52px.
+- Test: `Hoy.test.tsx` (56 líneas). Fija visual de: `SoilMeter` v2 en lista, `Tabs` filtros, `SearchInput`.
 
-#### Archivos
-- `frontend/src/pages/Sensors.tsx`
+### F3-5 — Plots (`pages/Plots.tsx`, 614 líneas, LA MÁS GRANDE, equipo)
 
-#### Criterios de aceptación
-- [x] Registro por tipo funciona sin campos innecesarios.
-- [x] Lecturas muestran calidad y retroalimentación adecuada.
+- Preservar: `createPlot/updatePlot/listCrops/listFarmers/listPlots/listSoils`, `PlotInput`, `DrawResult`, `useCollection`, wizard 3 pasos, geolocalización opcional + cálculo área (ET-2.4).
+- Reemplazar: 15 legacy (`Badge/Banner/Button/Card/Empty/Field/Loading/Icon/Modal/PageHead/Pager/SearchInput/SelectInput/Stepper/TextInput`) + `PlotMap` → F2-3/F2-5/F2-8 + shadcn. Lazy en `App.tsx` se mantiene.
+- Test: `Plots.test.tsx` (57 líneas). Riesgo: dibujo Leaflet en jsdom (mock existente en test — no tocar lógica de mock).
 
-#### Avance 2026-10-10
-- Cambios: validación de rangos por tipo en lectura manual (réplica de `SensorNormalizer`; el backend sigue siendo autoridad con cuarentena).
-- Desbloqueo autorizado: relación `Sensor::latestMeasurement()` (`latestOfMany`, sin N+1) cargada en el índice; tarjetas muestran última lectura con antigüedad (`Sin lecturas registradas.` si no hay).
-- Verificación: `npm test` 139/139 en verde; `npm run lint` 0 errores; `npx tsc -b` sin errores; backend `php artisan test` 50 passed; `pint --test` PASS.
+### F3-6 — Sensors (`pages/Sensors.tsx`, 400 líneas, equipo)
 
----
+- Preservar: `createMeasurement/createSensor/listPlots/listSensors`, `useCollection`, `TIPOS`, lectura manual/demo, calibración, estados ok/atención.
+- Reemplazar: 17 legacy (incl. `Tabs/Stat/Modal/Pager`) → shadcn + F2-4 (charts por sensor) + F2-8.
+- Test: `Sensors.test.tsx` (95 líneas).
 
-### Fase ET-2.7 — Alertas
-**Estado:** `COMPLETADO`
+### F3-7 — Irrigations (`pages/Irrigations.tsx`, 439 líneas, ambos roles)
 
-#### Objetivo
-Mostrar señales que requieren atención y facilitar la acción inmediata.
+- Preservar: `correctIrrigation/createIrrigation/listIrrigations/listPlots/voidIrrigation`, `useCollection`, `desvioTone`, filtro período (ET-2.8), bloqueo duplicado 24h (FT-1.5), `submitForm` (`lib/dom.ts`).
+- Reemplazar: 15 legacy (incl. `Confirm/Modal/Pager/Stat/TextInput`) → shadcn `dialog` + F2-5 + F2-8. Variante agricultor simple / equipo completa.
+- Test: `Irrigations.test.tsx` (63 líneas).
 
-#### Secciones necesarias
-- Resumen total/críticas/sensores.
-- Filtros por prioridad.
-- Buscador por mensaje o parcela.
-- Lista con explicación y acción.
-- Paginación.
+### F3-8 — Evaluate (`pages/Evaluate.tsx`, 365 líneas, ambos roles, NÚCLEO DEL SISTEMA)
 
-#### Tareas
-- [x] Rediseñar bandeja desde cero.
-- [x] Explicar cada alerta en lenguaje claro.
-- [x] Agregar acción “Ir a parcela”.
-- [x] Implementar filtros y búsqueda.
-- [x] Estados de carga, vacío y error.
+- Preservar: `createIrrigation/evaluatePlot/getEvaluationMessage/listEvaluations/listIrrigations/listPlots`, `useLocation` plotId, `toast*`, WhatsApp share, `confirming/sharing` states, guía incompletas por rol (ET-2.3), conversión fracción→% antes de `SoilMeter` (FT-1.1, NO tocar).
+- Reemplazar: 12 legacy (incl. `SoilMeter/VerdictCard/Card/Field/SelectInput`) → F2-1/F2-2/F2-5 + shadcn. Hero de veredicto por tono (4 variantes) compuesto en página.
+- Test: `Evaluate.test.tsx` (78 líneas). Máxima prioridad de QA manual por rol.
 
-#### Archivos
-- `frontend/src/pages/Alerts.tsx`
+### F3-9 — Catalogs (`pages/Catalogs.tsx`, 200 líneas, equipo, solo lectura)
 
-#### Criterios de aceptación
-- [x] Filtros y búsqueda funcionan.
-- [x] Cada alerta permite actuar rápidamente.
+- Preservar: `listCrops/listSoils`, buscador + glosario (ET-2.11), fuente FAO-56/Saxton.
+- Reemplazar: 8 legacy (`Badge/Banner/Card/Empty/Icon/Loading/PageHead/SearchInput`) → shadcn `accordion/table` + F2-8.
+- Test: `Catalogs.test.tsx` (32 líneas).
 
-#### Avance 2026-10-10
-- Bandeja ya cumplía filtros, búsqueda y estados; faltaban explicación y acción.
-- Cambios: pista en lenguaje claro por cada tipo real (`sensor_sin_datos`, `sensor_anomalo`, `evaluacion_incompleta`, `humedad_critica`); acción "Ir a parcela" que navega a Evaluar con la parcela preseleccionada.
-- Verificación: `npm test` 121/121 en verde (incluye 3 tests nuevos de `Alerts.test.tsx`); `npm run lint` 0 errores; `npx tsc -b` sin errores.
+### F3-10 — Farmers (`pages/Farmers.tsx`, 241 líneas, técnico/admin)
+
+- Preservar: `createFarmer/listFarmers/updateFarmer`, `useCollection`, `twoInitials`, estado editable (ET-2.5), `submitForm`.
+- Reemplazar: 15 legacy (incl. `DataTable/Modal/Pager/SelectInput/TextInput`) → TanStack + shadcn `table/dialog` + F2-5 + `Avatar` shadcn (iniciales).
+- Test: `Farmers.test.tsx` (64 líneas).
+
+### F3-11 — Alerts (`pages/Alerts.tsx`, 165 líneas, ambos roles)
+
+- Preservar: `listAlerts`, `useCollection`, explicación+acción por alerta (ET-2.7).
+- Reemplazar: 10 legacy (incl. `Pager/Stat/Tabs/PageHead`) → shadcn + F2-8. Severidad con franja + icono + palabra.
+- Test: `Alerts.test.tsx` (49 líneas).
+
+### F3-12 — Weather (`pages/Weather.tsx`, 242 líneas, equipo)
+
+- Preservar: `getWeather/listPlots/refreshWeather`, `FRESH_MIN=180`, validación+prellenado (ET-2.10), demo/OWM.
+- Reemplazar: 12 legacy (incl. `Card/Field/SelectInput/TextInput`) → shadcn + F2-4 (charts pronóstico/histórico).
+- Test: `Weather.test.tsx` (63 líneas).
+
+### F3-13 — Validation (`pages/Validation.tsx`, 177 líneas, técnico/admin)
+
+- Preservar: `runValidation`, `useCollection`, tabs todos/ok/fallos, motivo traducido, `runningRef` anti-doble-ejecución.
+- Reemplazar: 12 legacy (incl. `Card/Pager/SearchInput/Tabs`) → shadcn + barra progreso (`progress` Radix ya en deps; crear wrapper si hace falta).
+- Test: `Validation.test.tsx` (39 líneas).
 
 ---
 
-### Fase ET-2.8 — Riegos aplicados
-**Estado:** `COMPLETADO`
+## 7. FASE 4 — Integración y QA · Estado: `COMPLETADO (agente)` — pendientes de usuario: E-21 + QA visual (2026-10-11)
 
-#### Objetivo
-Registrar y auditar el agua aplicada, compararla con lo recomendado y corregir errores sin perder historial.
+Secuencia aplicada:
 
-#### Secciones necesarias
-- Resumen de riegos y agua total.
-- Buscador y filtro por fecha.
-- Historial con desvío y estado.
-- Registro de riego.
-- Corrección con motivo.
-- Anulación con motivo y confirmación.
-
-#### Tareas
-- [x] Rediseñar historial desde cero.
-- [x] Calcular desvío recomendado/aplicado.
-- [x] Implementar corrección preservando historial.
-- [x] Implementar anulación con doble confirmación.
-- [x] Mejorar textos de corrección/anulación.
-- [x] Estados de carga, vacío y error.
-
-#### Archivos
-- `frontend/src/pages/Irrigations.tsx`
-
-#### Criterios de aceptación
-- [x] Registrar, corregir y anular funciona.
-- [x] Desvío y estados son comprensibles.
-
-#### Avance 2026-10-10
-- Historial, desvío, corrección y anulación ya cumplían el objetivo; faltaba el filtro por fecha.
-- Cambios: filtro por período Desde/Hasta con botón Limpiar y estado vacío coherente con filtros activos.
-- Verificación: `npm test` 124/124 en verde (incluye 3 tests nuevos de `Irrigations.test.tsx`); `npm run lint` 0 errores; `npx tsc -b` sin errores.
+1. [x] Cierre Fase 3 verificado: ninguna `pages/*.tsx` importa `../components/ui` legacy (grep de control).
+2. [ ] `sudo rm -rf frontend/dist` (E-21: artefacto root-owned; **lo ejecuta el usuario**; builds verificados con `--outDir /tmp`).
+3. [x] `main.tsx`: `globals.css` (+ `login.css`, ver D-15); `qa-preview.tsx` igual (E-05 cerrado).
+4. [x] Borrados estilos legacy (`index/tokens/app/shell/operations/management/monitoring`), **excepto `login.css`** (D-15: AuthLayout lo necesita; tokens migrados a `--color-*`).
+5. [x] Borrados `components/ui/` PascalCase + `ui.tsx` + `layout.tsx` + `PlotMap/LineChart/Toasts` legacy. `PlotMap` portado íntegro a `shadcn/plot-map` (misma lógica Leaflet).
+6. [x] Huérfanos preexistentes **eliminados** (D-17): `design-system/`, `features/`, `workspace-v2.css` (nada en HEAD los importaba).
+7. [x] Eliminado `backend/NUL`.
+8. [x] `App.tsx` → shells nuevos + shadcn en vista restringida (App.test intacto: Secciones/Navegación agricultor/roles verificados por tests).
+9. [x] Verificación: `tsc` 0 · `lint` 0 err (19 warnings benignos) · tests **135/135** (7 portados: SoilMeter×4, FormField, DataTable, FilterTabs; 4 de Modal legacy jubilados con Radix) · `build` ✓.
+10. [ ] QA visual manual (**usuario**): escritorio/tablet/móvil × agricultor/técnico/admin (`npm run dev` o servicio `frontend`).
+11. [x] `DESIGN_SYSTEM.md` y `README.md` reescritos al nuevo sistema.
 
 ---
 
-### Fase ET-2.9 — Validación del motor
-**Estado:** `COMPLETADO`
+## 8. Bitácora de la sesión de rediseño (2026-10-11)
 
-#### Objetivo
-Verificar recomendaciones del motor contra casos de referencia.
-
-#### Secciones necesarias
-- Resumen global y porcentaje.
-- Estado aprobado/con fallos.
-- Filtros por resultado.
-- Buscador de casos.
-- Detalle esperado/obtenido/motivo.
-
-#### Tareas
-- [x] Rediseñar informe desde cero.
-- [x] Explicar fallos en lenguaje claro.
-- [x] Implementar filtros y búsqueda.
-- [x] Evitar ejecuciones duplicadas.
-- [x] Estados de carga, vacío y error.
-
-#### Archivos
-- `frontend/src/pages/Validation.tsx`
-
-#### Criterios de aceptación
-- [x] Ejecución y detalle funcionan.
-- [x] Fallos son comprensibles.
-
-#### Avance 2026-10-10
-- Informe ya cumplía filtros, búsqueda y estados; faltaban lenguaje claro y protección de doble ejecución.
-- Cambios: `reasonLabel` compartido en `format.ts` (elimina duplicado con `Evaluate.tsx`); esperado/obtenido y detalle traducidos; guardia contra doble clic en ejecutar.
-- Nota técnica: no emitir ediciones paralelas al mismo archivo (una pisó el import; corregido y verificado).
-- Verificación: `npm test` 126/126 en verde (incluye 2 tests nuevos de `Validation.test.tsx`); `npm run lint` 0 errores; `npx tsc -b` sin errores.
+- [x] Inventario del proyecto (backend Laravel + frontend React/Vite) y conteo de módulos (14 controladores ≈ 14 dominios; 13 páginas UI).
+- [x] Decisión de stack: Tailwind + shadcn/ui (usuario) confirmada con análisis vs MUI/Mantine/Chakra/Headless.
+- [x] Extracción 1:1 de colorimetría y tipografía del Login (`tokens.css`, `login.css`, `AuthLayout.tsx`).
+- [x] Creación de base: `theme.ts`, `utils.ts`, `globals.css`, `components.json`, 25 componentes `ui/`, `package.json` con deps.
+- [x] Limpieza de raíz (E-01) y restauración de `ui.tsx` legacy.
+- [x] Cierre de Fase 1: E-01…E-19 corregidos (E-05 programado, E-18 registrado); `tsc` 0 errores, `lint` 0 errores, tests 139/139; nuevos en `components/shadcn/` + barrel `shadcn.tsx`.
+- [x] Cierre de Fase 2: F2-1…F2-8 creados y verificados (`tsc`/`lint`/`tests` verdes); barrel con 44 exports.
+- [x] Cierre de Fase 3 (2026-10-11): 13/13 páginas rediseñadas (F3-1 Login, F3-2 RecoverPin, F3-3 Dashboard, F3-4 Hoy, F3-5 Plots, F3-6 Sensors, F3-7 Irrigations, F3-8 Evaluate, F3-9 Catalogs, F3-10 Farmers, F3-11 Alerts, F3-12 Weather, F3-13 Validation). Lógica, endpoints, textos y contratos intactos; `tsc` 0, `lint` 0 err, tests 139/139. Solo 1 cambio necesario en tests: mock `PlotMap` → `shadcn/plot-map` (F3-5).
+- [x] Cierre de Fase 4 (2026-10-11, agente): shells + `lib/toast`→sonner + `AuthLayout` migrados; legacy y huérfanos eliminados; `tsc` 0, `lint` 0 err, tests **135/135**, `build` ✓. Pendiente usuario: E-21 (`sudo dist`, luego resuelto por usuario) + QA visual.
+- [x] Réplica v2 del Login con estructura actual (a pedido 2026-10-11, D-15): `Login.tsx` + `AuthLayout` 100% Tailwind con métricas v2; `login.css` eliminado; `main.tsx`/`qa-preview` solo `globals.css`; `tsc` 0, tests 135/135, `lint` 0 err.
+- [x] Réplica v2 del shell con estructura actual (a pedido 2026-10-11, D-26): sidebar 248px + drawer ≤1000px + topbar + footer + farmer flotante; `tsc` 0, App 6/6, tests 135/135, `lint` 0 err, `build` ✓.
+- [x] Auditoría final (2026-10-11, a pedido): 0 imports legacy residuales (grep); 0 clases CSS legacy en código nuevo (solo prop `eyebrow`/`chips` y `space-y-0` legítimos); barrel↔archivos consistente (41 shadcn + 3 charts + 4 forms + 6 layout); deps reservadas sin uso documentadas (D-20); suite final `tsc` 0 · `lint` 0 err · 135/135 · `build` ✓.
 
 ---
 
-### Fase ET-2.10 — Clima por parcela
-**Estado:** `COMPLETADO`
+## 9. Recuperación del documento anterior
 
-#### Objetivo
-Mostrar pronóstico vigente y permitir actualización manual/demo con validación coherente.
-
-#### Secciones necesarias
-- Pronóstico actual.
-- Origen OWM/demo.
-- Vigencia de tres horas.
-- Lluvia, probabilidad y temperaturas.
-- Formulario de actualización.
-- Advertencia cuando el pronóstico está vencido.
-
-#### Tareas
-- [x] Rediseñar tarjetas desde cero.
-- [x] Sincronizar control deslizante e input de probabilidad.
-- [x] Validar rangos de lluvia y temperatura.
-- [x] Persistir valores útiles entre usos.
-- [x] Mostrar advertencia cuando afecte la evaluación.
-- [x] Estados de carga, vacío, error y vencido.
-
-#### Archivos
-- `frontend/src/pages/Weather.tsx`
-
-#### Criterios de aceptación
-- [x] Vigencia y origen siempre son claros.
-- [x] Actualización demo funciona y persiste lo necesario.
-
-#### Avance 2026-10-10
-- Tarjetas, vigencia, origen y advertencia ya cumplían el objetivo; faltaban validación y prellenado.
-- Cambios: validación de lluvia, probabilidad y temperaturas antes de guardar; el formulario se prellena con el último pronóstico al cambiar de parcela.
-- Verificación: `npm test` 129/129 en verde (incluye 3 tests nuevos de `Weather.test.tsx`); `npm run lint` 0 errores; `npx tsc -b` sin errores.
+```bash
+git show HEAD:MEJORAS.md > MEJORAS.legacy.md   # plan maestro ETAPA I/II + PARTE III VD-0…VD-12
+```
 
 ---
 
-### Fase ET-2.11 — Cultivos y suelos
-**Estado:** `COMPLETADO`
+## 10. Comandos de verificación (ejecutar con cwd = `frontend/`)
 
-#### Objetivo
-Consultar parámetros agronómicos usados por las recomendaciones.
-
-#### Secciones necesarias
-- Búsqueda global.
-- Catálogo de cultivos y etapas.
-- Catálogo de suelos.
-- Explicación de parámetros.
-- Versión/fecha de datos.
-
-#### Tareas
-- [x] Rediseñar catálogos desde cero.
-- [x] Implementar búsqueda en tiempo real.
-- [x] Agregar explicaciones de `Kc`, `Zr`, `p`, `CC` y `PMP`.
-- [x] Mantener comportamiento de solo lectura.
-- [x] Estados de carga, vacío y error.
-
-#### Archivos
-- `frontend/src/pages/Catalogs.tsx`
-
-#### Criterios de aceptación
-- [x] Búsqueda y consulta funcionan.
-- [x] Parámetros son comprensibles.
-
-#### Avance 2026-10-10
-- Catálogos ya cumplían consulta, acordeón y estados; faltaban búsqueda, glosario y fuente.
-- Cambios: buscador global en tiempo real con vacíos diferenciados; glosario de `Kc`/`Zr`/`p`/`CC`/`PMP`/agua útil; nota de fuente FAO-56 y Saxton & Rawls con advertencia de validación local (las versiones semilla son uniformes, sin valor informativo por fila).
-- Verificación: `npm test` 131/131 en verde (incluye 2 tests nuevos de `Catalogs.test.tsx`); `npm run lint` 0 errores; `npx tsc -b` sin errores.
+```bash
+npm install
+npx tsc -b
+npm run lint
+npm test
+npm run build
+```
 
 ---
 
-### Fase ET-2.12 — Panel técnico
-**Estado:** `COMPLETADO`
-**Dependencias:** `FT-1.2`, `FT-1.3`
+## 11. Manual de continuación (leer antes de retomar)
 
-#### Objetivo
-Dar al técnico/admin una vista operativa del campo y accesos rápidos.
+### 11.1 Estado exacto al pausar (2026-10-11)
 
-#### Secciones necesarias
-- Indicador de actualización de datos.
-- KPIs principales.
-- Decisión del día.
-- Accesos directos.
-- Últimas evaluaciones.
-- Alertas prioritarias.
+- Fases 1–4 `COMPLETADAS` por el agente y verificadas (tsc 0, lint 0 err, tests 135/135, build ✓).
+- Pendiente **usuario**: E-21 (`sudo rm -rf frontend/dist`), QA visual (escritorio/tablet/móvil × 3 roles) y decisión de commit (NADA commiteado; ver estado git abajo).
+- Git (rama `master`): 40+ archivos modificados/eliminados + ~60 nuevos sin trackear. Nada commiteado.
+- No queda trabajo de agente pendiente salvo lo que pida el usuario.
 
-#### Tareas
-- [x] Rediseñar panel desde cero.
-- [x] Mostrar frescura de datos.
-- [x] Conectar cada KPI con su módulo.
-- [x] Mostrar alertas prioritarias, no solo una muestra parcial.
-- [x] Estados de carga, vacío y error.
+### 11.2 Reglas de entorno (incumplirlas rompe cosas: ver E-01, E-20, E-21)
 
-#### Archivos
-- `frontend/src/pages/Dashboard.tsx`
+1. Todo `npm/npx/node` se ejecuta **dentro de WSL**: `wsl -d Ubuntu -- bash -lc "cd ~/proyectos/yakuai/frontend && <comando>"`. NUNCA npm de Windows contra `\\wsl.localhost` (symlinks → EISDIR).
+2. El shell de la herramienta es **PowerShell 5.1**: NO existe `&&` (usar `;` o llamadas separadas), NO existe `head` (usar `Select-Object -First`), paths con espacios entre comillas. Para bash real, envolver con `wsl -d Ubuntu -- bash -lc "..."`.
+3. `git status` puede mostrar **ruido fantasma** en el mount 9P (archivos listados como M con `git diff` vacío y hashes iguales): resolver con `git checkout -- <archivo>` (solo si `git diff --ignore-cr-at-eol` confirma cero cambios reales).
+4. CRLF: si un archivo aparece reescrito completo en el diff, verificar `git diff --ignore-cr-at-eol` antes de tocar nada.
+5. `frontend/dist/` es root-owned (E-21): no borrar sin `sudo` (pedirlo al usuario); para verificar builds usar `--outDir /tmp/...`.
+6. No commitear sin orden expresa. No tocar `backend/`. No tocar `main.tsx`/`index.css` hasta Fase 4 (E-05).
 
-#### Criterios de aceptación
-- [x] Panel protegido por rol.
-- [x] KPIs y accesos directos funcionan.
+### 11.3 Inventario de archivos creados en esta sesión (todos sin trackear salvo indicados)
 
-#### Avance 2026-10-10
-- Panel ya cumplía KPIs, decisión del día y accesos parciales; faltaban enlaces en KPIs, frescura y prioridad de críticas.
-- Cambios: cada KPI enlaza a su módulo (clase `.stat-link` neutra visualmente, con foco visible global); indicador "Actualizado hace X"; críticas primero hasta 8 con conteo.
-- Protección por rol ya asegurada en `FT-1.3` y cubierta por `App.test.tsx`.
-- Verificación: `npm test` 134/134 en verde (incluye 3 tests nuevos de `Dashboard.test.tsx`); `npm run lint` 0 errores; `npm run build` código 0.
+- `frontend/components.json` (config shadcn).
+- `frontend/src/components/shadcn/` (43 archivos: 26 base + F2-8×6 + soil-meter + verdict-card + plot-map + toaster + filter-tabs + data-table + 4 tests portados) + `frontend/src/components/shadcn.tsx` (barrel ampliado) + `components/charts/` (3) + `components/forms/` (3+1 test) + `components/layout/` (6). 13 páginas reescritas en `frontend/src/pages/`. Legacy eliminado: `components/ui/` PascalCase, `ui.tsx`, `layout.tsx`, `PlotMap/LineChart/Toasts`, 7 CSS; huérfanos eliminados.
+- `frontend/src/lib/theme.ts` (245 líneas), `frontend/src/lib/utils.ts` (`cn`).
+- `frontend/src/styles/globals.css` (245 líneas, Tailwind v4).
+- Modificados (trackeados): `frontend/package.json` (+31 deps incl. `tw-animate-css`), `package-lock.json`, `tsconfig.app.json` (alias `@`), `vite.config.ts` (plugin tailwind + alias), `vitest.config.ts` (alias).
+- Preexistentes sin trackear (NO creados aquí, NO tocar hasta Fase 4 §7-paso 6): `frontend/src/design-system/`, `frontend/src/features/`, `frontend/src/styles/workspace-v2.css`, `backend/NUL`.
+
+### 11.4 Baseline de verificación (no regresionar)
+
+`npx tsc -b` → 0 errores · `npm run lint` → 0 errores (17 warnings legacy en páginas) · `npm test` → 21 archivos / 139 tests · `vite build` → ✓.
 
 ---
 
-### Fase ET-2.13 — Recuperación de PIN
-**Estado:** `COMPLETADO`
-
-#### Objetivo
-Permitir recuperar el PIN sin rediseñar visualmente el flujo de acceso.
-
-#### Secciones necesarias
-- Paso de solicitud de código.
-- Paso de verificación y nuevo PIN.
-- Contacto alternativo con técnico/admin.
-
-#### Tareas
-- [x] Conservar el diseño actual de acceso/recuperación.
-- [x] Evitar número de contacto hardcodeado.
-- [x] Controlar intentos y bloqueo temporal.
-- [x] Permitir reenvío de código.
-- [x] Validar PIN de cuatro dígitos.
-- [x] Estados de carga, error y éxito.
-
-#### Archivos
-- `frontend/src/pages/RecoverPin.tsx`
-- `frontend/src/components/AuthLayout.tsx`
-
-#### Criterios de aceptación
-- [x] Flujo completo funciona.
-- [x] Diseño de acceso permanece intacto.
-
-#### Avance 2026-10-10
-- Flujo de 2 pasos, validación de PIN y estados ya cumplían el objetivo; bloqueo temporal ya lo impone el backend (429) y se muestra.
-- Cambios: botón "Reenviar código" en el paso 2; contacto de soporte centralizado en una constante documentada (pendiente servirlo desde backend).
-- Verificación: `npm test` 138/138 en verde (incluye 4 tests nuevos de `RecoverPin.test.tsx`); `npm run lint` 0 errores; `npx tsc -b` sin errores.
-
----
-
-## 5. Dependencias y orden de ejecución
-
-### 5.1 Orden obligatorio
-1. Completar `FT-1.1` antes de `ET-2.3`.
-2. Completar `FT-1.2` antes de `ET-2.1` y `ET-2.11`.
-3. Completar `FT-1.3` antes de `ET-2.11`.
-4. Completar `FT-1.4` antes de `ET-2.6`.
-5. Completar `FT-1.5` antes de `ET-2.3`.
-6. Completar `FT-1.6` y `FT-1.7` antes de iniciar el rediseño masivo.
-7. No iniciar ETAPA II sin cerrar el checkpoint obligatorio de ETAPA I.
-
-### 5.2 Orden sugerido en ETAPA II
-1. `ET-2.1`
-2. `ET-2.2`
-3. `ET-2.3`
-4. `ET-2.4`
-5. `ET-2.5`
-6. `ET-2.6`
-7. `ET-2.7`
-8. `ET-2.8`
-9. `ET-2.9`
-10. `ET-2.10`
-11. `ET-2.11`
-12. `ET-2.12`
-13. `ET-2.13`
-
-## 6. Matriz de trazabilidad
-
-| Hallazgo | Fase | Resultado esperado |
-|---|---|---|
-| H-01 | FT-1.1, ET-2.3 | Umbral coherente |
-| H-02 | FT-1.2, ET-2.1, ET-2.11 | Rol claro y navegación correcta |
-| H-03 | FT-1.3, ET-2.11 | Rutas protegidas |
-| H-04 | FT-1.4, ET-2.6 | Formulario por tipo de sensor |
-| H-05 | FT-1.5, ET-2.3 | Prevención de sobreriego |
-| H-06 | ET-2.10 | Pronóstico persistente y válido |
-| H-07 | ET-2.8 | Flujos con menos fricción |
-| H-08 | ET-2.7 | Alertas comprensibles |
-| H-09 | ET-2.10, ET-2.11 | Estados visuales coherentes |
-| H-10 | ET-2.9 | Fallos explicados |
-| H-11 | ET-2.2, ET-2.3, ET-2.11, ET-2.12 | Frescura de datos visible |
-| H-12 | ET-2.10 | Controles sincronizados |
-| H-13 | ET-2.4 | Ubicación flexible y validada |
-| H-14 | ET-2.13 | Contacto configurable |
-| H-15 | FT-1.6, FT-1.7 | Código limpio y componentes consistentes |
-
-## 7. Riesgos y precauciones
-
-- No cambiar visualmente Login ni sidebar.
-- No eliminar componentes sin revisar dependencias.
-- No iniciar rediseño visual con errores críticos pendientes.
-- No duplicar lógica entre frontend y backend.
-- Revisar contratos de `/api/v1` antes de cambiar formularios.
-- Probar cada fase con todos los roles aplicables.
-- Mantener accesibilidad, responsive y textos en español claro.
-
-## 8. Registro de progreso
-
-### 8.1 Estado inicial
-- ETAPA I: `PENDIENTE`
-- ETAPA II: `PENDIENTE`
-- Todas las fases comienzan en `PENDIENTE`.
-
-### 8.2 Cómo actualizar este documento
-- Cambiar estado a `EN PROGRESO` al comenzar una fase.
-- Cambiar estado a `COMPLETADO` solo tras cumplir pruebas y aceptación.
-- Usar `BLOQUEADO` si falta una dependencia, contrato backend o decisión pendiente.
-- Registrar fecha, responsable, cambios y problemas importantes debajo de cada fase.
-
-### 8.3 Bitácora
-- [x] Fecha: 2026-10-10 — Fase: FT-1.1 — COMPLETADA. Cambios en `Irrigation.tsx`, `Evaluate.tsx` y nuevo `Irrigation.test.tsx`; `npm test` 80/80, `lint` 0 errores, `tsc -b` sin errores.
-- [x] Fecha: 2026-10-10 — Fase: FT-1.2 — COMPLETADA. Rol visible en `FarmerShell`; eliminada ruta muerta `auth/pin`; `npm test` 81/81, `lint` 0 errores, `tsc -b` sin errores.
-- [x] Fecha: 2026-10-10 — Fase: FT-1.3 — COMPLETADA. Vista restringida para roles desconocidos; `npm test` 87/87, `lint` 0 errores, `tsc -b` sin errores.
-- [x] Fecha: 2026-10-10 — Fase: FT-1.4 — COMPLETADA. Sin banner YL-69 fuera de humedad; `npm test` 90/90, `lint` 0 errores, `tsc -b` sin errores.
-- [x] Fecha: 2026-10-10 — Fase: FT-1.5 — COMPLETADA. Bloqueo de riego duplicado en 24 h; `npm test` 92/92, `lint` 0 errores, `tsc -b` sin errores.
-- [x] Fecha: 2026-10-10 — Fase: FT-1.6 — COMPLETADA. Sin `IconButton`/`Paginator`; fechas centralizadas; `npm test` 94/94, `lint` 0 errores, `build` limpio.
-- [x] Fecha: 2026-10-10 — Fase: FT-1.7 — COMPLETADA. Tonos `neutro`/`demo` con clase; test de teclado en `Tabs`; `npm test` 95/95, `lint` 0 errores, `build` limpio.
-- [x] Fecha: 2026-10-10 — Fase: ET-2.1 — COMPLETADA. Validación de correo en `Login`; diseño intacto; `npm test` 100/100, `lint` 0 errores, `tsc -b` sin errores.
-- [x] Fecha: 2026-10-10 — Fase: ET-2.2 — COMPLETADA. Antigüedad, sensores y preselección a Evaluar; `npm test` 104/104, `lint` 0 errores, `tsc -b` sin errores.
-- [x] Fecha: 2026-10-10 — Fase: ET-2.3 — COMPLETADA. Guía en incompletas y antigüedad en veredicto; `npm test` 106/106, `lint` 0 errores, `tsc -b` sin errores.
-- [x] Fecha: 2026-10-10 — Fase: ET-2.4 — COMPLETADA. Geolocalización opcional y cálculo de área verificado; `npm test` 112/112, `lint` 0 errores, `tsc -b` sin errores.
-- [x] Fecha: 2026-10-10 — Fase: ET-2.5 — COMPLETADA. Estado editable en agricultores; `npm test` 116/116, `lint` 0 errores, `tsc -b` sin errores.
-- [x] Fecha: 2026-10-10 — Fase: ET-2.6 — COMPLETADA (desbloqueo backend autorizado). `latestMeasurement` en índice; tarjetas con última lectura; frontend `npm test` 139/139, backend 50 passed, `pint` PASS.
-- [x] Fecha: 2026-10-10 — Fase: ET-2.7 — COMPLETADA. Explicación y acción por alerta; `npm test` 121/121, `lint` 0 errores, `tsc -b` sin errores.
-- [x] Fecha: 2026-10-10 — Fase: ET-2.8 — COMPLETADA. Filtro por período en riegos; `npm test` 124/124, `lint` 0 errores, `tsc -b` sin errores.
-- [x] Fecha: 2026-10-10 — Fase: ET-2.9 — COMPLETADA. Lenguaje claro y guardia en validación; `npm test` 126/126, `lint` 0 errores, `tsc -b` sin errores.
-- [x] Fecha: 2026-10-10 — Fase: ET-2.10 — COMPLETADA. Validación y prellenado en clima; `npm test` 129/129, `lint` 0 errores, `tsc -b` sin errores.
-- [x] Fecha: 2026-10-10 — Fase: ET-2.11 — COMPLETADA. Buscador y glosario en catálogos; `npm test` 131/131, `lint` 0 errores, `tsc -b` sin errores.
-- [x] Fecha: 2026-10-10 — Fase: ET-2.12 — COMPLETADA. KPIs enlazados, frescura y críticas primero; `npm test` 134/134, `lint` 0 errores, `build` código 0.
-- [x] Fecha: 2026-10-10 — Fase: ET-2.13 — COMPLETADA. Reenvío de código y contacto centralizado; `npm test` 138/138, `lint` 0 errores, `tsc -b` sin errores.
-- [ ] Fecha: ______ — Fase: ______ — Cambio/problema/decision: ______
-- [ ] Fecha: ______ — Fase: ______ — Cambio/problema/decision: ______
-
----
-
-# PARTE III — Rediseño visual integral (solo presentación)
-
-**Estado general:** `PENDIENTE` (definición completa; implementación pendiente de aprobación por módulo)
-
-## Objetivo y alcance
-Transformar completamente la apariencia visual del frontend sin alterar funcionalidades, rutas, integraciones ni contratos con el backend. Cada dato, acción y flujo existente se conserva; cambia exclusivamente su presentación visual.
-
-## Reglas obligatorias
-- Login intacto como referencia de identidad; sidebar intacto; shells de navegación intactos (solo cambia el contenido de página).
-- Sin nuevas funcionalidades ni eliminación de procesos; sin cambios de backend, arquitectura ni lógica.
-- Sin cambios superficiales: cada fase debe producir un cambio integral, significativo y claramente perceptible.
-- Cada fase se implementa y valida por separado. Regla de componentes compartidos: el primer módulo que usa un componente implementa su nuevo visual; los siguientes lo reutilizan (dependencia documentada por fase).
-- Verificación por fase: `npm test` + `npm run lint` + `npx tsc -b` + `npm run build` en verde, inspección visual manual en escritorio/tablet/móvil y por rol cuando aplique.
-
-## Orden de implementación
-`VD-0` → `VD-1` → `VD-2` → `VD-3` → `VD-4` → `VD-5` → `VD-6` → `VD-7` → `VD-8` → `VD-9` → `VD-10` → `VD-11` → `VD-12`
-
-### Fase VD-0 — Sistema de diseño visual global
-**Estado:** `PENDIENTE`
-
-#### 1. Módulo e interfaces
-Base transversal: tokens, tipografía, componentes compartidos (`ui/*`, `SoilMeter`, `VerdictCard`, `PlotMap` cromático, `LineChart` si se usa), patrones de página, estados y responsive. Sin pantallas propias.
-
-#### 2. Objetivo y concepto visual
-Fijar el lenguaje "campo inteligente andino": superficies claras `#f4f6f8/#fff`, énfasis en verde profundo `#103e38/#165349`, acento luminoso `#d6e8a9` solo para momentos de decisión y celebración, semáforos suaves siempre acompañados de icono + palabra. Calma por defecto, energía solo donde hay que actuar.
-
-#### 3. Estructura, composición y distribución
-Retícula: contenido `maxw 88rem`, páginas en pila vertical con ritmo 20–32px; cabecera de página (`eyebrow + título + descripción + acciones`) como patrón único; tarjetas como unidad base; tablas densas solo en equipo; héroes de decisión solo en pantallas de veredicto/jornada.
-
-#### 4. Jerarquía de información
-Nivel 1: veredicto/número accionable. Nivel 2: contexto operativo (frescura, confianza, ventana). Nivel 3: trazabilidad colapsada. Regla: una sola acción primaria por vista en agricultor; hasta tres en equipo.
-
-#### 5. Tipografía, tamaños, pesos y legibilidad
-Inter/system-ui; display 2rem héroes, h1 1.5rem, h2 1.125rem, cuerpo .875rem/1.55, small .8125rem, tiny .75rem; 600 en valores y títulos, 500 en etiquetas, 400 en cuerpo; cifras con `tabular-nums`; fechas absolutas + relativas juntas; español claro, sin jerga en agricultor.
-
-#### 6. Paleta, contrastes y colorimetría
-Tokens existentes como única fuente: `primary-*`, `success/warning/danger/info` (+`bg/border/text`), fondos de veredicto por tono, neutros para lectura/inactivos. Texto sobre verde oscuro siempre blanco; badges y estados nunca solo-color; modo `forced-colors` ya contemplado se conserva.
-
-#### 7. Espaciados, alineaciones, dimensiones y proporciones
-Escala `s1–s10`; tarjetas `padding 20–28`, `gap 12–16`; radios `r-md 10` tarjetas, `r-lg 14` héroes/modales, `pill` en badges/chips; táctil mínimo 44px (primarias agricultor 52px+); formularios 1 columna en móvil, 2 en escritorio.
-
-#### 8. Componentes visuales
-Botones (7 variantes con jerarquía de uso documentada), tarjetas (base, severidad con franja/borde, hero), tablas (cabecera, `data-label` móvil, acciones a la derecha), formularios (label+hint+error, foco 2px), filtros (`Tabs`+`Search`+fecha), indicadores (`Badge` pill, `Stat` enlazable, `SoilMeter` v2 con marcas PMP/umbral legibles, `VerdictCard` por tono, barras de progreso), `Empty/Loading/Skeletons/Banner/Toast`, `Modal/Confirm`, `Stepper/Pager`.
-
-#### 9. Iconografía, bordes, sombras, estados y microinteracciones
-Set lineal 1.8px actual en 16–24px, siempre con texto; sombras `shadow-1` tarjetas, `shadow-2` modales/héroes; transiciones 160ms en hover/anchos; spinner y shimmer; `prefers-reduced-motion` respetado; foco visible global 2px ya existente.
-
-#### 10. Datos, estadísticas y gráficos
-Cifras grandes tabulares en héroes/KPIs; barras CSS para progreso y desvíos; sin librerías nuevas de gráficos (se evita dependencia y peso).
-
-#### 11. Responsive
-Drawer ≤1000px ya existente intacto; ≤760px apilar operaciones/monitoreo, formularios 1 columna, tablas→tarjetas con `data-label`, mapa mínimo 280px + botón ubicación; táctil amplio en agricultor.
-
-#### 12. Accesibilidad y experiencia
-Skip-link, `aria-live` en veredictos/contadores, contraste verificado, iconos nunca solos, foco gestionado en modales/drawer, fechas absolutas+relativas, español claro.
-
-#### 13. Componentes reutilizables
-Todos los de `ui/*` más `SoilMeter`, `VerdictCard`; prefijos de clase por módulo (`.hoy-*`, `.ev-*`, etc.) para no colisionar; estilos legacy se retiran por módulo al implementar su fase.
-
-#### 14. Tareas
-- [ ] Aprobar esta guía como contrato visual.
-- [ ] Auditar tokens/clases sin uso real.
-- [ ] Definir nomenclatura de clases nuevas por módulo.
-- [ ] Documentar jerarquía de botones y usos por tono.
-- [ ] Fijar patrones de toolbar, estados y vacíos.
-
-#### 15. Criterios de aceptación y pruebas
-- [ ] Guía aprobada sin contradicciones.
-- [ ] Cero cambios de código en esta fase (solo definición).
-- [ ] Verificación: revisión cruzada de la guía contra Login y sidebar.
-
----
-
-### Fase VD-1 — Hoy (hogar del agricultor)
-**Estado:** `COMPLETADO`
-
-#### 1. Módulo e interfaces
-`Hoy.tsx`: hero de jornada, tira de estadísticas, filtros, lista de recomendaciones por parcela, vacíos/errores. Implementa además el nuevo visual compartido de `SoilMeter` v2, franja de tarjeta por severidad y tira de stats (reutilizados por fases siguientes).
-
-#### 2. Objetivo y concepto visual
-Triaje matutino de un vistazo: un panel héroe que grita el estado del día (alerta vs calma) sobre verde profundo cuando hay que actuar y superficie clara cuando no, con una sola acción primaria gigante.
-
-#### 3. Estructura visual y distribución
-Hero a ancho completo (titular + ventana de riego + CTA Evaluar + actualizar) → tira horizontal de 3 mini-stats → segmented control de estado + buscador → lista vertical de tarjetas-parcela (urgentes primero) → resto colapsado "Todo bien".
-
-#### 4. Jerarquía
-H1 estado del día > cifras de parcelas/agua/sensores > tarjetas (nombre > veredicto > litros > frescura > acción) > filtros como herramienta secundaria.
-
-#### 5. Tipografía
-H1 display 2rem/600; nombres de parcela h3 1rem/600; litros cifra grande tabular 1.5rem/600; antigüedad tiny; sin tecnicismos visibles.
-
-#### 6. Paleta y contrastes
-Hero alerta: fondo `primary-900`, texto blanco, acento `#d6e8a9` en CTA y cifra; hero calma: superficie clara con borde success; tarjetas con franja lateral por severidad (danger/warning/success/neutral); badges pill existentes.
-
-#### 7. Espaciado y proporciones
-Hero `padding 28`, radio `r-lg`, gap 20; tarjetas full-width con padding 20 y gap 12; mini-stats en grid 3 (1 columna en móvil); acciones táctiles ≥52px.
-
-#### 8. Componentes
-Hero `.hoy-hero[data-state]`, stat strip `.hoy-stats`, tarjetas `.hoy-card[data-tone]` con `SoilMeter` v2 (pista redondeada, marcas PMP/umbral con etiquetas legibles), `Tabs` como chips de filtro, `SearchInput`, `Button` primario gigante, `Empty` con CTA.
-
-#### 9. Iconografía y microinteracciones
-Icono de estado grande en hero (drop/check/cloud/alert 28–32px); hover con elevación suave en tarjetas; shimmer en carga; transición de ancho en SoilMeter; `prefers-reduced-motion` respetado.
-
-#### 10. Datos y estadísticas
-Cifras tabulares: parcelas que piden agua, litros solo cuando aplica, sensores operativos X de Y, antigüedad relativa junto a fecha absoluta.
-
-#### 11. Responsive
-Móvil: hero apilado, CTA full-width, stats 1 columna, tarjetas full-width; tablet: hero 2 columnas; escritorio: lista max-width legible centrada.
-
-#### 12. Accesibilidad
-`aria-live` en hero y contador, foco visible en tarjetas-enlace, contraste blanco-sobre-verde verificado, iconos siempre con palabra.
-
-#### 13. Reutilizables
-`SoilMeter` v2, franja de severidad, tira de stats y hero de decisión quedan fijados para el resto de fases.
-
-#### 14. Tareas
-- [x] Hero de jornada con 2 estados visuales.
-- [x] Tira de estadísticas.
-- [x] Tarjetas de parcela rediseñadas + `SoilMeter` v2.
-- [x] Filtros con `Tabs` + buscador.
-- [x] Vacíos, carga y error con el nuevo lenguaje.
-- [x] Retirar estilos legacy de `farmer-today`/`monitoring` usados aquí.
-
-#### 15. Criterios de aceptación y pruebas
-- [x] Cambio visual integral y perceptible respecto al actual.
-- [x] Sin cambios de datos, rutas ni contratos.
-- [x] Verificación: tests actualizados al nuevo diseño + lint + tsc + build + inspección manual por rol.
-
-#### Avance 2026-10-10
-- Rediseño integral aplicado: hero alerta/calma sobre verde profundo, tira de 3 stats, tarjetas con franja de severidad, filtros con `Tabs` con conteos, CTA "Ver qué hacer", `SoilMeter` v2 (pista 10px + marcas en pastilla, compatible con Evaluar).
-- Decisiones: se conservó el selector de orden (la regla PARTE III prohíbe eliminar funcionalidades); urgentes-primero no se impuso para no contradecir el orden elegido por el usuario; CSS legacy compartido (`monitoring-*`) se deja intacto hasta rediseñar sus módulos.
-- Verificación: `npm test` 139/139 en verde (tests de `Hoy.test.tsx` actualizados al nuevo diseño); `npm run lint` 0 errores; `npx tsc -b` sin errores; `npm run build` código 0.
-- Pendiente manual: inspección visual en navegador (móvil prioritario).
-
----
-
-### Fase VD-2 — Evaluar (veredicto y confirmación)
-**Estado:** `PENDIENTE`
-**Dependencias:** `VD-0`, `VD-1` (reutiliza `SoilMeter` v2 y franjas de severidad).
-
-#### 1. Módulo e interfaces
-`Evaluate.tsx` (+ `VerdictCard`, trazabilidad, historial): selector de parcela, veredicto, guía de incompletas, confirmación de riego, WhatsApp e historial. Dos variantes visuales: agricultor (simple) y equipo (completa).
-
-#### 2. Objetivo y concepto visual
-El veredicto como veredicto: tarjeta hero a pantalla completa teñida por tono (fondos `verdict-*` elevados a protagonista), cifra de litros monumental y una sola pregunta visual: ¿ya regaste?
-
-#### 3. Estructura visual y distribución
-Selector como tarjetas radiales grandes (agricultor) / panel compacto (equipo) → hero de veredicto (kicker, título, litros, chips, acciones) → trazabilidad en acordeón por grupos (suelo/clima/cultivo) → historial como lista compacta (agricultor) / tabla reestilizada (equipo).
-
-#### 4. Jerarquía
-Título de veredicto > litros > acciones (Ya regué/WhatsApp) > chips de contexto > trazabilidad colapsada > historial.
-
-#### 5. Tipografía
-Título veredicto display 2rem/600; litros 2rem tabular/600; chips small; trazabilidad small/mono en cifras; motivo en lenguaje claro destacado.
-
-#### 6. Paleta y contrastes
-Fondos por tono (`verdict-riega-bg` ámbar, `-no-bg` verde, `-espera-bg` azul, `-incompleta-bg` neutro) con borde semántico; badge crítico danger; CTA primario Ya regué + outline WhatsApp.
-
-#### 7. Espaciado y proporciones
-Hero `padding 28`, radio `r-lg`; acciones en fila adaptable (columna en móvil, botones full-width ≥52px); acordeón con respiración 16px.
-
-#### 8. Componentes
-`VerdictCard` rediseñado por tono, selector-tarjetas, acordeón de trazabilidad, historial-lista vs tabla, guía de incompletas con CTA contextual por rol (equipo: Sensores/Clima; agricultor: Avisar a técnico por WhatsApp).
-
-#### 9. Iconografía y microinteracciones
-Icono de veredicto 28px por tono; kicker con reloj; confirmación con estado de guardado visible; toast de confirmación conservado.
-
-#### 10. Datos y estadísticas
-Litros min–max monumentales; humedad/umbral/PMP en `SoilMeter` v2; ET0/ETc, lámina, volumen, lluvia, Kc/Zr/etapa agrupados y legibles; próxima revisión destacada.
-
-#### 11. Responsive
-Selector en grid adaptable; hero full-width; acciones apiladas en móvil; tabla de historial solo equipo con scroll-x y `data-label`.
-
-#### 12. Accesibilidad
-`aria-live` en resultado, foco al veredicto tras evaluar, enlaces con propósito claro, contraste de cifras sobre fondos de tono.
-
-#### 13. Reutilizables
-Acordeón de trazabilidad y variante de tarjeta hero disponibles para Clima/Validación.
-
-#### 14. Tareas
-- [ ] Hero de veredicto por tono (4 variantes).
-- [ ] Selector-tarjetas (agricultor) y panel compacto (equipo).
-- [ ] Acordeón de trazabilidad por grupos.
-- [ ] Historial lista vs tabla por rol.
-- [ ] Guía de incompletas por rol.
-- [ ] Retirar estilos legacy de `ops-*` usados aquí.
-
-#### 15. Criterios de aceptación y pruebas
-- [ ] Cambio visual integral y perceptible; mismos datos y contratos.
-- [ ] Verificación: tests actualizados + lint + tsc + build + inspección manual por rol.
-
----
-
-### Fase VD-3 — Riegos (historial y registro)
-**Estado:** `PENDIENTE`
-**Dependencias:** `VD-0`
-
-#### 1. Módulo e interfaces
-`Irrigations.tsx`: resumen, toolbar con buscador y período, tabla/historial, modales de anotar/corregir/anular. Variante agricultor (lista-carta simple) y equipo (tabla completa).
-
-#### 2. Objetivo y concepto visual
-Libro de campo limpio: para el agricultor, prueba tranquila de "yo sí regué"; para el técnico, auditoría precisa con desvíos evidentes de un vistazo.
-
-#### 3. Estructura visual y distribución
-Agricultor: CTA anotar + lista-carta cronológica (fecha en palabras, parcela, litros, ✓). Equipo: stats + toolbar unificada (search + Desde/Hasta + Limpiar + contador) + tabla + paginación + modales.
-
-#### 4. Jerarquía
-Fecha y litros primero; desvío como insignia secundaria; estado como etiqueta; acciones al final de fila.
-
-#### 5. Tipografía
-Cifras de litros tabulares 1.125rem/600; fechas absolutas + relativas; motivos en small; notas en tiny.
-
-#### 6. Paleta y contrastes
-Desvío con semáforo (ok/warn/bad) + signo; estados activo/corregido/anulado en success/warning/neutral; modales destructivos en danger solo en confirmar.
-
-#### 7. Espaciado y proporciones
-Filas con padding generoso 16–20; desvío como pill compacto; modales centrados max-width 480px; formularios 1 columna.
-
-#### 8. Componentes
-Tabla reestilizada con badge de desvío, barra fina de desvío opcional, modales de anotar/corregir/anular con micro-copy conservada, confirmación en dos pasos intacta en flujo.
-
-#### 9. Iconografía y microinteracciones
-Icono drop en CTA y filas; hover de fila; confirmación con estado busy; toast conservados.
-
-#### 10. Datos y estadísticas
-Agua total acumulada destacada; desvío en litros con signo; conteo de registros; rango de período visible.
-
-#### 11. Responsive
-Agricultor 1 columna; tabla equipo con scroll-x y `data-label`; toolbar apilada en móvil; modales full-screen en pantallas pequeñas.
-
-#### 12. Accesibilidad
-Etiquetas asociadas en fechas, foco atrapado en modales (ya existente), acciones con nombre claro, contraste de badges.
-
-#### 13. Reutilizables
-Patrón de toolbar con período y de modal de auditoría para el resto del equipo.
-
-#### 14. Tareas
-- [ ] Lista-carta de agricultor.
-- [ ] Tabla de equipo reestilizada con desvío visible.
-- [ ] Toolbar de período rediseñada.
-- [ ] Modales de anotar/corregir/anular rediseñados.
-- [ ] Retirar estilos legacy usados aquí.
-
-#### 15. Criterios de aceptación y pruebas
-- [ ] Cambio visual integral y perceptible; mismos datos, rutas y contratos.
-- [ ] Verificación: tests actualizados + lint + tsc + build + inspección manual por rol.
-
----
-
-### Fase VD-4 — Alertas (bandeja accionable)
-**Estado:** `PENDIENTE`
-**Dependencias:** `VD-0`
-
-#### 1. Módulo e interfaces
-`Alerts.tsx`: resumen, tabs por prioridad, buscador, lista con explicación y acción, paginación. Variante agricultor (solo accionables) y equipo (bandeja completa).
-
-#### 2. Objetivo y concepto visual
-Semáforo operativo: lo crítico grita, lo demás espera. Cada alerta es una tarjeta de acción, no un renglón de log.
-
-#### 3. Estructura visual y distribución
-Resumen compacto → tabs segmentados con conteos → buscador → tarjetas con franja lateral por severidad (crítica/sensor/informativa) → paginación.
-
-#### 4. Jerarquía
-Severidad (franja + icono) > mensaje > pista en lenguaje claro > parcela > badge de tipo > CTA Ir a parcela.
-
-#### 5. Tipografía
-Mensaje en cuerpo 600; pista en small; parcela y tiempo en tiny; badge pill small.
-
-#### 6. Paleta y contrastes
-Franja danger/warning/info por severidad sobre superficie clara; badge de tipo en tono correspondiente; CTA como link con flecha.
-
-#### 7. Espaciado y proporciones
-Tarjetas full-width padding 16–20, gap 12; franja de 4px redondeada; CTA alineado a la derecha (abajo en móvil).
-
-#### 8. Componentes
-Tarjeta de alerta con severidad, pista contextual, badge, CTA con `state.plotId` conservado; tabs con conteos; buscador; paginación.
-
-#### 9. Iconografía y microinteracciones
-Icono por severidad (alert/sensor/info); hover con elevación; vacíos con CTA contextual.
-
-#### 10. Datos y estadísticas
-Conteos por severidad; timestamp relativo junto a mensaje; total visible con paginación.
-
-#### 11. Responsive
-1 columna siempre; tabs con scroll-x; CTA full-width en móvil.
-
-#### 12. Accesibilidad
-Severidad también en texto (no solo color), `aria-live` en conteo al filtrar, foco visible en CTA.
-
-#### 13. Reutilizables
-Tarjeta con franja de severidad disponible para Validación (fallos) y Sensores (cuarentena).
-
-#### 14. Tareas
-- [ ] Tarjetas con franja de severidad.
-- [ ] Pistas por tipo y CTA contextual.
-- [ ] Tabs y resumen rediseñados.
-- [ ] Retirar estilos legacy usados aquí.
-
-#### 15. Criterios de aceptación y pruebas
-- [ ] Cambio visual integral y perceptible; mismos datos y contratos.
-- [ ] Verificación: tests actualizados + lint + tsc + build + inspección manual por rol.
-
----
-
-### Fase VD-5 — Panel técnico (Dashboard)
-**Estado:** `PENDIENTE`
-**Dependencias:** `VD-0` (`FT-1.2`, `FT-1.3` ya cumplidas).
-
-#### 1. Módulo e interfaces
-`Dashboard.tsx`: cabecera con frescura, KPIs enlazados, brief diario, últimas evaluaciones, atención prioritaria, contexto.
-
-#### 2. Objetivo y concepto visual
-Tablero de mando matutino: de un vistazo sé por dónde empezar; cada cifra es una puerta a su módulo.
-
-#### 3. Estructura visual y distribución
-Cabecera con indicador de frescura → grid 4 KPIs clicables → brief hero con accesos directos → 2 columnas (evaluaciones + atención) → contexto.
-
-#### 4. Jerarquía
-KPIs (cifra tabular 2rem) > brief de decisión > listas operativas > contexto.
-
-#### 5. Tipografía
-Cifras KPI 2rem tabular/600; etiquetas small; brief h2 1.25rem; tablas small con celdas numéricas alineadas.
-
-#### 6. Paleta y contrastes
-KPI neutros con borde inferior semántico según estado; hover con elevación + cambio de borde para affordance de enlace; brief en superficie de acento suave.
-
-#### 7. Espaciado y proporciones
-Grid auto-fit min 180px, gap 16; tarjetas KPI padding 20; columnas 2:1 en escritorio, apiladas en móvil.
-
-#### 8. Componentes
-KPI-cards enlazadas (`.stat-link` neutra), brief hero, `DataTable` reestilizada, lista de atención con críticas primero, contador de frescura.
-
-#### 9. Iconografía y microinteracciones
-Icono por KPI 20–24px; hover que comunica "clicable"; skeleton coherente en carga; actualizar con spinner.
-
-#### 10. Datos y estadísticas
-Parcelas, piden-riego, sensores ok/total, alertas con críticas; frescura relativa; últimas 10 evaluaciones.
-
-#### 11. Responsive
-Grid 2 columnas en tablet, 1 en móvil; columnas apiladas; contexto en wrap.
-
-#### 12. Accesibilidad
-Enlaces KPI con nombre descriptivo (contenido completo), `aria-live` en frescura, foco visible, contraste de cifras.
-
-#### 13. Reutilizables
-Patrón KPI-enlazada y brief hero para Validación/Clima si aplica.
-
-#### 14. Tareas
-- [ ] KPIs como tarjetas-enlace con affordance.
-- [ ] Brief hero rediseñado.
-- [ ] Columnas y tablas reestilizadas.
-- [ ] Retirar estilos legacy usados aquí.
-
-#### 15. Criterios de aceptación y pruebas
-- [ ] Cambio visual integral y perceptible; mismos datos y contratos.
-- [ ] Verificación: tests actualizados + lint + tsc + build + inspección manual.
-
----
-
-### Fase VD-6 — Parcelas y mapa
-**Estado:** `PENDIENTE`
-**Dependencias:** `VD-0`
-
-#### 1. Módulo e interfaces
-`Plots.tsx` (+ `PlotMap`, `geo` sin cambios visuales): resumen, workspace mapa+lista, tarjetas de parcela, wizard de 3 pasos con mapa editable.
-
-#### 2. Objetivo y concepto visual
-Territorio confiable y tangible: el mapa manda, la lista acompaña; el asistente se siente como delimitar tu tierra, no como llenar un formulario.
-
-#### 3. Estructura visual y distribución
-Resumen compacto → workspace 2 columnas (mapa protagonista + lista filtrable) → tarjetas de parcela con hechos clave → wizard modal amplio con mapa grande en paso 2.
-
-#### 4. Jerarquía
-Mapa > buscar > tarjetas (nombre > cultivo > superficie > estado > editar) > wizard por pasos con progreso visible.
-
-#### 5. Tipografía
-Nombres 1rem/600; hechos en grilla etiqueta-valor small; coordenadas en mono tiny; áreas con tabular.
-
-#### 6. Paleta y contrastes
-Marcadores en verde de marca con borde oscuro (ya definidos); boceto de dibujo en naranja tierra; estados con badges; mapa OSM intacto (proveedor externo).
-
-#### 7. Espaciado y proporciones
-Mapa mínimo 320px (280px móvil); tarjetas en grid adaptable; wizard con stepper prominente y mapa de altura generosa; botón de ubicación visible.
-
-#### 8. Componentes
-Tarjetas de parcela rediseñadas, wizard con `Stepper` destacado, mapa con barra de dibujo propia reestilizada (botones pill coherentes), botón "Usar mi ubicación" integrado al mapa.
-
-#### 9. Iconografía y microinteracciones
-Iconos map/sprout/check; dibujo con vértices y línea visibles; confirmación de contorno con área celebrada; toasts conservados.
-
-#### 10. Datos y estadísticas
-Totales, activas y superficie; área del dibujo calculada visible en vivo; origen dibujo/manual etiquetado.
-
-#### 11. Responsive
-Mapa arriba + lista debajo en móvil; wizard full-screen en pantallas pequeñas; mapa con altura mínima garantizada.
-
-#### 12. Accesibilidad
-Región de mapa con descripción e instrucciones, alternativas textuales a lat/long/área, foco gestionado en el wizard, contraste de controles propios del mapa.
-
-#### 13. Reutilizables
-Patrón workspace mapa+lista y wizard con stepper para Sensores si aplica.
-
-#### 14. Tareas
-- [ ] Workspace mapa+lista rediseñado.
-- [ ] Tarjetas de parcela rediseñadas.
-- [ ] Wizard de 3 pasos rediseñado con mapa protagonista.
-- [ ] Barra de dibujo con estilo del sistema.
-- [ ] Retirar estilos legacy usados aquí.
-
-#### 15. Criterios de aceptación y pruebas
-- [ ] Cambio visual integral y perceptible; mismos datos, rutas y contratos.
-- [ ] Verificación: tests actualizados + lint + tsc + build + inspección manual.
-
----
-
-### Fase VD-7 — Agricultores (directorio)
-**Estado:** `PENDIENTE`
-**Dependencias:** `VD-0`
-
-#### 1. Módulo e interfaces
-`Farmers.tsx`: resumen, toolbar con buscador, directorio, modal de registro/edición.
-
-#### 2. Objetivo y concepto visual
-Directorio humano y cálido: personas primero, con contacto a un toque y estado evidente.
-
-#### 3. Estructura visual y distribución
-Resumen compacto → toolbar (buscar + contador) → grid de tarjetas-persona → paginación → modal de formulario.
-
-#### 4. Jerarquía
-Avatar de iniciales grande > nombre > teléfono/WhatsApp > parcelas y estado.
-
-#### 5. Tipografía
-Nombres 1rem/600; contacto en cuerpo con formato legible; contadores tabulares small.
-
-#### 6. Paleta y contrastes
-Avatares en verde de marca sobre fondo suave con iniciales blancas; estado con badges; WhatsApp como acción outline con flecha.
-
-#### 7. Espaciado y proporciones
-Grid adaptable min 240px, gap 16; tarjetas padding 20; modal max-width 480px.
-
-#### 8. Componentes
-Tarjeta-persona rediseñada, buscador prominente, paginación, modal con campos, selector de estado y errores por campo.
-
-#### 9. Iconografía y microinteracciones
-Iconos users/phone/plus/edit; hover con elevación; guardado con toast conservado.
-
-#### 10. Datos y estadísticas
-Total registrados; parcelas por agricultor; teléfono solo si existe; enlace WhatsApp normalizado.
-
-#### 11. Responsive
-Grid 1 columna en móvil; toolbar apilada; modal full-screen en pantallas pequeñas.
-
-#### 12. Accesibilidad
-Nombres como encabezados de tarjeta, acciones con `aria-label` con nombre, formulario con errores asociados, foco en modal.
-
-#### 13. Reutilizables
-Patrón tarjeta-persona y modal de formulario simple.
-
-#### 14. Tareas
-- [ ] Tarjetas-persona rediseñadas.
-- [ ] Toolbar y paginación rediseñadas.
-- [ ] Modal de registro/edición rediseñado.
-- [ ] Retirar estilos legacy usados aquí.
-
-#### 15. Criterios de aceptación y pruebas
-- [ ] Cambio visual integral y perceptible; mismos datos, rutas y contratos.
-- [ ] Verificación: tests actualizados + lint + tsc + build + inspección manual.
-
----
-
-### Fase VD-8 — Sensores y lecturas
-**Estado:** `PENDIENTE`
-**Dependencias:** `VD-0`, `VD-4` (franja de severidad).
-
-#### 1. Módulo e interfaces
-`Sensors.tsx`: resumen, tabs por estado, buscador, red de sensores con última lectura, formularios de lectura manual y registro.
-
-#### 2. Objetivo y concepto visual
-Red de datos viva: de un vistazo sé qué mide, qué calla y qué está en revisión, con la última lectura como protagonista.
-
-#### 3. Estructura visual y distribución
-Resumen → tabs con conteos + buscador → lista de tarjetas-dispositivo → panel lateral con lectura manual → modal de registro.
-
-#### 4. Jerarquía
-Tipo de sensor > parcela > última lectura con antigüedad (grande, tabular) > estado > metadatos (modelo/pin).
-
-#### 5. Tipografía
-Valor de última lectura 1.25rem tabular/600; etiquetas small; metadatos tiny mono donde aplique.
-
-#### 6. Paleta y contrastes
-Franja lateral por estado (success/warning/neutral); badge de cuarentena visible; calibración destacada solo en humedad.
-
-#### 7. Espaciado y proporciones
-Tarjetas full-width padding 16–20; panel lateral sticky en escritorio, apilado en móvil; formularios 1 columna.
-
-#### 8. Componentes
-Tarjeta-dispositivo rediseñada, tabs con conteos, formularios con validación visible de rangos por tipo, modal con calibración condicional.
-
-#### 9. Iconografía y microinteracciones
-Icono por tipo de sensor; lectura aceptada/duplicada/cuarentena con toasts conservados; foco en formularios.
-
-#### 10. Datos y estadísticas
-Operativos/total; última lectura + antigüedad por tarjeta; rangos válidos como ayuda contextual, no solo en error.
-
-#### 11. Responsive
-Lista 1 columna; workspace apilado en móvil; tabs con scroll-x.
-
-#### 12. Accesibilidad
-Estados también en texto, valores con unidad anunciada, formularios etiquetados, `aria-live` en contadores.
-
-#### 13. Reutilizables
-Tarjeta con franja (de VD-4), panel lateral de formulario.
-
-#### 14. Tareas
-- [ ] Tarjetas-dispositivo rediseñadas con última lectura protagonista.
-- [ ] Panel de lectura y modal de registro rediseñados.
-- [ ] Ayudas de rango visibles por tipo.
-- [ ] Retirar estilos legacy usados aquí.
-
-#### 15. Criterios de aceptación y pruebas
-- [ ] Cambio visual integral y perceptible; mismos datos, rutas y contratos.
-- [ ] Verificación: tests actualizados + lint + tsc + build + inspección manual.
-
----
-
-### Fase VD-9 — Clima por parcela
-**Estado:** `PENDIENTE`
-**Dependencias:** `VD-0`
-
-#### 1. Módulo e interfaces
-`Weather.tsx`: tarjeta de pronóstico actual, panel de actualización demo, advertencia de vigencia.
-
-#### 2. Objetivo y concepto visual
-El cielo en una tarjeta: lluvia protagonista, vigencia imposible de ignorar, edición demo claramente separada de lo real.
-
-#### 3. Estructura visual y distribución
-Doble panel: pronóstico actual (hero climático) + actualizar (formulario); advertencia de vencido como banner de acción.
-
-#### 4. Jerarquía
-Lluvia mm gigante > probabilidad con barra > temperaturas > vigencia/origen > metadatos de período.
-
-#### 5. Tipografía
-Lluvia 2.5rem tabular/600; probabilidad con % grande; temps 1.125rem; vigencia en badge + texto relativo.
-
-#### 6. Paleta y contrastes
-Hero en superficie info suave; badge vigente success / vencido warning-danger; origen OWM info vs demo neutral bien diferenciados.
-
-#### 7. Espaciado y proporciones
-Hero padding 28; formulario en card con grupos precipitación/temperatura; slider a ancho completo con valor visible.
-
-#### 8. Componentes
-Hero climático, badges de vigencia/origen, slider+input sincronizados con estilos del sistema, formulario validado, banner de vencido.
-
-#### 9. Iconografía y microinteracciones
-Icono nube protagonista 40px+; slider con pulgar amplio táctil; guardado con toast; banner con acción.
-
-#### 10. Datos y estadísticas
-Lluvia, probabilidad, máx/mín, actualizado-hace, período-hasta, origen.
-
-#### 11. Responsive
-Paneles apilados en móvil; slider full-width; hero compacto.
-
-#### 12. Accesibilidad
-Slider con `aria-label` y valor anunciado, badges con texto (no solo color), formulario etiquetado con errores claros.
-
-#### 13. Reutilizables
-Patrón doble-panel y hero de dato único.
-
-#### 14. Tareas
-- [ ] Hero climático rediseñado.
-- [ ] Badges de vigencia/origen rediseñados.
-- [ ] Formulario demo rediseñado con slider del sistema.
-- [ ] Retirar estilos legacy usados aquí.
-
-#### 15. Criterios de aceptación y pruebas
-- [ ] Cambio visual integral y perceptible; mismos datos, rutas y contratos.
-- [ ] Verificación: tests actualizados + lint + tsc + build + inspección manual.
-
----
-
-### Fase VD-10 — Validación del motor
-**Estado:** `PENDIENTE`
-**Dependencias:** `VD-0`, `VD-4` (franja de severidad para fallos).
-
-#### 1. Módulo e interfaces
-`Validation.tsx`: intro, resumen global, filtros, tabla de casos.
-
-#### 2. Objetivo y concepto visual
-Confianza a primera vista: un veredicto global monumental (aprobado/fallos) y filas de fallo imposibles de pasar por alto.
-
-#### 3. Estructura visual y distribución
-Hero de resultado (gran % + badge + barra) → tabs + buscador → tabla de casos.
-
-#### 4. Jerarquía
-% global > badge de estado > casos fallidos > correctos > detalle en lenguaje claro.
-
-#### 5. Tipografía
-% en display 2.5rem tabular/600; casos en cuerpo; detalle en small; códigos esperados/obtenidos traducidos.
-
-#### 6. Paleta y contrastes
-Hero success pleno si 10/10, warning/danger si hay fallos; filas de fallo con franja danger y fondo suave; correctas neutras.
-
-#### 7. Espaciado y proporciones
-Hero padding 28; tabla compacta con filas aireadas; barra de progreso gruesa y legible.
-
-#### 8. Componentes
-Hero de resultado, barra de progreso, tabla reestilizada con franja por fila, tabs con conteos.
-
-#### 9. Iconografía y microinteracciones
-Icono flask/check/alert grande en hero; re-ejecutar con spinner; éxito con confirmación visible.
-
-#### 10. Datos y estadísticas
-Total, correctos, % y detalle por caso con motivo traducido; sin fechas inventadas.
-
-#### 11. Responsive
-Hero apilado en móvil; tabla con scroll-x y `data-label`.
-
-#### 12. Accesibilidad
-Progreso con `role=progressbar` y valores, fallos también en texto, foco al resultado tras ejecutar.
-
-#### 13. Reutilizables
-Hero de resultado y barra de progreso.
-
-#### 14. Tareas
-- [ ] Hero de resultado rediseñado.
-- [ ] Tabla con franja por fila.
-- [ ] Filtros y resumen rediseñados.
-- [ ] Retirar estilos legacy usados aquí.
-
-#### 15. Criterios de aceptación y pruebas
-- [ ] Cambio visual integral y perceptible; mismos datos, rutas y contratos.
-- [ ] Verificación: tests actualizados + lint + tsc + build + inspección manual.
-
----
-
-### Fase VD-11 — Cultivos y suelos
-**Estado:** `PENDIENTE`
-**Dependencias:** `VD-0`
-
-#### 1. Módulo e interfaces
-`Catalogs.tsx`: referencia, buscador, acordeón de cultivos con etapas, tabla de suelos, glosario y fuente.
-
-#### 2. Objetivo y concepto visual
-Biblioteca agronómica serena y legible: consultar un parámetro toma segundos y cada sigla se entiende sin salir de la página.
-
-#### 3. Estructura visual y distribución
-Referencia introductoria → buscador prominente → grid cultivos+etapas y suelos → glosario en definiciones → nota de fuente.
-
-#### 4. Jerarquía
-Buscador > nombres de cultivo/suelo > valores tabulares > glosario > fuente.
-
-#### 5. Tipografía
-Nombres 1rem/600; valores tabulares; códigos en mono tiny; glosario en definiciones small legibles.
-
-#### 6. Paleta y contrastes
-Superficie clara, badge neutro de solo-lectura, tablas con cebreado suave, glosario con términos en verde oscuro.
-
-#### 7. Espaciado y proporciones
-Buscador full-width; grid 2 columnas en escritorio, 1 en móvil; glosario en 2 columnas en escritorio.
-
-#### 8. Componentes
-Buscador, acordeón múltiple rediseñado, tablas limpias, glosario en definiciones, badge de solo-lectura.
-
-#### 9. Iconografía y microinteracciones
-Iconos sprout/layers; chevron rotando en acordeón; vacíos con sugerencia de búsqueda.
-
-#### 10. Datos y estadísticas
-Etapas (días/Kc/raíz/p), CC/PMP/agua útil, fuente FAO-56/Saxton & Rawls con advertencia de validación local.
-
-#### 11. Responsive
-Grid apilado en móvil; tablas con scroll-x; buscador siempre visible.
-
-#### 12. Accesibilidad
-Acordeón con `aria-expanded`, tablas con caption y alcance, buscador con etiqueta, foco visible.
-
-#### 13. Reutilizables
-Patrón buscador + acordeón + glosario.
-
-#### 14. Tareas
-- [ ] Buscador prominente rediseñado.
-- [ ] Acordeón y tablas rediseñados.
-- [ ] Glosario y fuente rediseñados.
-- [ ] Retirar estilos legacy usados aquí.
-
-#### 15. Criterios de aceptación y pruebas
-- [ ] Cambio visual integral y perceptible; mismos datos, rutas y contratos.
-- [ ] Verificación: tests actualizados + lint + tsc + build + inspección manual.
-
----
-
-### Fase VD-12 — Recuperación de PIN
-**Estado:** `PENDIENTE`
-**Dependencias:** `VD-0`
-
-#### 1. Módulo e interfaces
-`RecoverPin.tsx`: contenido del panel de acceso (AuthLayout intacto), pasos de solicitud/verificación, contacto de soporte.
-
-#### 2. Objetivo y concepto visual
-Recuperar el acceso sin ansiedad: el caparazón de acceso se conserva intacto; el interior respira con pasos numerados claros y contacto visible.
-
-#### 3. Estructura visual y distribución
-Dentro del `access-card` existente: indicador de pasos 1-2 → formulario del paso → ayuda de contacto; modal de contacto con canales claros.
-
-#### 4. Jerarquía
-Paso actual > campo > acción > ayuda; éxito con check prominente al completar.
-
-#### 5. Tipografía
-Títulos del panel existentes; pasos numerados grandes; campos y errores con el lenguaje del sistema de acceso.
-
-#### 6. Paleta y contrastes
-Paleta de acceso intacta (historia oscura + panel claro); éxito en success, errores en danger, igual que Login.
-
-#### 7. Espaciado y proporciones
-Ritmo del `access-card` conservado; pasos con separación generosa; botón de reenvío como acción secundaria visible.
-
-#### 8. Componentes
-Pasos numerados, formularios de acceso, botón de reenvío, modal de contacto con canales (teléfono/WhatsApp/horario).
-
-#### 9. Iconografía y microinteracciones
-Iconos lock/mail/check del set actual; spinner en envío; éxito con confirmación antes de redirigir.
-
-#### 10. Datos y estadísticas
-Sin agregados; mensajes de estado claros por paso (código enviado, PIN actualizado, bloqueo).
-
-#### 11. Responsive
-Hereda el responsive del acceso (historia colapsada en móvil); modal full-screen en pantallas pequeñas.
-
-#### 12. Accesibilidad
-Formularios con etiquetas y errores asociados, alertas con rol, foco gestionado entre pasos, contraste del acceso intacto.
-
-#### 13. Reutilizables
-Patrón de pasos de acceso para futuros flujos.
-
-#### 14. Tareas
-- [ ] Pasos de recuperación rediseñados dentro del panel intacto.
-- [ ] Contacto de soporte rediseñado sin literales dispersos.
-- [ ] Verificar que AuthLayout/sidebar/Login no cambian ni un píxel.
-
-#### 15. Criterios de aceptación y pruebas
-- [ ] Cambio visual integral del contenido (caparazón intacto); mismo flujo y contratos.
-- [ ] Verificación: tests actualizados + lint + tsc + build + inspección manual.
-
----
-
-## Cobertura total de interfaces (verificación PARTE III)
-
-| Interfaz / ruta | Fase | Notas |
-|---|---|---|
-| `/login` (Login + AuthLayout) | Referencia intacta | Sin fase: identidad preservada |
-| Sidebar (`TechShell`) | Intacto | Sin fase: navegación preservada |
-| `FarmerShell` (cabecera + bottomnav) | Cromo intacto | Solo cambia el contenido de página |
-| `/` Hoy (agricultor) | `VD-1` | Incluye `SoilMeter` v2, franja de severidad, tira de stats |
-| `/evaluar` (ambos roles) | `VD-2` | Variantes agricultor/equipo |
-| `/riegos` (ambos roles) | `VD-3` | Variantes agricultor/equipo |
-| `/alertas` (ambos roles) | `VD-4` | Variantes agricultor/equipo |
-| `/` Dashboard (equipo) | `VD-5` | — |
-| `/parcelas` + wizard + mapa | `VD-6` | Mapa Leaflet OSM intacto como proveedor |
-| `/agricultores` | `VD-7` | — |
-| `/sensores` | `VD-8` | — |
-| `/clima` | `VD-9` | — |
-| `/validacion` | `VD-10` | — |
-| `/catalogos` | `VD-11` | — |
-| `/recuperar-pin` (contenido) | `VD-12` | Caparazón AuthLayout intacto |
-| Componentes `ui/*`, `SoilMeter`, `VerdictCard` | `VD-0` + implementación distribuida | Regla del primer uso |
-| `PlotMap`, `Toasts`, `Icon` | Según fase que los usa | Cromático de dibujo en `VD-6` |
-| `LineChart` sin usos | Retirar en la fase que corresponda | Documentado en `FT-1.6` |
-| Estados globales (carga/vacío/error/éxito) | Todas | Patrón unificado de `VD-0` |
-
-### 8.4 Bitácora PARTE III
-- [x] Fecha: 2026-10-10 — Fase: PARTE III (definición) — DOCUMENTO. Sistema de diseño `VD-0` + 12 fases `VD-1`…`VD-12` cubriendo todas las interfaces; sin cambios de código.
-- [x] Fecha: 2026-10-10 — Fase: VD-1 — COMPLETADA. Rediseño integral de Hoy (hero, stats, tarjetas, Tabs, SoilMeter v2); `npm test` 139/139, `lint` 0 errores, `tsc -b` sin errores, `build` código 0.
-
-### 8.5 Incidencias fuera del plan (2026-10-10)
-- Resumen técnico 500: faltaba `use MetricsController` en `routes/api.php` (corregido + `MetricsTest`).
-- Hoy agricultor 500 `Unknown column farmer_id`: `scopeToFarmer` aplicado a tablas sin esa columna; nuevo `scopeToFarmerPlots` en sensores/mediciones/evaluaciones/riegos + `FarmerScopingTest` (suite backend 53 passed).
-- BD vaciada 2 veces (tablas recreadas ~08:50, auto-increment avanzado por inserts revertidos): correr la suite backend sin la config sqlite (`php artisan test` sí la usa) borra los datos de desarrollo. Recuperado con seeds + cuentas recreadas. Regla: tests backend SOLO vía `php artisan test` desde `backend/`.
-- [x] Fecha: 2026-10-10 — Fase: VD-1 — COMPLETADA. Rediseño integral de Hoy (hero, stats, tarjetas, Tabs, SoilMeter v2); `npm test` 139/139, `lint` 0 errores, `tsc -b` sin errores, `build` código 0.
+## 12. Registro de decisiones
+
+| ID | Decisión | Motivo | Fecha |
+|----|----------|--------|-------|
+| D-01 | Stack: shadcn/ui + Tailwind v4 + Recharts + TanStack + date-fns + sonner + RHF/zod | Análisis §1.2 (bundle, mobile-first, control diseño, sin licencias) | 2026-10-11 |
+| D-02 | Estructura evolutiva (no ruptura); `api/hooks/lib/features/auth/navigation` intocables | Migración página a página sin breaking changes | 2026-10-11 |
+| D-03 | Colores + tipografía 1:1 del Login; resto a criterio experto | Orden del usuario | 2026-10-11 |
+| D-04 | Solo frontend (backend/BD/Docker intactos) | Confirmado con usuario | 2026-10-11 |
+| D-05 | Nuevos en `components/shadcn/` (no `components/ui/`) | Colisión de casing TS1149 con legacy (E-19) | 2026-10-11 |
+| D-06 | `tw-animate-css` para animaciones (E-13) | Vía estándar Tailwind v4; cubre `animate-in/*` + accordion/collapsible | 2026-10-11 |
+| D-07 | `lib/format.ts` canónico; duplicado en `utils.ts` eliminado (E-16) | 0 usos del duplicado; `format.test.ts` existe | 2026-10-11 |
+| D-08 | Etiquetas de paginación en español ("Anterior/Siguiente") | Locale es-PE del proyecto | 2026-10-11 |
+| D-09 | `main.tsx`/`index.css` intactos hasta Fase 4 (E-05) | No romper estilos legacy durante la migración | 2026-10-11 |
+| D-10 | MEJORAS.md reescrito (anterior en `git show HEAD:MEJORAS.md`) | Orden expresa del usuario 2026-10-11 | 2026-10-11 |
+| D-11 | Selects **nativos** en formularios/wizards; Radix `Select` solo en filtros (ej. orden en Hoy) | `fireEvent.change` de los tests + semántica de formulario; cero fricción en Fase 3 | 2026-10-11 |
+| D-12 | Iconos lucide que colisionan con globales se aliasan (`Map` → `MapIcon`) | `new Map()` en `latestPerPlot` rompía runtime (detectado por tests F3-4) | 2026-10-11 |
+| D-13 | `badgeVariantForTone()` compartido en `shadcn/badge` + franjas de severidad con `borderLeftColor` inline desde `theme.ts` | Un solo mapeo tono→variante; clases `border-l-*` vs `border-*` compiten en cascada (igual especificidad) | 2026-10-11 |
+| D-14 | `DataTable` nuevo con el mismo contrato legacy (`label/rows/columns/rowKey`) | Lo usan 6 páginas; TanStack queda para tablas avanzadas futuras | 2026-10-11 |
+| D-15 | Réplica v2 del Login con Tailwind (a pedido 2026-10-11): `Login.tsx` + shell `AuthLayout` reescritos con métricas exactas v2 (50px inputs, card 380px, story clamp, breakpoints 1100/760/380); `login.css` **eliminado** | Mismas clases→utilidades, mismos valores; lógica y tests intactos (135/135) | 2026-10-11 |
+| D-21 | Fidelidad total v2 (auditoría + pase 2, 2026-10-11): input 16px (estaba 14), padding panel 48/28 (había override `py-6` erróneo), `cursor-pointer` en botones (preflight v4 lo quita), `AccessBrand` clonado exacto (mark 40×44, radio 12/12/12/3, word 30px/750/-1.5px), set `login-icons.tsx` con los 34 paths 1.8px del HEAD, spinner CSS v2 en submit | Valores verificados contra HEAD + bundle compilado (focus/outline/shadow presentes, 0 `access-`) | 2026-10-11 |
+| D-22 | Corrección escala de verdes (QA visual 2026-10-11): `primary-950` estaba en `#051a18` inventado (story casi negro) + `800/900` desplazados; restaurado exacto v2 (`800 #165349`, `900 #103e38`, `950 #092e2b`); eliminado `primary-400` interpolado sin uso. Verificado en bundle compilado | Reporte del usuario (story muy oscuro) | 2026-10-11 |
+| D-23 | Reglas de altura compacta `max-height:760px` (las había omitido): story/card/panel/form se compactan en viewports bajos para que el login no scrollee, con query exacta v2 (`min-width:761px` apilada, determinista en cascada). Verificado en bundle compilado | Reporte del usuario (la página scrolleaba) | 2026-10-11 |
+| D-24 | Auditoría fina de cascada (2026-10-11): el `focus:[outline]` arbitrario perdía contra `focus:outline-none` base (misma especificidad, posterior) → foco invisible. Fijado con `!important` y verificado en bundle (`outline` + `box-shadow` + `offset` con `!important`). Además: `border` (1px) restituido al submit v2 y `min-w-0` al story | Auditoría pixel a pixel pedida por el usuario | 2026-10-11 |
+| D-27 | Sidebar invisible en desktop (QA 2026-10-11): `data-[open=false]:-translate-x-full/invisible` (0,2,0) le ganaba a `min-[1001px]:translate-x-0` (0,1,0) → sidebar siempre oculto. Fijado: base oculta + `data-[open=true]` muestra + `min-[1001px]` muestra; reglas `data-open=false` eliminadas (0 ocurrencias en bundle) | Reporte del usuario (no se veía el lateral) | 2026-10-11 |
+| D-28 | Auditoría fina del shell (2026-10-11): avatar era círculo 36px → exacto v2 (40px, radio 7px, borde primary-100, avatar-sm 34px); botones menu/cerrar/salir sin borde → `icon-btn` v2 (44px con borde); sombra bottomnav exacta `0 12px 40px #172b3617`; brand farmer 26px + sin tagline ≤700px; `scrollbar-width:thin` en nav. Todo verificado en bundle compilado | Auditoría v2 pedida por el usuario | 2026-10-11 |
+| D-25 | Login 50/50 (mejora a pedido 2026-10-11): grilla desktop `1.1fr/1fr` → `1fr/1fr`. Desviación deliberada del v2 | Usuario | 2026-10-11 |
+| D-26 | Réplica exacta del shell v2 con Tailwind (a pedido 2026-10-11): `Brand` (marca exacta + `tone`/`tagline`), `NavSidebar` (248px, links 13px, active con borde, drawer ≤1000px con foco trampeado portado), `Topbar` (68px, migas 12px, separador), `TechShell` (sticky, contenido fluido, footer 10px, compactación ≤820px), `FarmerShell` + `BottomNav` flotante (pill 520px). Iconos v2 vía `login-icons`; `layout/Brand` único (AuthLayout lo reutiliza) | Auditoría v2 vs actual con 15 diferencias | 2026-10-11 |
+| D-16 | `lib/toast.ts` → sonner directo (mismas firmas); `<Toasts/>` → `<Toaster/>` en shells; `Toasts.tsx` eliminado | Sin doble render; páginas no tocan nada | 2026-10-11 |
+| D-17 | Huérfanos `design-system/`, `features/`, `workspace-v2.css` eliminados | Untracked de otra sesión, 0 imports en HEAD, superados por el nuevo sistema | 2026-10-11 |
+| D-18 | Tests portados: SoilMeter×4, FormField, DataTable, FilterTabs; Modal×3 jubilados (Radix los cubre) | Cobertura de lógica crítica sin atarse a implementación legacy | 2026-10-11 |
+| D-19 | `Brand` con `tone` light/dark (story panel usa dark) | Wordmark legible sobre verde oscuro sin CSS legacy | 2026-10-11 |
+| D-20 | Deps instaladas sin uso aún: RHF/zod/resolvers, date-fns, cmdk, radix alert-dialog/context-menu/popover/progress | Reservadas para wizards con validación, date-pickers y paleta de comandos; costo 0 en bundle (nunca importadas) | 2026-10-11 |

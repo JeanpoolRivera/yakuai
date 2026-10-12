@@ -1,34 +1,33 @@
 /* Parcelas: mapa con dibujo + lista + wizard de 3 pasos (crear/editar). */
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
+import { Check, LoaderCircle, Map as MapIcon, MapPin, Pencil, Plus, Sprout } from "lucide-react";
 import { ApiError, friendlyError } from "../api/client";
 import { createPlot, listCrops, listFarmers, listPlots, listSoils, updatePlot } from "../api/endpoints";
 import type { PlotInput } from "../api/endpoints";
 import type { Crop, Farmer, Plot, SoilTexture } from "../api/types";
-import type { DrawResult } from "../components/PlotMap";
-import {
-  Badge,
-  Banner,
-  Button,
-  Card,
-  Empty,
-  Field,
-  Loading,
-  Icon,
-  Modal,
-  PageHead,
-  Pager,
-  SearchInput,
-  SelectInput,
-  Stepper,
-  TextInput,
-} from "../components/ui";
+import type { DrawResult } from "../components/shadcn/plot-map";
+import { PageHead } from "../components/shadcn/page-head";
+import { Stat } from "../components/shadcn/Stat";
+import { Badge } from "../components/shadcn/badge";
+import { Banner, Empty, Loading } from "../components/shadcn/feedback";
+import { Button } from "../components/shadcn/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/shadcn/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../components/shadcn/dialog";
+import { Input } from "../components/shadcn/input";
+import { PaginationControls } from "../components/shadcn/PaginationControls";
+import { Stepper } from "../components/shadcn/Stepper";
+import { SearchInput } from "../components/shadcn/search-input";
+import { FormField } from "../components/forms/FormField";
 import { useCollection } from "../hooks/useCollection";
 import { submitForm } from "../lib/dom";
 import { fmtDate, fmtNum, todayInput } from "../lib/format";
 import { toastError, toastOk } from "../lib/toast";
 
-const PlotMap = lazy(() => import("../components/PlotMap").then((m) => ({ default: m.PlotMap })));
+const PlotMap = lazy(() => import("../components/shadcn/plot-map").then((m) => ({ default: m.PlotMap })));
+
+const SELECT_CLS =
+  "h-12 w-full rounded-sm border border-neutral-400 bg-white px-3 text-sm text-neutral-800 transition-all hover:border-primary-600 focus-visible:border-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600/15 disabled:cursor-not-allowed disabled:opacity-50";
 
 interface Draft {
   farmer_id: string;
@@ -291,13 +290,17 @@ export function Plots(): React.JSX.Element {
   );
 
   return (
-    <div className="page manage-page plots-page">
+    <div>
       <PageHead
         eyebrow="Territorio"
         title="Parcelas y mapa"
         desc="Organiza tu territorio agrícola: ubicación, cultivos y condiciones de riego."
         crumbs="YakuAI / Parcelas"
-        actions={<Button onClick={openCreate}><Icon name="plus" /> Nueva parcela</Button>}
+        actions={
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4" aria-hidden="true" /> Nueva parcela
+          </Button>
+        }
       />
 
       {loading ? (
@@ -305,115 +308,156 @@ export function Plots(): React.JSX.Element {
       ) : error ? (
         <Banner kind="bad">
           {error}{" "}
-          <button className="link" onClick={() => void load()}>
+          <Button variant="link" size="sm" onClick={() => void load()}>
             Reintentar
-          </button>
+          </Button>
         </Banner>
       ) : (
         <>
-          <div className="manage-overview plots-overview" aria-label="Resumen de parcelas">
-            <div><span className="plots-stat-ic" aria-hidden="true"><Icon name="map" size={20} /></span><span>Parcelas registradas</span><strong>{fmtNum(plots.length)}</strong></div>
-            <div><span className="plots-stat-ic" aria-hidden="true"><Icon name="check" size={20} /></span><span>Parcelas activas</span><strong>{fmtNum(plots.filter((p) => p.status === "activa").length)}</strong></div>
-            <div><span className="plots-stat-ic" aria-hidden="true"><Icon name="sprout" size={20} /></span><span>Superficie registrada</span><strong>{fmtNum(plots.reduce((total, p) => total + Number(p.area_m2), 0))}<small> m²</small></strong></div>
-          </div>
-          <div className="plots-workspace">
-          <div className="plots-map">
-          <Card label="Mapa" title="Territorio · Chupaca" sub="Explora las parcelas registradas. El punto y el contorno se fijan en el mapa del paso 2 del formulario.">
-            <Suspense fallback={<Loading text="Cargando mapa…" />}>
-              <PlotMap plots={mapPoints} />
-            </Suspense>
-            <div className="plots-legend">
-              <span><i className="plots-dot" aria-hidden="true" /> Parcela registrada</span>
-              <span>{mapPoints.length === 0 ? "Sin puntos en el mapa" : `${mapPoints.length} en el mapa`}</span>
-            </div>
-          </Card>
+          <div className="grid gap-3 sm:grid-cols-3" aria-label="Resumen de parcelas">
+            <Stat
+              value={fmtNum(plots.length)}
+              label="Parcelas registradas"
+              icon={<MapIcon className="h-[18px] w-[18px]" aria-hidden="true" />}
+            />
+            <Stat
+              value={fmtNum(plots.filter((p) => p.status === "activa").length)}
+              label="Parcelas activas"
+              icon={<Check className="h-[18px] w-[18px]" aria-hidden="true" />}
+            />
+            <Stat
+              value={`${fmtNum(plots.reduce((total, p) => total + Number(p.area_m2), 0))} m²`}
+              label="Superficie registrada"
+              icon={<Sprout className="h-[18px] w-[18px]" aria-hidden="true" />}
+            />
           </div>
 
-          <section className="manage-panel" aria-label="Lista de parcelas">
-            <div className="manage-section-head"><div><p className="eyebrow">Registro territorial</p><h2>Parcelas</h2><p>Consulta y actualiza los datos de cada unidad de cultivo.</p></div><Icon name="map" size={24} /></div>
-            <div className="toolbar manage-toolbar">
-              <SearchInput
-                value={coll.query}
-                onChange={coll.setQuery}
-                placeholder="Buscar por parcela, agricultor o cultivo…"
-                label="Buscar parcelas"
-              />
-              <span className="tiny">
-                {coll.query ? `${coll.total} de ${plots.length} parcelas` : `${coll.total} ${coll.total === 1 ? "parcela" : "parcelas"}`}
-              </span>
-            </div>
-            {coll.total === 0 ? (
-              <Empty
-                icon="map"
-                title={coll.query ? "Sin coincidencias" : "Aún no hay parcelas"}
-                hint={coll.query ? "Prueba con otro nombre." : "Registra la primera con el botón «Nueva parcela»."}
-                action={coll.query ? undefined : <Button onClick={openCreate}><Icon name="plus" /> Nueva parcela</Button>}
-              />
-            ) : (
-              <>
-                <div className="manage-plot-grid">
-                  {coll.items.map((p) => (
-                    <article className="manage-plot plots-card" key={p.id}>
-                      <div className="manage-plot-head"><span className="manage-icon"><Icon name="sprout" size={22} /></span><Badge tone={p.status === "activa" ? "ok" : "vencido"}>{p.status}</Badge></div>
-                      <h3>{p.name}</h3><p className="manage-owner">{p.farmer?.name ?? "Sin agricultor"}</p>
-                      <dl className="manage-facts manage-facts-grid">
-                        <div><dt>Cultivo</dt><dd>{p.crop?.name ?? "—"}</dd></div>
-                        <div><dt>Superficie</dt><dd>{fmtNum(p.area_m2)} m²</dd></div>
-                        <div><dt>Siembra</dt><dd>{fmtDate(p.sowing_date)}</dd></div>
-                        <div><dt>Riego</dt><dd className="plots-caps">{p.irrigation_system ?? "—"}</dd></div>
-                      </dl>
-                      <div className="manage-card-footer"><span className="tiny">Datos de la parcela</span><Button variant="outline" size="sm" onClick={() => openEdit(p)} aria-label={`Editar parcela ${p.name}`}><Icon name="edit" size={16} /> Editar</Button></div>
-                    </article>
-                  ))}
+          <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+            <section aria-label="Mapa">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Territorio · Chupaca</CardTitle>
+                  <CardDescription>
+                    Explora las parcelas registradas. El punto y el contorno se fijan en el mapa del paso 2 del formulario.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-3">
+                  <Suspense fallback={<Loading text="Cargando mapa…" />}>
+                    <PlotMap plots={mapPoints} />
+                  </Suspense>
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-500">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-primary-600" />
+                      Parcela registrada
+                    </span>
+                    <span>{mapPoints.length === 0 ? "Sin puntos en el mapa" : `${mapPoints.length} en el mapa`}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+
+            <section aria-label="Lista de parcelas" className="grid content-start gap-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-2xs font-semibold uppercase tracking-wider text-primary-700">Registro territorial</p>
+                  <h2 className="mt-1 text-xl font-semibold tracking-tight text-neutral-800">Parcelas</h2>
+                  <p className="mt-1 text-sm text-neutral-600">Consulta y actualiza los datos de cada unidad de cultivo.</p>
                 </div>
-                <Pager page={coll.page} pages={coll.pages} onPage={coll.setPage} count={`${coll.total} en total`} />
-              </>
-            )}
-          </section>
+                <MapIcon className="h-6 w-6 shrink-0 text-neutral-400" aria-hidden="true" />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <SearchInput
+                  value={coll.query}
+                  onChange={coll.setQuery}
+                  placeholder="Buscar por parcela, agricultor o cultivo…"
+                  label="Buscar parcelas"
+                  className="min-w-[200px] flex-1"
+                />
+                <span className="text-xs text-neutral-500">
+                  {coll.query ? `${coll.total} de ${plots.length} parcelas` : `${coll.total} ${coll.total === 1 ? "parcela" : "parcelas"}`}
+                </span>
+              </div>
+              {coll.total === 0 ? (
+                <Empty
+                  icon={<MapIcon className="h-5 w-5" aria-hidden="true" />}
+                  title={coll.query ? "Sin coincidencias" : "Aún no hay parcelas"}
+                  hint={coll.query ? "Prueba con otro nombre." : "Registra la primera con el botón «Nueva parcela»."}
+                  action={
+                    coll.query ? undefined : (
+                      <Button onClick={openCreate}>
+                        <Plus className="h-4 w-4" aria-hidden="true" /> Nueva parcela
+                      </Button>
+                    )
+                  }
+                />
+              ) : (
+                <>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {coll.items.map((p) => (
+                      <article key={p.id} className="grid gap-3 rounded-lg border border-neutral-200 bg-white p-4 shadow-card">
+                        <div className="flex items-center justify-between gap-2">
+                          <span aria-hidden="true" className="grid h-10 w-10 place-items-center rounded-lg bg-primary-50 text-primary-700">
+                            <Sprout className="h-[22px] w-[22px]" />
+                          </span>
+                          <Badge variant={p.status === "activa" ? "success" : "secondary"}>{p.status}</Badge>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-neutral-800">{p.name}</h3>
+                          <p className="text-sm text-neutral-500">{p.farmer?.name ?? "Sin agricultor"}</p>
+                        </div>
+                        <dl className="grid grid-cols-2 gap-2 text-sm">
+                          <div><dt className="text-xs text-neutral-500">Cultivo</dt><dd className="font-medium text-neutral-800">{p.crop?.name ?? "—"}</dd></div>
+                          <div><dt className="text-xs text-neutral-500">Superficie</dt><dd className="font-medium tabular-nums text-neutral-800">{fmtNum(p.area_m2)} m²</dd></div>
+                          <div><dt className="text-xs text-neutral-500">Siembra</dt><dd className="font-medium text-neutral-800">{fmtDate(p.sowing_date)}</dd></div>
+                          <div><dt className="text-xs text-neutral-500">Riego</dt><dd className="font-medium capitalize text-neutral-800">{p.irrigation_system ?? "—"}</dd></div>
+                        </dl>
+                        <div className="flex items-center justify-between gap-2 border-t border-neutral-200 pt-3">
+                          <span className="text-xs text-neutral-500">Datos de la parcela</span>
+                          <Button variant="outline" size="sm" onClick={() => openEdit(p)} aria-label={`Editar parcela ${p.name}`}>
+                            <Pencil className="h-4 w-4" aria-hidden="true" /> Editar
+                          </Button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                  <PaginationControls
+                  page={coll.page}
+                  pages={coll.pages}
+                  onPageChange={coll.setPage}
+                  count={`${coll.total} en total`}
+                />
+                </>
+              )}
+            </section>
           </div>
         </>
       )}
 
-      {modalOpen ? (
-        <Modal
-          title={editing ? "Editar parcela" : "Nueva parcela"}
-          sub={`Paso ${step} de 3 · ${step === 1 ? "Agricultor" : step === 2 ? "Ubicación" : "Cultivo y riego"}`}
-          onClose={() => setModalOpen(false)}
-          wide
-          busy={saving}
-          foot={
-            <>
-              {step > 1 ? (
-                <Button variant="outline" onClick={() => setStep(step - 1)} disabled={saving}>
-                  Atrás
-                </Button>
-              ) : null}
-              {step < 3 ? (
-                <Button
-                  onClick={() => {
-                    const msg = stepValid(step);
-                    if (msg) toastError(msg);
-                    else setStep(step + 1);
-                  }}
-                >
-                  Continuar
-                </Button>
-              ) : (
-                <Button loading={saving} onClick={() => submitForm("plot-form")}>
-                  {editing ? "Guardar cambios" : "Registrar parcela"}
-                </Button>
-              )}
-            </>
-          }
-        >
-          <form className="manage-form" id="plot-form" onSubmit={(e) => void onSubmit(e)}>
+      <Dialog
+        open={modalOpen}
+        onOpenChange={(open) => {
+          if (!open && !saving) setModalOpen(false);
+        }}
+      >
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Editar parcela" : "Nueva parcela"}</DialogTitle>
+            <DialogDescription>
+              {`Paso ${step} de 3 · ${step === 1 ? "Agricultor" : step === 2 ? "Ubicación" : "Cultivo y riego"}`}
+            </DialogDescription>
+          </DialogHeader>
+          <form id="plot-form" onSubmit={(e) => void onSubmit(e)} className="grid gap-5">
             <Stepper steps={["Agricultor", "Ubicación", "Cultivo y riego"]} current={step} />
             {step === 1 ? (
               <>
-                <div className="manage-form-intro"><h3>Identifica la parcela</h3><p>Asigna un agricultor y un nombre que facilite reconocerla.</p></div>
-                <Field label="Agricultor" required htmlFor="pl-farmer" error={fe("farmer_id")}>
-                  <SelectInput
+                <div>
+                  <h3 className="text-base font-semibold text-neutral-800">Identifica la parcela</h3>
+                  <p className="mt-1 text-sm text-neutral-600">Asigna un agricultor y un nombre que facilite reconocerla.</p>
+                </div>
+                <FormField label="Agricultor" required htmlFor="pl-farmer" error={fe("farmer_id")}>
+                  <select
                     id="pl-farmer"
+                    className={SELECT_CLS}
                     value={draft.farmer_id}
                     aria-invalid={Boolean(fe("farmer_id"))}
                     onChange={(e) => set("farmer_id", e.target.value)}
@@ -424,32 +468,37 @@ export function Plots(): React.JSX.Element {
                         {f.name}
                       </option>
                     ))}
-                  </SelectInput>
-                </Field>
-                <Field label="Nombre de la parcela" required htmlFor="pl-name" error={fe("name")}>
-                  <TextInput
+                  </select>
+                </FormField>
+                <FormField label="Nombre de la parcela" required htmlFor="pl-name" error={fe("name")}>
+                  <Input
                     id="pl-name"
                     placeholder="Parcela alta"
                     value={draft.name}
                     aria-invalid={Boolean(fe("name"))}
                     onChange={(e) => set("name", e.target.value)}
                   />
-                </Field>
+                </FormField>
               </>
             ) : null}
 
             {step === 2 ? (
               <>
-                <h3 id="pl-step2-title" ref={step2TitleRef} tabIndex={-1} className="card-title">
+                <h3 id="pl-step2-title" ref={step2TitleRef} tabIndex={-1} className="text-base font-semibold text-neutral-800 focus:outline-none">
                   Ubicación y área
                 </h3>
                 <Banner kind="info">
                   1) Toca el mapa para fijar el lugar. 2) Con Marcar esquinas agrega todas las esquinas que necesites y pulsa Usar contorno. También puedes escribir los valores.
                   Acerca con + hasta ver bien tu terreno antes de marcar.
                 </Banner>
-                <div className="row">
-                  <Button variant="outline" size="sm" loading={locating} onClick={useMyLocation}>
-                    <Icon name="pin" size={15} /> Usar mi ubicación
+                <div>
+                  <Button variant="outline" size="sm" disabled={locating} onClick={useMyLocation}>
+                    {locating ? (
+                      <LoaderCircle className="h-[15px] w-[15px] animate-spin" aria-hidden="true" />
+                    ) : (
+                      <MapPin className="h-[15px] w-[15px]" aria-hidden="true" />
+                    )}
+                    Usar mi ubicación
                   </Button>
                 </div>
                 <Suspense fallback={<Loading text="Cargando mapa…" />}>
@@ -467,96 +516,101 @@ export function Plots(): React.JSX.Element {
                   />
                 </Suspense>
                 {drawInfo ? <Banner kind="info">{drawInfo}</Banner> : null}
-                <div className="form-grid">
-                  <Field
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField
                     label="Latitud"
                     hint="Decimal entre −90 y 90"
                     required
                     htmlFor="pl-lat"
                     error={fe("latitude")}
                   >
-                    <TextInput
+                    <Input
                       id="pl-lat"
                       inputMode="decimal"
                       value={draft.latitude}
                       aria-invalid={Boolean(fe("latitude"))}
                       onChange={(e) => set("latitude", e.target.value)}
                     />
-                  </Field>
-                  <Field
+                  </FormField>
+                  <FormField
                     label="Longitud"
                     hint="Decimal entre −180 y 180"
                     required
                     htmlFor="pl-lng"
                     error={fe("longitude")}
                   >
-                    <TextInput
+                    <Input
                       id="pl-lng"
                       inputMode="decimal"
                       value={draft.longitude}
                       aria-invalid={Boolean(fe("longitude"))}
                       onChange={(e) => set("longitude", e.target.value)}
                     />
-                  </Field>
+                  </FormField>
                 </div>
-                <div className="form-grid">
-                  <Field
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField
                     label="Área (m²)"
                     hint="En metros cuadrados, mayor a 1"
                     required
                     htmlFor="pl-area"
                     error={fe("area_m2")}
                   >
-                    <TextInput
+                    <Input
                       id="pl-area"
                       inputMode="decimal"
                       value={draft.area_m2}
                       aria-invalid={Boolean(fe("area_m2"))}
                       onChange={(e) => set("area_m2", e.target.value)}
                     />
-                  </Field>
-                  <Field label="Origen del área" htmlFor="pl-origin">
-                    <SelectInput
+                  </FormField>
+                  <FormField label="Origen del área" htmlFor="pl-origin">
+                    <select
                       id="pl-origin"
+                      className={SELECT_CLS}
                       value={draft.area_origin}
                       onChange={(e) => set("area_origin", e.target.value as Draft["area_origin"])}
                     >
                       <option value="dibujo">Del dibujo en el mapa</option>
                       <option value="manual">Medición manual</option>
-                    </SelectInput>
-                  </Field>
+                    </select>
+                  </FormField>
                 </div>
               </>
             ) : null}
 
             {step === 3 ? (
               <>
-                <div className="manage-form-intro"><h3>Cultivo y condiciones de riego</h3><p>Estos datos se utilizan para calcular las recomendaciones de la parcela.</p></div>
-                <div className="form-grid">
-                  <Field label="Cultivo" required htmlFor="pl-crop" error={fe("crop_id")}>
-                    <SelectInput id="pl-crop" value={draft.crop_id} onChange={(e) => set("crop_id", e.target.value)}>
+                <div>
+                  <h3 className="text-base font-semibold text-neutral-800">Cultivo y condiciones de riego</h3>
+                  <p className="mt-1 text-sm text-neutral-600">Estos datos se utilizan para calcular las recomendaciones de la parcela.</p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField label="Cultivo" required htmlFor="pl-crop" error={fe("crop_id")}>
+                    <select id="pl-crop" className={SELECT_CLS} value={draft.crop_id} onChange={(e) => set("crop_id", e.target.value)}>
                       <option value="">Selecciona…</option>
                       {crops.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}
                         </option>
                       ))}
-                    </SelectInput>
-                  </Field>
-                  <Field label="Fecha de siembra" required htmlFor="pl-sow" error={fe("sowing_date")}>
-                    <TextInput
+                    </select>
+                  </FormField>
+                  <FormField label="Fecha de siembra" required htmlFor="pl-sow" error={fe("sowing_date")}>
+                    <Input
                       id="pl-sow"
                       type="date"
                       max={todayInput()}
                       value={draft.sowing_date}
                       onChange={(e) => set("sowing_date", e.target.value)}
                     />
-                  </Field>
+                  </FormField>
                 </div>
-                <div className="form-grid">
-                  <Field label="Tipo de suelo" required htmlFor="pl-soil" error={fe("soil_texture_code")}>
-                    <SelectInput
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField label="Tipo de suelo" required htmlFor="pl-soil" error={fe("soil_texture_code")}>
+                    <select
                       id="pl-soil"
+                      className={SELECT_CLS}
                       value={draft.soil_texture_code}
                       onChange={(e) => set("soil_texture_code", e.target.value)}
                     >
@@ -565,50 +619,80 @@ export function Plots(): React.JSX.Element {
                           {s.name}
                         </option>
                       ))}
-                    </SelectInput>
-                  </Field>
-                  <Field label="Sistema de riego" required htmlFor="pl-sys">
-                    <SelectInput
+                    </select>
+                  </FormField>
+                  <FormField label="Sistema de riego" required htmlFor="pl-sys">
+                    <select
                       id="pl-sys"
+                      className={SELECT_CLS}
                       value={draft.irrigation_system}
                       onChange={(e) => set("irrigation_system", e.target.value)}
                     >
                       <option value="goteo">Goteo</option>
                       <option value="aspersion">Aspersión</option>
                       <option value="gravedad">Gravedad</option>
-                    </SelectInput>
-                  </Field>
+                    </select>
+                  </FormField>
                 </div>
-                <div className="form-grid">
-                  <Field
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField
                     label="Eficiencia (0–1)"
                     hint="Goteo 0.9 · Aspersión 0.75 · Gravedad 0.6"
                     required
                     htmlFor="pl-eff"
                     error={fe("irrigation_efficiency")}
                   >
-                    <TextInput
+                    <Input
                       id="pl-eff"
                       inputMode="decimal"
                       value={draft.irrigation_efficiency}
                       onChange={(e) => set("irrigation_efficiency", e.target.value)}
                     />
-                  </Field>
-                  <Field label="Caudal (L/min, opcional)" htmlFor="pl-flow" error={fe("flow_lpm")}>
-                    <TextInput
+                  </FormField>
+                  <FormField label="Caudal (L/min, opcional)" htmlFor="pl-flow" error={fe("flow_lpm")}>
+                    <Input
                       id="pl-flow"
                       inputMode="decimal"
                       placeholder="Ej. 20"
                       value={draft.flow_lpm}
                       onChange={(e) => set("flow_lpm", e.target.value)}
                     />
-                  </Field>
+                  </FormField>
                 </div>
               </>
             ) : null}
           </form>
-        </Modal>
-      ) : null}
+          <DialogFooter>
+            {step > 1 ? (
+              <Button variant="outline" onClick={() => setStep(step - 1)} disabled={saving}>
+                Atrás
+              </Button>
+            ) : null}
+            {step < 3 ? (
+              <Button
+                onClick={() => {
+                  const msg = stepValid(step);
+                  if (msg) toastError(msg);
+                  else setStep(step + 1);
+                }}
+              >
+                Continuar
+              </Button>
+            ) : (
+              <Button disabled={saving} onClick={() => submitForm("plot-form")}>
+                {saving ? (
+                  <>
+                    <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    {editing ? "Guardar cambios" : "Registrar parcela"}
+                  </>
+                ) : (
+                  <>{editing ? "Guardar cambios" : "Registrar parcela"}</>
+                )}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import {MemoryRouter} from "react-router-dom";
 import {AuthProvider} from "./app/auth";
 import {App} from "./app/App";
 import * as data from "./test/fixtures";
-import "./styles/index.css";
+import "./styles/globals.css";
 const role = new URLSearchParams(location.search).get("role") === "agricultor" ? "agricultor" : "admin";
 window.fetch = async (input, init) => {
  const path = new URL(String(input), location.origin).pathname.replace("/api/v1/", "");

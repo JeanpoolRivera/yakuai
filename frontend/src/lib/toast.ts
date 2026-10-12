@@ -1,14 +1,12 @@
-/* Toasts: evento global `yakuai-toast`. */
+/* Toasts vía sonner. Firmas intactas para no tocar las páginas. */
+import { toast as sonner } from "sonner";
 
 export type ToastKind = "ok" | "error" | "info";
 
-export interface ToastDetail {
-  msg: string;
-  kind: ToastKind;
-}
-
 export function toast(msg: string, kind: ToastKind = "ok"): void {
-  window.dispatchEvent(new CustomEvent<ToastDetail>("yakuai-toast", { detail: { msg, kind } }));
+  if (kind === "error") sonner.error(msg);
+  else if (kind === "info") sonner(msg);
+  else sonner.success(msg);
 }
 
 export function toastOk(msg: string): void {
