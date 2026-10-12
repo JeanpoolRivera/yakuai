@@ -172,7 +172,11 @@ export function Weather(): React.JSX.Element {
                       Pronóstico vencido (más de 3 h). Actualízalo o la evaluación saldrá incompleta por clima.
                     </Banner>
                   ) : null}
-                  <div className="flex items-center gap-4 rounded-lg bg-primary-50 p-4">
+                  <div className="grid gap-2 text-xs text-neutral-600">
+                    <div className="flex flex-wrap justify-between gap-2"><span>Vigencia del pronóstico</span><span>{fresh ? `${Math.max(0, Math.floor(FRESH_MIN - (age ?? FRESH_MIN)))} min restantes` : "Requiere actualización"}</span></div>
+                    <div className="h-2 overflow-hidden rounded-full bg-neutral-200" aria-hidden="true"><div className={fresh ? "h-full rounded-full bg-primary-700" : "h-full bg-warning-500"} style={{ width: `${Math.max(0, Math.min(100, (1 - (age ?? FRESH_MIN) / FRESH_MIN) * 100))}%` }} /></div>
+                  </div>
+                  <div className="weather-overview flex items-center gap-4 rounded-lg bg-primary-50 p-4">
                     <span aria-hidden="true" className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-primary-700 text-white">
                       <Cloud className="h-9 w-9" />
                     </span>

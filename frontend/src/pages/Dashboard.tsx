@@ -148,7 +148,7 @@ export function Dashboard(): React.JSX.Element {
             />
           </div>
 
-          <section aria-labelledby="daily-brief-title" className="mt-4 flex flex-wrap items-center gap-4 rounded-lg border border-primary-200 bg-primary-50 p-4 sm:p-5">
+          <section aria-labelledby="daily-brief-title" className="summary-brief mt-4 flex flex-wrap items-center gap-4 rounded-lg border border-primary-200 bg-primary-50 p-4 sm:p-5">
             <span aria-hidden="true" className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-primary-700 text-white">
               {piden > 0 ? <Droplet className="h-6 w-6" /> : <Check className="h-6 w-6" />}
             </span>

@@ -182,6 +182,7 @@ export function Farmers(): React.JSX.Element {
           ) : (
             <>
               <DataTable
+                mobileCards
                 label="Directorio de agricultores"
                 rows={coll.items}
                 rowKey={(f) => f.id}
@@ -212,7 +213,7 @@ export function Farmers(): React.JSX.Element {
                     key: "plots",
                     label: "Parcelas",
                     numeric: true,
-                    render: (f) => <span className="tabular-nums">{fmtNum(f.plots_count ?? 0)}</span>,
+                    render: (f) => <Badge variant="secondary" className="tabular-nums">{fmtNum(f.plots_count ?? 0)}</Badge>,
                   },
                   {
                     key: "status",

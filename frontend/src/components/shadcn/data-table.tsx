@@ -24,30 +24,32 @@ export function DataTable<T>({
   rows,
   columns,
   rowKey,
+  mobileCards = false,
 }: {
   label: string;
   rows: T[];
   columns: TableColumn<T>[];
   rowKey: (row: T) => string | number;
+  mobileCards?: boolean;
 }): React.JSX.Element {
   return (
-    <div className="relative w-full overflow-x-auto rounded-md border border-neutral-200" role="region" aria-label={label} tabIndex={0}>
-      <Table>
+    <div className={cn("relative w-full overflow-x-auto rounded-md border border-neutral-200", mobileCards && "mobile-card-table")} role="region" aria-label={label} tabIndex={0}>
+      <Table role="table">
         <caption className="sr-only">{label}</caption>
-        <TableHeader>
-          <TableRow className="bg-neutral-50 hover:bg-neutral-50">
+        <TableHeader role="rowgroup">
+          <TableRow role="row" className="bg-neutral-50 hover:bg-neutral-50">
             {columns.map((c) => (
-              <TableHead key={c.key} className={cn(c.numeric && "text-right tabular-nums")}>
+              <TableHead role="columnheader" key={c.key} className={cn(c.numeric && "text-right tabular-nums")}>
                 {c.label}
               </TableHead>
             ))}
           </TableRow>
         </TableHeader>
-        <TableBody>
+        <TableBody role="rowgroup">
           {rows.map((row) => (
-            <TableRow key={rowKey(row)}>
+            <TableRow role="row" key={rowKey(row)}>
               {columns.map((c) => (
-                <TableCell key={c.key} data-label={c.label} className={cn(c.numeric && "text-right tabular-nums")}>
+                <TableCell role="cell" key={c.key} data-label={c.label} className={cn(c.numeric && "text-right tabular-nums")}>
                   {c.render(row)}
                 </TableCell>
               ))}

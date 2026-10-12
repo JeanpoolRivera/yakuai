@@ -160,7 +160,7 @@ export function Alerts(): React.JSX.Element {
               />
             ) : (
               <>
-                <div className="grid gap-2">
+                <div className="alert-grid grid gap-4">
                   {shown.map((a, i) => {
                     const label = plotLabel(a as AlertWithPlot);
                     const critical = a.tipo.includes("critica");
@@ -168,7 +168,7 @@ export function Alerts(): React.JSX.Element {
                     return (
                       <article
                         key={`${a.tipo}-${a.plot_id}-${i}`}
-                        className="flex gap-3 rounded-lg border border-l-4 border-neutral-200 bg-white p-4 shadow-card"
+                        className="alert-tile flex gap-3 rounded-lg border border-l-4 border-neutral-200 bg-white p-4 shadow-card"
                         style={{ borderLeftColor: critical ? colors.danger[500] : tone === "sensor" ? colors.warning[500] : colors.neutral[400] }}
                       >
                         <span

@@ -1,9 +1,8 @@
 export interface NavigationItem { to: string; label: string; icon: string; end: boolean; }
 export const NAVIGATION: Array<{title: string; items: NavigationItem[]}> = [
-  {title:"Tu espacio de trabajo",items:[
+  {title:"Operación",items:[
     {to:"/",label:"Resumen",icon:"home",end:true},
     {to:"/evaluar",label:"Evaluar riego",icon:"gauge",end:false},
-    {to:"/parcelas",label:"Parcelas",icon:"map",end:false},
     {to:"/riegos",label:"Historial de riego",icon:"drop",end:false},
   ]},
   {title:"Monitoreo",items:[
@@ -11,8 +10,11 @@ export const NAVIGATION: Array<{title: string; items: NavigationItem[]}> = [
     {to:"/sensores",label:"Sensores",icon:"sensor",end:false},
     {to:"/clima",label:"Clima",icon:"cloud",end:false},
   ]},
-  {title:"Administración",items:[
+  {title:"Gestión de campo",items:[
+    {to:"/parcelas",label:"Parcelas",icon:"map",end:false},
     {to:"/agricultores",label:"Agricultores",icon:"users",end:false},
+  ]},
+  {title:"Referencia y pruebas",items:[
     {to:"/catalogos",label:"Cultivos y suelos",icon:"layers",end:false},
     {to:"/validacion",label:"Validación",icon:"flask",end:false},
   ]},

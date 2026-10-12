@@ -183,6 +183,45 @@ export function Evaluate(): React.JSX.Element {
   const umb = typeof snap.umbral === "number" ? snap.umbral * 100 : null;
   const pmp = typeof snap.pmp === "number" ? snap.pmp * 100 : null;
 
+  const traceability = current ? (
+              <details open className="rounded-lg border border-neutral-200 bg-white text-sm">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-3 font-medium text-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600/15 [&::-webkit-details-marker]:hidden">
+                  Cómo se calculó · Datos usados
+                  <ChevronDown className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
+                </summary>
+                <div className="grid gap-2 border-t border-neutral-200 p-3">
+                  <dl className="trace-ledger grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
+                    <dt className="text-neutral-500">ET₀ / ETc</dt>
+                    <dd className="font-medium tabular-nums text-neutral-800">
+                      {toNum(snap.et0_mm_dia)?.toFixed(2) ?? "—"} / {toNum(snap.etc_mm_dia)?.toFixed(2) ?? "—"} mm/día
+                    </dd>
+                    <dt className="text-neutral-500">Umbral / Lámina neta</dt>
+                    <dd className="font-medium tabular-nums text-neutral-800">
+                      {typeof snap.umbral === "number" ? `${(snap.umbral * 100).toFixed(2)}%` : "—"} /{" "}
+                      {typeof snap.lamina_neta_mm === "number" ? `${snap.lamina_neta_mm.toFixed(1)} mm` : "—"}
+                    </dd>
+                    <dt className="text-neutral-500">Volumen bruto</dt>
+                    <dd className="font-medium tabular-nums text-neutral-800">
+                      {typeof snap.volumen_bruto_L === "number" ? `${fmtNum(snap.volumen_bruto_L)} L` : "—"}
+                    </dd>
+                    <dt className="text-neutral-500">Lluvia prevista 6 h</dt>
+                    <dd className="font-medium tabular-nums text-neutral-800">
+                      {typeof snap.rain_mm === "number" ? `${snap.rain_mm} mm` : "—"} (
+                      {typeof snap.rain_prob === "number" ? `${Math.round(snap.rain_prob * 100)}%` : "—"})
+                    </dd>
+                    <dt className="text-neutral-500">Suelo / Kc / Zr</dt>
+                    <dd className="font-medium text-neutral-800">
+                      {String(snap.soil_code ?? "—")} · Kc {String(snap.kc ?? "—")} · Zr {String(snap.zr_m ?? "—")} m
+                    </dd>
+                    <dt className="text-neutral-500">Etapa</dt>
+                    <dd className="font-medium text-neutral-800">{current.stage ? `Etapa ${current.stage}` : "—"}</dd>
+                    <dt className="text-neutral-500">Revisar</dt>
+                    <dd className="font-medium text-neutral-800">{current.next_at ? fmtDateTime(current.next_at) : "Sin próxima revisión"}</dd>
+                  </dl>
+                </div>
+              </details>
+  ) : null;
+
   return (
     <div>
       <PageHead
@@ -193,12 +232,12 @@ export function Evaluate(): React.JSX.Element {
       />
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
-        <Card aria-label="Seleccionar parcela">
+        <Card aria-label="Seleccionar parcela" className="xl:col-span-2">
           <CardHeader>
             <CardTitle>Selecciona una parcela</CardTitle>
             <CardDescription>La recomendación utiliza sus datos de suelo, cultivo y clima.</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4">
+          <CardContent className="evaluation-selector grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_auto] xl:items-end">
             {loadingPlots ? (
               <Loading text="Cargando parcelas…" />
             ) : error ? (
@@ -234,7 +273,7 @@ export function Evaluate(): React.JSX.Element {
                     <div><dt className="text-xs text-neutral-500">Sistema de riego</dt><dd className="font-medium text-neutral-800">{plot.irrigation_system}</dd></div>
                   </dl>
                 ) : null}
-                <p className="flex items-start gap-2 text-sm text-neutral-600">
+                <p className="flex items-start gap-2 text-sm text-neutral-600 xl:sr-only">
                   <Gauge className="mt-0.5 h-[18px] w-[18px] shrink-0 text-primary-700" aria-hidden="true" />
                   Evalúa las condiciones actuales para saber si es momento de regar.
                 </p>
@@ -248,7 +287,7 @@ export function Evaluate(): React.JSX.Element {
                     <>Evaluar riego</>
                   )}
                 </Button>
-                <p className="text-xs text-neutral-500">Si ya evaluaste esta parcela en esta misma hora, se mostrará el mismo resultado.</p>
+                <p className="text-xs text-neutral-500 xl:col-span-3">Si ya evaluaste esta parcela en esta misma hora, se mostrará el mismo resultado.</p>
               </>
             )}
           </CardContent>
@@ -320,45 +359,11 @@ export function Evaluate(): React.JSX.Element {
                 </p>
               ) : null}
               <SoilMeter actual={hum} umbral={umb} critico={pmp} />
-              <details className="rounded-md border border-neutral-200 bg-white/60 text-sm">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-3 font-medium text-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600/15 [&::-webkit-details-marker]:hidden">
-                  Ver datos usados (trazabilidad)
-                  <ChevronDown className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
-                </summary>
-                <div className="grid gap-2 border-t border-neutral-200 p-3">
-                  <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-                    <dt className="text-neutral-500">ET₀ / ETc</dt>
-                    <dd className="font-medium tabular-nums text-neutral-800">
-                      {toNum(snap.et0_mm_dia)?.toFixed(2) ?? "—"} / {toNum(snap.etc_mm_dia)?.toFixed(2) ?? "—"} mm/día
-                    </dd>
-                    <dt className="text-neutral-500">Umbral / Lámina neta</dt>
-                    <dd className="font-medium tabular-nums text-neutral-800">
-                      {typeof snap.umbral === "number" ? `${(snap.umbral * 100).toFixed(2)}%` : "—"} /{" "}
-                      {typeof snap.lamina_neta_mm === "number" ? `${snap.lamina_neta_mm.toFixed(1)} mm` : "—"}
-                    </dd>
-                    <dt className="text-neutral-500">Volumen bruto</dt>
-                    <dd className="font-medium tabular-nums text-neutral-800">
-                      {typeof snap.volumen_bruto_L === "number" ? `${fmtNum(snap.volumen_bruto_L)} L` : "—"}
-                    </dd>
-                    <dt className="text-neutral-500">Lluvia prevista 6 h</dt>
-                    <dd className="font-medium tabular-nums text-neutral-800">
-                      {typeof snap.rain_mm === "number" ? `${snap.rain_mm} mm` : "—"} (
-                      {typeof snap.rain_prob === "number" ? `${Math.round(snap.rain_prob * 100)}%` : "—"})
-                    </dd>
-                    <dt className="text-neutral-500">Suelo / Kc / Zr</dt>
-                    <dd className="font-medium text-neutral-800">
-                      {String(snap.soil_code ?? "—")} · Kc {String(snap.kc ?? "—")} · Zr {String(snap.zr_m ?? "—")} m
-                    </dd>
-                    <dt className="text-neutral-500">Etapa</dt>
-                    <dd className="font-medium text-neutral-800">{current.stage ? `Etapa ${current.stage}` : "—"}</dd>
-                    <dt className="text-neutral-500">Revisar</dt>
-                    <dd className="font-medium text-neutral-800">{current.next_at ? fmtDateTime(current.next_at) : "Sin próxima revisión"}</dd>
-                  </dl>
-                </div>
-              </details>
+
             </VerdictCard>
           )}
         </section>
+        {current ? <section aria-label="Datos de la evaluación" className="evaluation-trace min-w-0">{traceability}</section> : null}
       </div>
 
       <Card className="mt-4" aria-label="Evaluaciones anteriores">

@@ -12,6 +12,7 @@ window.fetch = async (input, init) => {
   if(path==="auth/login") result={user:account,access_token:"isolated-ui-fixture",token_type:"Bearer"};
  else if(path==="auth/me") result=account;
  else if(path==="auth/logout") result={message:"OK"};
+ else if(path==="metrics/summary") result={plots_active:data.plots.length,sensors_active:data.sensors.length,sensors_ok:2,sensors_sin_datos:1,evaluations_today:data.evaluations.length,evaluations_riega:1,evaluations_no:1,evaluations_espera:0,evaluations_incompleta:1,critical_today:0};
  else if(path.includes("/weather")) result=data.forecast;
  else if(path.endsWith("/evaluate")) result=data.evaluations[0];
  else if(path==="validation") result={total:1,passed:1,cases:[{caso:"Escenario de demostración",esperado:"riega",obtenido:"riega",ok:true,detalle:"Datos de prueba aislados"}]};

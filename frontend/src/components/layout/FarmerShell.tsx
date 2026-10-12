@@ -18,7 +18,7 @@ export function FarmerShell({
   children: ReactNode;
 }): React.JSX.Element {
   return (
-    <div className="min-h-dvh">
+    <div className="yaku-workspace min-h-dvh">
       <a
         href="#contenido"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[900] focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-primary-700 focus:shadow-toast"

@@ -1,0 +1,868 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>YakuAI · Panel técnico</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f7f6;--surface:#fff;--line:#e3e9e7;--line-2:#eef2f0;
+  --ink:#12262c;--ink-2:#3b4f55;--muted:#62767c;--faint:#93a3a7;
+  --p-900:#0a2a2e;--p-700:#0f6b66;--p-600:#12857f;--p-400:#3cc6b9;--p-100:#d5efeb;--p-50:#ecf7f5;
+  --crit:#b3261e;--crit-bg:#fdeceb;--crit-bd:#f2c3bf;
+  --riega:#1b5fa6;--riega-bg:#eaf3fc;--riega-bd:#bcd7f2;
+  --espera:#8a5700;--espera-bg:#fff5df;--espera-bd:#efd69b;
+  --nodata:#5b6e74;--nodata-bg:#eef2f2;--nodata-bd:#d6dedf;
+  --ok:#1a7a45;--ok-bg:#e8f6ed;--ok-bd:#b9e2c8;
+  --shadow:0 1px 2px rgba(18,38,44,.05),0 6px 20px rgba(18,38,44,.04);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--ink);font-size:14.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit;text-decoration:none}
+h1,h2,h3,p{margin:0}
+.ic{width:1.2em;height:1.2em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* layout */
+.app{display:grid;grid-template-columns:252px minmax(0,1fr);min-height:100vh}
+.side{position:sticky;top:0;height:100vh;background:linear-gradient(180deg,#0a2a2e,#0c3438);color:#b7d0cd;display:flex;flex-direction:column;padding:22px 14px 16px;z-index:60}
+.brand{display:flex;align-items:center;gap:11px;padding:0 10px 18px}
+.brand-mark{width:40px;height:40px;border-radius:13px;background:linear-gradient(145deg,#37c2b6,#12857f);display:grid;place-items:center;color:#fff;font-size:20px;box-shadow:0 6px 16px rgba(18,133,127,.4)}
+.brand b{display:block;color:#fff;font-size:18px;letter-spacing:-.01em;line-height:1.1;font-weight:800}
+.brand small{font-size:11.5px;color:#7fa5a2;font-weight:500}
+.nav{flex:1;overflow:auto;margin:0 -4px;padding:0 4px}
+.nav h6{margin:18px 10px 6px;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#6d9490;font-weight:700}
+.nav a{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:12px;color:#b7d0cd;font-weight:600;font-size:14px;transition:.15s}
+.nav a:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav a.on{background:rgba(255,255,255,.11);color:#fff;box-shadow:inset 3px 0 0 var(--p-400)}
+.nav .ic{font-size:18px}
+.nav .badge{margin-left:auto;min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:#e5534b;color:#fff;font-size:11.5px;font-weight:700;display:grid;place-items:center}
+.side-foot{margin-top:10px;padding:12px;border-radius:14px;background:rgba(255,255,255,.06);display:flex;align-items:center;gap:11px}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--p-100);color:var(--p-700);display:grid;place-items:center;font-weight:800;font-size:13px;flex:none}
+.side-foot b{display:block;color:#fff;font-size:13.5px;line-height:1.2}
+.side-foot small{font-size:11.5px;color:#7fa5a2}
+.dot{width:8px;height:8px;border-radius:50%;background:#3ddc97;display:inline-block;margin-right:6px}
+
+.main{min-width:0}
+.top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:12px;padding:14px 32px;background:rgba(244,247,246,.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.menu-btn{display:none}
+.search{position:relative;flex:1;max-width:380px}
+.search .ic{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--faint)}
+.search input{width:100%;height:44px;border:1px solid var(--line);border-radius:999px;background:#fff;padding:0 16px 0 42px;outline:none}
+.search input:focus,.field input:focus,.field select:focus{border-color:var(--p-600);box-shadow:0 0 0 3px rgba(18,133,127,.15)}
+.top-r{margin-left:auto;display:flex;align-items:center;gap:10px}
+.chip-date{font-size:13px;font-weight:600;color:var(--muted);padding:0 4px;white-space:nowrap}
+.page{padding:28px 32px 64px;max-width:1180px;margin:0 auto}
+
+/* head */
+.eyebrow{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--p-700)}
+.eyebrow i{width:6px;height:6px;border-radius:50%;background:var(--p-600)}
+.head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px 24px;margin:10px 0 24px}
+.head h1{font-size:30px;line-height:1.15;letter-spacing:-.025em;font-weight:800;text-wrap:balance;max-width:760px}
+.head p{margin-top:8px;color:var(--muted);font-size:15px}
+.head .acts{display:flex;gap:10px;align-items:center}
+.hl-c{color:var(--crit)}.hl-r{color:var(--riega)}.hl-n{color:var(--nodata)}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 20px;border-radius:999px;border:1px solid var(--line);background:#fff;font-weight:700;font-size:14px;transition:.15s;white-space:nowrap}
+.btn:hover{border-color:#c9d6d3;background:#fafcfb}
+.btn.primary{background:var(--p-700);border-color:var(--p-700);color:#fff;box-shadow:0 4px 14px rgba(15,107,102,.28)}
+.btn.primary:hover{background:#0c5a56}
+.btn.sm{height:36px;padding:0 14px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.icon-btn{position:relative;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:#fff;display:grid;place-items:center;color:var(--ink-2);transition:.15s}
+.icon-btn:hover{border-color:var(--p-100);color:var(--p-700)}
+.icon-btn .ic{font-size:18px}
+.icon-btn .cnt{position:absolute;top:-3px;right:-3px;min-width:19px;height:19px;border-radius:99px;background:#e5534b;color:#fff;font-size:10.5px;font-weight:700;display:grid;place-items:center;padding:0 5px;border:2px solid var(--bg)}
+.spin{animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* cards */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow)}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 22px;border-bottom:1px solid var(--line-2)}
+.card-h h3{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.card-b{padding:20px 22px}
+.count{background:var(--line-2);color:var(--muted);font-size:12px;font-weight:700;border-radius:99px;padding:1px 9px}
+.link{display:inline-flex;align-items:center;gap:5px;font-weight:700;font-size:13.5px;color:var(--p-700);min-height:36px}
+.link:hover{text-decoration:underline}
+.grid-2{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(300px,1fr);gap:18px;align-items:start}
+.stack{display:grid;gap:18px}
+
+/* pills */
+.pill{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 11px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid;white-space:nowrap}
+.pill::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
+.t-critica{color:var(--crit);background:var(--crit-bg);border-color:var(--crit-bd)}
+.t-riega{color:var(--riega);background:var(--riega-bg);border-color:var(--riega-bd)}
+.t-espera{color:var(--espera);background:var(--espera-bg);border-color:var(--espera-bd)}
+.t-sindatos{color:var(--nodata);background:var(--nodata-bg);border-color:var(--nodata-bd)}
+.t-ok{color:var(--ok);background:var(--ok-bg);border-color:var(--ok-bd)}
+
+/* kpis */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.kpi{display:flex;align-items:center;gap:14px;padding:18px 20px}
+.kpi .bub{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;font-size:21px;border:1px solid}
+.kpi b{display:block;font-size:26px;line-height:1.05;font-weight:800;letter-spacing:-.02em}
+.kpi span{font-size:13px;color:var(--muted);font-weight:500}
+
+/* queue */
+.q{list-style:none;margin:0;padding:0}
+.qrow{display:flex;align-items:center;gap:16px;width:100%;padding:16px 22px;border:0;background:none;text-align:left;border-bottom:1px solid var(--line-2);transition:.15s}
+.qrow:last-child{border-bottom:0}
+.qrow:hover{background:#fafcfb}
+.qrow:focus-visible{outline:2px solid rgba(18,133,127,.4);outline-offset:-2px}
+.qb{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;border:1px solid;font-size:19px;flex:none}
+.qrow .tx{min-width:0;flex:1}
+.qrow .tx b{display:block;font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qrow .tx small{display:block;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qrow .tx p{font-size:13.5px;color:var(--ink-2);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qrow .go{color:var(--faint);transition:.15s}
+.qrow:hover .go{transform:translateX(3px);color:var(--ink-2)}
+
+/* empty */
+.empty{display:grid;justify-items:center;text-align:center;gap:8px;padding:48px 24px}
+.empty .bub{width:56px;height:56px;border-radius:50%;background:var(--p-50);color:var(--p-700);display:grid;place-items:center;font-size:24px}
+.empty h3{font-size:17px;font-weight:700}.empty p{color:var(--muted);max-width:360px}
+
+/* mini widgets */
+.big{font-size:40px;font-weight:800;letter-spacing:-.03em;line-height:1}
+.stat3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
+.stat3 div{background:var(--bg);border-radius:14px;padding:11px 12px}
+.stat3 small{display:block;font-size:11.5px;color:var(--muted);font-weight:600}
+.stat3 b{font-size:16px;font-weight:700}
+.bar{height:8px;border-radius:99px;background:var(--line-2);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;background:var(--p-600)}
+.segs{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px}
+.segs i{height:10px;border-radius:99px}
+.s-ok{background:#38b676}.s-warn{background:#e9b23c}.s-bad{background:#d9544d}.s-none{background:#cdd7d8}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}
+.legend span::before{content:'';display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;background:var(--c)}
+
+/* tables */
+.tbl-wrap{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;min-width:640px}
+.tbl th{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);text-align:left;padding:12px 22px;font-weight:700;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:14px 22px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl tr.click{cursor:pointer}.tbl tr.click:hover td{background:#fafcfb}
+.tbl .r{text-align:right}
+.cell-main b{display:block;font-weight:700}.cell-main small{color:var(--muted);font-size:13px}
+.who{display:flex;align-items:center;gap:12px}
+.fresh{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-2);white-space:nowrap}
+.fresh::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--c,#38b676)}
+.f-warn{--c:#e9b23c}.f-bad{--c:#d9544d}.f-none{--c:#b5c1c3}
+
+/* filters */
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.chip{height:38px;padding:0 15px;border-radius:999px;border:1px solid var(--line);background:#fff;font-weight:600;font-size:13.5px;color:var(--ink-2);display:inline-flex;align-items:center;gap:8px;transition:.15s}
+.chip:hover{border-color:#c9d6d3}
+.chip.on{background:var(--p-700);border-color:var(--p-700);color:#fff}
+.chip em{font-style:normal;font-size:12px;opacity:.75}
+
+/* evaluar */
+.eval{display:grid;grid-template-columns:290px minmax(0,1fr);gap:18px;align-items:start}
+.pick{list-style:none;margin:0;padding:8px}
+.pick button{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px;border:0;border-radius:14px;background:none;transition:.15s}
+.pick button:hover{background:var(--bg)}
+.pick button.on{background:var(--p-50);box-shadow:inset 0 0 0 1px var(--p-100)}
+.pick b{display:block;font-size:14.5px;line-height:1.25}.pick small{color:var(--muted);font-size:12.5px}
+.sdot{width:10px;height:10px;border-radius:50%;flex:none;background:var(--c)}
+.d-critica{--c:var(--crit)}.d-riega{--c:var(--riega)}.d-espera{--c:#e0a21a}.d-sindatos{--c:#9aa9ac}.d-ok{--c:#38b676}
+.checks{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.check{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.check .bub{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:16px;flex:none}
+.check b{display:block;font-size:14px}.check small{color:var(--muted);font-size:12.5px}
+.hero{border-radius:20px;border:1px solid;padding:24px 26px;display:flex;flex-wrap:wrap;gap:18px 28px;align-items:center;justify-content:space-between}
+.hero .k{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.85}
+.hero h2{font-size:34px;font-weight:800;letter-spacing:-.025em;line-height:1.1;margin-top:6px}
+.hero p{margin-top:8px;font-size:15px;opacity:.9}
+.hero .lit{font-size:13px;opacity:.8}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+.tile{border:1px solid var(--line);border-radius:14px;padding:13px 15px;background:#fff}
+.tile small{display:block;font-size:11.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.07em}
+.tile b{font-size:18px;font-weight:700}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px}
+.step{border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:#fbfdfc;position:relative}
+.step small{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.step b{display:block;font-size:16px;font-weight:700;margin:2px 0}
+.step span{font-size:12px;color:var(--muted)}
+.step.last{background:var(--p-50);border-color:var(--p-100)}
+.note{font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center}
+
+/* sensores */
+.types{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+.type{display:flex;gap:14px;align-items:flex-start;padding:18px}
+.type .bub{width:42px;height:42px;border-radius:13px;background:var(--p-50);color:var(--p-700);display:grid;place-items:center;font-size:19px;flex:none}
+.type b{display:block}.type small{color:var(--muted);font-size:13px}
+.code{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:12.5px;background:#0f2428;color:#cfe8e4;border-radius:12px;padding:13px 15px;white-space:pre-wrap;line-height:1.55}
+
+/* forms / modal */
+.overlay{position:fixed;inset:0;background:rgba(9,30,34,.5);display:grid;place-items:center;z-index:100;animation:fade .15s}
+.overlay.dr{place-items:stretch end}
+@keyframes fade{from{opacity:0}}
+.modal,.drawer{background:#fff;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(9,30,34,.3);animation:pop .18s}
+.modal{width:min(560px,calc(100vw - 28px));max-height:calc(100vh - 40px);border-radius:24px}
+.modal.wide{width:min(680px,calc(100vw - 28px))}
+.drawer{width:min(480px,100vw);height:100vh;animation:slide .22s}
+@keyframes pop{from{transform:translateY(10px);opacity:.6}}
+@keyframes slide{from{transform:translateX(30px);opacity:.6}}
+.m-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:22px 24px 14px}
+.m-head h2{font-size:19px;font-weight:800;letter-spacing:-.015em}.m-head p{color:var(--muted);font-size:13.5px;margin-top:2px}
+.m-body{padding:6px 24px 20px;overflow:auto;display:grid;gap:16px}
+.m-foot{display:flex;justify-content:flex-end;gap:10px;padding:16px 24px;border-top:1px solid var(--line-2)}
+.field label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-2);margin-bottom:6px}
+.field input,.field select{width:100%;height:46px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:0 14px;outline:none}
+.field small{display:block;color:var(--muted);font-size:12px;margin-top:5px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.map{display:block;width:100%;border-radius:16px;border:1px solid var(--line);background:#eaf1ec;touch-action:manipulation}
+.map.draw{cursor:crosshair}
+.map-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;flex-wrap:wrap}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:10px 18px;font-size:14px}
+.kv dt{color:var(--muted)}.kv dd{margin:0;font-weight:600;text-align:right}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#0f2428;color:#fff;padding:12px 20px;border-radius:999px;font-weight:600;font-size:14px;z-index:200;box-shadow:0 10px 30px rgba(0,0,0,.25);animation:pop .2s;max-width:calc(100vw - 32px)}
+
+/* catalog tabs */
+.tabs{display:inline-flex;background:var(--line-2);padding:4px;border-radius:999px;margin-bottom:16px;gap:2px}
+.tabs button{height:36px;padding:0 18px;border:0;background:none;border-radius:999px;font-weight:700;font-size:13.5px;color:var(--muted)}
+.tabs button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(18,38,44,.12)}
+.ver{font-size:12px;font-weight:700;color:var(--p-700);background:var(--p-50);border:1px solid var(--p-100);border-radius:99px;padding:2px 10px}
+
+/* validation */
+.ring{position:relative;width:92px;height:92px;flex:none}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:20px;font-weight:800}
+.vsum{display:flex;align-items:center;gap:22px;padding:22px;flex-wrap:wrap}
+
+@media (max-width:1024px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .grid-2,.eval{grid-template-columns:1fr}
+  .types{grid-template-columns:1fr}
+}
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}
+  .side{position:fixed;left:0;top:0;width:274px;transform:translateX(-102%);transition:transform .25s}
+  .side.open{transform:none;box-shadow:0 0 0 100vmax rgba(9,30,34,.45)}
+  .menu-btn{display:grid}
+  .top{padding:12px 16px}.page{padding:20px 16px 56px}
+  .chip-date{display:none}
+  .head h1{font-size:25px}
+  .checks,.tiles,.row2{grid-template-columns:1fr}
+  .hero h2{font-size:28px}
+  .qrow{padding:14px 16px}.card-h{padding:14px 16px}
+}
+@media print{
+  .side,.top,.no-print{display:none!important}
+  .app{display:block}body{background:#fff}.card{box-shadow:none}.page{padding:0}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-layout" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></symbol>
+  <symbol id="i-droplets" viewBox="0 0 24 24"><path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z"/><path d="M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97"/></symbol>
+  <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3s6 6.2 6 10.5A6 6 0 0 1 6 13.5C6 9.2 12 3 12 3Z"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><path d="M14.1 5.55a2 2 0 0 0 1.79 0l3.66-1.83A1 1 0 0 1 21 4.62v12.76a1 1 0 0 1-.55.9l-4.55 2.28a2 2 0 0 1-1.79 0l-4.21-2.1a2 2 0 0 0-1.79 0l-3.66 1.83A1 1 0 0 1 3 19.38V6.62a1 1 0 0 1 .55-.9l4.55-2.28a2 2 0 0 1 1.79 0z"/><path d="M15 5.76v15"/><path d="M9 3.24v15"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-radio" viewBox="0 0 24 24"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-msg" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+  <symbol id="i-thermo" viewBox="0 0 24 24"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></symbol>
+</svg>
+
+<div class="app">
+  <aside class="side" id="side" aria-label="Navegación">
+    <div class="brand">
+      <div class="brand-mark"><svg class="ic"><use href="#i-drop"/></svg></div>
+      <div><b>YakuAI</b><small>Panel técnico</small></div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot">
+      <div class="avatar">TC</div>
+      <div><b>Técnico de campo</b><small><span class="dot"></span>API conectada · Chupaca</small></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="top">
+      <button class="icon-btn menu-btn" data-act="menu" aria-label="Abrir menú"><svg class="ic"><use href="#i-menu"/></svg></button>
+      <label class="search">
+        <svg class="ic"><use href="#i-search"/></svg>
+        <span class="sr">Buscar parcela o agricultor</span>
+        <input id="q" type="search" placeholder="Buscar parcela o agricultor" autocomplete="off">
+      </label>
+      <div class="top-r">
+        <span class="chip-date" id="today"></span>
+        <button class="icon-btn" data-act="go" data-to="alertas" aria-label="Ver alertas"><svg class="ic"><use href="#i-bell"/></svg><span class="cnt" id="bell" hidden></span></button>
+      </div>
+    </header>
+    <main class="page" id="view"></main>
+  </div>
+</div>
+
+<script>
+/* ============ utilidades ============ */
+const $=(s,el=document)=>el.querySelector(s);
+const $$=(s,el=document)=>[...el.querySelectorAll(s)];
+const ic=(n,c='')=>`<svg class="ic ${c}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>Math.round(n).toLocaleString('es-PE');
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+const MIN=60000,DAY=864e5;
+const ageMin=ts=>(Date.now()-ts)/MIN;
+function ageLabel(ts){const m=Math.round(ageMin(ts));if(m<1)return'ahora';if(m<60)return`hace ${m} min`;const h=Math.floor(m/60),r=m%60;return`hace ${h} h${r?` ${r} min`:''}`}
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+const todayLong=()=>cap(new Date().toLocaleDateString('es-PE',{weekday:'long',day:'numeric',month:'long'}));
+const ftime=ts=>new Date(ts).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit',hour12:false});
+const fday=ts=>new Date(ts).toLocaleDateString('es-PE',{day:'2-digit',month:'short'});
+const ini=n=>n.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+const hourKey=ts=>{const d=new Date(ts);return`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}`};
+
+/* ============ catálogos ============ */
+const st=(n,from,to,kc,zr,p)=>({n,from,to,kc,zr,p});
+const CROPS=[
+ {id:'papa',name:'Papa',stages:[st('Inicial',0,25,.50,.30,.35),st('Desarrollo',26,55,.80,.45,.35),st('Media',56,95,1.15,.60,.35),st('Final',96,130,.75,.60,.35)]},
+ {id:'maiz',name:'Maíz choclo',stages:[st('Inicial',0,20,.30,.30,.50),st('Desarrollo',21,50,.72,.60,.50),st('Media',51,90,1.15,1.00,.50),st('Final',91,120,1.05,1.00,.50)]},
+ {id:'haba',name:'Haba seca',stages:[st('Inicial',0,25,.50,.30,.45),st('Desarrollo',26,50,.80,.50,.45),st('Media',51,95,1.15,.80,.45),st('Final',96,125,.30,.80,.45)]},
+ {id:'zanahoria',name:'Zanahoria',stages:[st('Inicial',0,25,.70,.25,.35),st('Desarrollo',26,45,.85,.40,.35),st('Media',46,90,1.05,.50,.35),st('Final',91,120,.95,.50,.35)]}
+];
+const SOILS=[
+ {id:'arenoso',name:'Arenoso',cc:.12,pmp:.05},
+ {id:'franco-arenoso',name:'Franco-arenoso',cc:.20,pmp:.09},
+ {id:'franco',name:'Franco',cc:.30,pmp:.14},
+ {id:'franco-arcilloso',name:'Franco-arcilloso',cc:.36,pmp:.20},
+ {id:'arcilloso',name:'Arcilloso',cc:.42,pmp:.26}
+];
+const RA=16.1; // Ra FAO (mm/día) · Chupaca, octubre
+const stageOf=(crop,age)=>crop.stages.find(s=>age>=s.from&&age<=s.to)||crop.stages[crop.stages.length-1];
+
+/* ============ geometría de parcelas ============ */
+const SC=0.0625; // m² por px²
+const polyArea=pts=>{let a=0;for(let i=0;i<pts.length;i++){const[x1,y1]=pts[i],[x2,y2]=pts[(i+1)%pts.length];a+=x1*y2-x2*y1}return Math.abs(a)/2*SC};
+function polyFor(area,seed){const px=area/SC,r=1.25+((seed*7)%5)/20,w=Math.sqrt(px*r),h=px/w,cx=200,cy=130,j=(seed%3+1)*6;
+ return[[cx-w/2,cy-h/2+j],[cx+w/2,cy-h/2-j],[cx+w/2-j,cy+h/2],[cx-w/2+j,cy+h/2+j]].map(p=>p.map(Math.round))}
+function mapBase(){
+ let g='';for(let x=40;x<400;x+=40)g+=`<line x1="${x}" y1="0" x2="${x}" y2="260" stroke="#c7d6cc" stroke-width="1"/>`;
+ for(let y=40;y<260;y+=40)g+=`<line x1="0" y1="${y}" x2="400" y2="${y}" stroke="#c7d6cc" stroke-width="1"/>`;
+ return`<rect width="400" height="260" fill="#e9f0ea"/>
+ <path d="M0 215 C90 175 210 245 400 185 L400 260 L0 260Z" fill="#dfe9e1"/>
+ <path d="M0 60 C120 20 240 95 400 40" fill="none" stroke="#cfdcd2" stroke-width="2"/>
+ <path d="M0 90 C120 50 240 125 400 70" fill="none" stroke="#d6e1d8" stroke-width="1.5"/>${g}
+ <g transform="translate(14,238)"><line x1="0" y1="0" x2="40" y2="0" stroke="#4f6a66" stroke-width="2"/><text x="0" y="-5" font-size="10" fill="#4f6a66" font-family="inherit">10 m</text></g>`;
+}
+function plotMap(pts,color='#12857f'){
+ const p=pts.map(q=>q.join(',')).join(' ');
+ return`<svg class="map" viewBox="0 0 400 260" role="img" aria-label="Área de la parcela">${mapBase()}<polygon points="${p}" fill="${color}" fill-opacity=".28" stroke="${color}" stroke-width="2.5" stroke-linejoin="round"/></svg>`;
+}
+
+/* ============ estado y datos demo ============ */
+const mkSensor=(h,age,rain,temp)=>{const cal={dry:1010,wet:320};return{cal,raw:Math.round(cal.dry-h/100*(cal.dry-cal.wet)),rain,temp,ts:Date.now()-age*MIN}};
+const hourly=(p,seed)=>Array.from({length:12},(_,i)=>clamp(Math.round(p+Math.sin((i+seed)*.9)*16+(i-5)*(p>=70?-2.5:1.5)),2,98));
+const mkPlot=(o)=>({...o,sowDate:Date.now()-o.sow*DAY,fc:{p:o.p,mm:o.mm,hourly:hourly(o.p,o.id)},t:{mean:(o.tx+o.tn)/2,max:o.tx,min:o.tn},sensor:o.sAge==null?null:mkSensor(o.h,o.sAge,o.wet||false,o.temp)});
+const S={
+ seq:0,sel:1,query:'',cropF:'all',alertF:'all',cSel:1,catTab:'cultivos',
+ weather:{ts:Date.now()-70*MIN,demo:false},
+ farmers:[
+  {id:1,name:'Rosa Quispe',phone:'+51 964 218 330',pin:'4827'},
+  {id:2,name:'Julián Huamán',phone:'+51 951 774 102',pin:'1593'},
+  {id:3,name:'Marta Ccora',phone:'+51 987 306 541',pin:'7064'},
+  {id:4,name:'Pedro Yupanqui',phone:'+51 944 120 875',pin:'3318'},
+  {id:5,name:'Elena Poma',phone:'+51 962 551 207',pin:'9241'}],
+ plots:[
+  mkPlot({id:1,name:'Los Pinos',farmer:1,crop:'papa',soil:'franco',area:400,sow:58,h:58,p:20,mm:1,tx:21,tn:5,temp:12.4,sAge:8}),
+  mkPlot({id:2,name:'Wayra Pata',farmer:2,crop:'maiz',soil:'franco-arenoso',area:500,sow:40,h:15,p:85,mm:14,tx:22,tn:6,temp:13.1,sAge:12}),
+  mkPlot({id:3,name:'Chacra Alta',farmer:3,crop:'haba',soil:'franco-arcilloso',area:600,sow:70,h:78,p:10,mm:0,tx:20,tn:4,temp:11.8,sAge:22}),
+  mkPlot({id:4,name:'El Mirador',farmer:4,crop:'haba',soil:'franco',area:350,sow:15,h:70,p:30,mm:2,tx:21,tn:5,temp:12.0,sAge:200}),
+  mkPlot({id:5,name:'San Isidro',farmer:1,crop:'zanahoria',soil:'franco-arenoso',area:300,sow:12,h:60,p:85,mm:16,tx:21,tn:6,temp:13.6,sAge:5,wet:true}),
+  mkPlot({id:6,name:'Qocha',farmer:5,crop:'maiz',soil:'franco',area:450,sow:15,h:85,p:40,mm:3,tx:20,tn:5,temp:12.6,sAge:14})],
+ evals:{},log:[],sent:{},irr:[],val:{n:10,running:false}
+};
+const plotById=id=>S.plots.find(p=>p.id===id);
+const farmerOf=p=>S.farmers.find(f=>f.id===p.farmer);
+const humOf=p=>{const s=p.sensor;return clamp((s.cal.dry-s.raw)/(s.cal.dry-s.cal.wet),0,1)};
+
+/* ============ motor hídrico ============ */
+function calc(plot){
+ const crop=CROPS.find(c=>c.id===plot.crop),soil=SOILS.find(s=>s.id===plot.soil);
+ const age=Math.max(0,Math.floor((Date.now()-plot.sowDate)/DAY)),s=stageOf(crop,age),{mean,max,min}=plot.t;
+ const et0=0.0023*(mean+17.8)*Math.sqrt(Math.max(max-min,0))*RA;
+ return{crop,soil,age,st:s,et0,etc:et0*s.kc,taw:1000*(soil.cc-soil.pmp)*s.zr};
+}
+function evaluate(plot,ts=Date.now()){
+ const c=calc(plot),s=plot.sensor;
+ const ev={id:++S.seq,plotId:plot.id,ts,age:c.age,stage:c.st.n,crop:c.crop.name};
+ if(!s)return{...ev,status:'incompleta',cause:'Sin lecturas de sensor registradas',msg:'Sin lecturas de sensor'};
+ const sAge=ageMin(s.ts),wAge=ageMin(S.weather.ts);
+ if(sAge>=30){const cause=`Última lectura ${ageLabel(s.ts)} · máx. 30 min`;return{...ev,status:'incompleta',cause,msg:cause}}
+ if(wAge>=180){const cause=`Pronóstico ${ageLabel(S.weather.ts)} · máx. 3 h`;return{...ev,status:'incompleta',cause,msg:cause}}
+ const hum=humOf(plot),hp=Math.round(hum*100),thr=Math.round((1-c.st.p)*100);
+ const raw=c.st.p*c.taw,def=(1-hum)*c.taw;
+ const crit=hum<=.20,rainOn=plot.fc.p>=70,eff=rainOn?plot.fc.mm*.8:0;
+ let decision,net=def;
+ if(crit)decision='riega';
+ else if(def<raw)decision='no_riega';
+ else{net=Math.max(def-eff,0);decision=(rainOn&&net<raw)?'espera':'riega'}
+ const mm=Math.round(net),lo=decision==='riega'?Math.floor(net*plot.area/50)*50:0;
+ let why,msg,next;
+ if(crit){why=`Humedad ${hp} % (≤ 20 %): suelo crítico. Se riega sin esperar lluvia.`;msg=`Humedad ${hp} % · suelo crítico`;next='En 3 h, tras el riego'}
+ else if(decision==='riega'){why=`Humedad ${hp} % bajo el umbral de ${thr} %. Déficit ${Math.round(def)} mm${eff?`, menos ${eff.toFixed(1)} mm de lluvia efectiva`:''}.`;msg=`Humedad ${hp} % bajo umbral ${thr} %`;next='Mañana 05:30'}
+ else if(decision==='espera'){why=`La lluvia prevista (${plot.fc.p} %, ${eff.toFixed(1)} mm efectivos) deja el déficit bajo el umbral. Esperar 6 h.`;msg=`Lluvia ${plot.fc.p} % cubre el déficit`;next='En 6 h'}
+ else{why=`Humedad ${hp} % sobre el umbral de ${thr} %. Déficit ${Math.round(def)} mm de ${Math.round(raw)} mm permitidos.`;msg=`Humedad ${hp} % sobre umbral ${thr} %`;next=`En ${clamp(Math.round((raw-def)/c.etc*24),6,24)} h`}
+ const rainTxt=!rainOn?`${plot.fc.p} % · sin descuento`:crit?`${plot.fc.p} % · ignorada`:decision==='espera'?`${plot.fc.p} % · cubre déficit`:`−${eff.toFixed(1)} mm`;
+ const steps=[
+  {k:'Edad',v:`${c.age} d`,s:c.crop.name},{k:'Kc',v:c.st.kc.toFixed(2),s:c.st.n},
+  {k:'ET₀',v:`${c.et0.toFixed(1)} mm/d`,s:'Hargreaves'},{k:'ETc',v:`${c.etc.toFixed(1)} mm/d`,s:'Kc × ET₀'},
+  {k:'Umbral',v:`${thr} %`,s:`RAW ${Math.round(raw)} mm`},{k:'Lluvia',v:rainTxt,s:'≥ 70 % descuenta'},
+  {k:'Decisión',v:{riega:'Regar',no_riega:'No regar',espera:'Esperar'}[decision],s:decision==='riega'?`${mm} mm`:decision==='espera'?'6 h':'—'}];
+ return{...ev,status:'ok',decision,crit,hp,thr,mm,lo,hi:lo+50,def,raw,why,msg,next,steps,conf:(sAge<=15&&wAge<=90)?'Alta':'Media'};
+}
+function toneOf(ev){if(!ev)return'sindatos';if(ev.status==='incompleta')return'sindatos';if(ev.crit)return'critica';return{riega:'riega',espera:'espera',no_riega:'ok'}[ev.decision]}
+const labelOf=t=>({critica:'Crítica',riega:'Regar',espera:'Esperar',sindatos:'Sin datos',ok:'No regar'}[t]);
+const pill=t=>`<span class="pill t-${t}">${labelOf(t)}</span>`;
+const bubStyle=t=>({critica:'color:var(--crit);background:var(--crit-bg);border-color:var(--crit-bd)',riega:'color:var(--riega);background:var(--riega-bg);border-color:var(--riega-bd)',espera:'color:var(--espera);background:var(--espera-bg);border-color:var(--espera-bd)',sindatos:'color:var(--nodata);background:var(--nodata-bg);border-color:var(--nodata-bd)',ok:'color:var(--ok);background:var(--ok-bg);border-color:var(--ok-bd)'}[t]);
+const rank={critica:0,riega:1,sindatos:2,espera:3,ok:4};
+function runEvaluation(plot){
+ const key=plot.id+'|'+hourKey(Date.now()),prev=S.evals[plot.id];
+ if(prev&&prev.status==='ok'&&prev.key===key){toast('Ya existe una evaluación de esta hora: se muestra la misma');return prev}
+ const ev=evaluate(plot);ev.key=key;S.evals[plot.id]=ev;S.log.push(ev);return ev;
+}
+function seed(){
+ const t0=new Date();t0.setHours(5,30,0,0);
+ S.plots.forEach(p=>{const ev=evaluate(p,t0.getTime());ev.key=p.id+'|'+hourKey(t0.getTime());S.evals[p.id]=ev;S.log.push(ev)});
+ [[1,1,15900,16000],[1,2,26100,24000],[2,6,9800,9800],[3,1,14500,14000],[3,3,22400,26000],[4,2,24900,25000],[5,4,6100,null],[5,1,15200,15000],[6,6,8200,7500],[6,3,21000,21000]]
+  .forEach(([d,p,r,a])=>S.irr.push({ts:Date.now()-d*DAY,plotId:p,rec:r,app:a}));
+ Object.values(S.evals).forEach(ev=>{const t=toneOf(ev);if(t==='critica'||t==='riega')S.sent[ev.plotId]='05:31'});
+}
+function alertsList(){
+ return S.plots.map(p=>({p,ev:S.evals[p.id]})).filter(x=>x.ev&&toneOf(x.ev)!=='ok')
+  .map(x=>({id:x.p.id,plot:x.p,ev:x.ev,tone:toneOf(x.ev)})).sort((a,b)=>rank[a.tone]-rank[b.tone]);
+}
+function freshClass(p){if(!p.sensor)return'f-none';const m=ageMin(p.sensor.ts);return m<15?'':m<30?'f-warn':'f-bad'}
+function freshText(p){return p.sensor?ageLabel(p.sensor.ts):'Sin lecturas'}
+
+/* ============ gráficos ============ */
+function pairBars(days){
+ const W=520,H=190,base=150,max=Math.max(...days.flatMap(d=>[d.a,d.b]),1000),bw=15;
+ const slot=(W-20)/days.length;let s='';
+ [0,.5,1].forEach(f=>{const y=base-f*120;s+=`<line x1="10" x2="${W-10}" y1="${y}" y2="${y}" stroke="#e8eeec"/>`});
+ days.forEach((d,i)=>{const x=10+i*slot+slot/2,ha=d.a/max*120,hb=d.b/max*120;
+  s+=`<rect x="${x-bw-1}" y="${base-ha}" width="${bw}" height="${Math.max(ha,1)}" rx="5" fill="#bfe3de"/>
+      <rect x="${x+1}" y="${base-hb}" width="${bw}" height="${Math.max(hb,1)}" rx="5" fill="#12857f"/>
+      <text x="${x}" y="${base+22}" text-anchor="middle" font-size="12" fill="#62767c" font-family="inherit">${d.l}</text>`});
+ return`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Litros recomendados contra aplicados por día">${s}</svg>`;
+}
+function rainBars(arr){
+ const W=600,H=200,base=156,n=arr.length,bw=34,gap=(W-40-n*bw)/(n-1);let s='';
+ const h0=new Date().getHours()+1;
+ s+=`<line x1="20" x2="${W-20}" y1="${base-70*1.2}" y2="${base-70*1.2}" stroke="#1b5fa6" stroke-dasharray="4 4" opacity=".55"/><text x="${W-20}" y="${base-70*1.2-6}" text-anchor="end" font-size="11" fill="#1b5fa6" font-family="inherit">Umbral 70 %</text>`;
+ arr.forEach((v,i)=>{const x=20+i*(bw+gap),h=v*1.2,on=v>=70;
+  s+=`<rect x="${x}" y="${base-h}" width="${bw}" height="${h}" rx="8" fill="${on?'#1b5fa6':'#cfe6e2'}"/>
+      <text x="${x+bw/2}" y="${base-h-7}" text-anchor="middle" font-size="11.5" font-weight="700" fill="${on?'#1b5fa6':'#62767c'}" font-family="inherit">${v}</text>
+      <text x="${x+bw/2}" y="${base+20}" text-anchor="middle" font-size="11.5" fill="#62767c" font-family="inherit">${(h0+i)%24}h</text>`});
+ return`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Probabilidad de lluvia por hora">${s}</svg>`;
+}
+
+/* ============ vistas ============ */
+const NAV=[{g:'Operación',i:[['resumen','Resumen','layout'],['evaluar','Evaluar','droplets'],['alertas','Alertas','bell']]},
+ {g:'Campo',i:[['parcelas','Parcelas','map'],['agricultores','Agricultores','users'],['sensores','Sensores','radio'],['clima','Clima','cloud']]},
+ {g:'Registro',i:[['historial','Historial','history'],['catalogos','Catálogos','layers'],['validacion','Validación','shield']]}];
+const TITLES={resumen:'Resumen',evaluar:'Evaluar',alertas:'Alertas',parcelas:'Parcelas',agricultores:'Agricultores',sensores:'Sensores',clima:'Clima',historial:'Historial',catalogos:'Catálogos',validacion:'Validación'};
+
+const head=(eyebrow,title,sub,acts='')=>`<div class="eyebrow"><i></i>${eyebrow}</div>
+ <div class="head"><div><h1>${title}</h1>${sub?`<p>${sub}</p>`:''}</div>${acts?`<div class="acts no-print">${acts}</div>`:''}</div>`;
+const empty=(icon,t,h,a='')=>`<div class="empty"><div class="bub">${ic(icon)}</div><h3>${t}</h3><p>${h}</p>${a}</div>`;
+
+function viewResumen(){
+ const evs=S.plots.map(p=>({p,ev:S.evals[p.id]})).filter(x=>x.ev);
+ const crit=evs.filter(x=>x.ev.crit).length,riega=evs.filter(x=>x.ev.decision==='riega').length;
+ const nod=evs.filter(x=>x.ev.status==='incompleta').length;
+ const litros=evs.filter(x=>x.ev.decision==='riega').reduce((s,x)=>s+x.ev.lo,0);
+ const queue=alertsList();
+ const w=S.weather,wAge=ageMin(w.ts),left=Math.max(0,180-wAge),pct=clamp(wAge/180*100,0,100);
+ const withS=S.plots.filter(p=>p.sensor),avgT=withS.length?withS.reduce((s,p)=>s+p.sensor.temp,0)/withS.length:0;
+ const maxRain=Math.max(...S.plots.map(p=>p.fc.p)),avgEt=S.plots.reduce((s,p)=>s+calc(p).et0,0)/S.plots.length;
+ const okS=S.plots.filter(p=>p.sensor&&ageMin(p.sensor.ts)<30).length;
+ const days=histDays();
+ return head(`Resumen · ${todayLong()}`,
+  S.plots.length?`<span class="hl-r">${riega}</span> ${riega===1?'pide riego':'piden riego'} · <span class="hl-c">${crit}</span> ${crit===1?'crítica':'críticas'} · <span class="hl-n">${nod}</span> sin datos`:'Sin parcelas en seguimiento',
+  `Ventana de riego 05:30–07:00 · ${S.plots.length} parcelas en red`,
+  `<button class="icon-btn" data-act="refresh" aria-label="Actualizar resumen" title="Actualizar">${ic('refresh','')}</button><button class="btn primary" data-act="go" data-to="evaluar">Evaluar ${ic('up')}</button>`)+
+ `<div class="kpis">
+   <div class="card kpi"><div class="bub" style="${bubStyle('riega')}">${ic('droplets')}</div><div><b class="num">${riega}</b><span>Piden riego</span></div></div>
+   <div class="card kpi"><div class="bub" style="${bubStyle('critica')}">${ic('alert')}</div><div><b class="num">${crit}</b><span>Críticas</span></div></div>
+   <div class="card kpi"><div class="bub" style="${bubStyle('sindatos')}">${ic('radio')}</div><div><b class="num">${nod}</b><span>Sin datos</span></div></div>
+   <div class="card kpi"><div class="bub" style="${bubStyle('ok')}">${ic('drop')}</div><div><b class="num">${litros>=1000?(litros/1000).toFixed(1)+' k':fmt(litros)}</b><span>Litros a aplicar hoy</span></div></div>
+  </div>
+  <div class="grid-2">
+   <section class="card" aria-label="Visitas de hoy">
+    <div class="card-h"><h3>Visitas de hoy <span class="count num">${queue.length}</span></h3><button class="link" data-act="go" data-to="alertas">Ver alertas ${ic('arrow')}</button></div>
+    ${queue.length?`<ol class="q">${queue.map(a=>`<li><button class="qrow" data-act="open-eval" data-id="${a.id}">
+      <span class="qb" style="${bubStyle(a.tone)}">${ic(a.tone==='sindatos'?'radio':'droplets')}</span>
+      <span class="tx"><b>${esc(a.plot.name)}</b><small>${esc(farmerOf(a.plot)?.name||'Sin agricultor')} · ${a.ev.crop} · ${a.ev.stage}</small><p>${esc(a.ev.msg)}</p></span>
+      <span style="display:flex;align-items:center;gap:10px">${pill(a.tone)}<span class="go">${ic('arrow')}</span></span></button></li>`).join('')}</ol>`
+     :empty('clip','Campo cubierto por hoy','Todas las parcelas están dentro de su umbral. Sin visitas pendientes.')}
+   </section>
+   <div class="stack">
+    <section class="card"><div class="card-h"><h3>${ic('cloud')} Clima vigente</h3><span class="pill ${left>0?'t-ok':'t-critica'}">${left>0?'Vigente':'Vencido'}</span></div>
+     <div class="card-b"><div style="display:flex;align-items:baseline;gap:10px"><span class="big num">${avgT.toFixed(0)}°</span><span class="muted">promedio en campo</span></div>
+      <div class="stat3"><div><small>Lluvia máx.</small><b class="num">${maxRain} %</b></div><div><small>ET₀ media</small><b class="num">${avgEt.toFixed(1)} mm</b></div><div><small>Fuente</small><b>${w.demo?'Demo':'OWM'}</b></div></div>
+      <div style="margin-top:16px"><div class="bar"><i style="width:${100-pct}%;${left<30?'background:#d9544d':''}"></i></div>
+      <p class="muted" style="font-size:12.5px;margin-top:7px">${left>0?`Vence en ${Math.floor(left/60)} h ${Math.round(left%60)} min`:'Actualiza el pronóstico para evaluar'}</p></div></div></section>
+    <section class="card"><div class="card-h"><h3>Recomendado vs aplicado</h3><span class="muted" style="font-size:12.5px">7 días</span></div>
+     <div class="card-b">${pairBars(days)}<div class="legend"><span style="--c:#bfe3de">Recomendado</span><span style="--c:#12857f">Aplicado</span></div></div></section>
+    <section class="card"><div class="card-h"><h3>${ic('radio')} Red de sensores</h3><span class="muted num" style="font-size:13px">${okS}/${S.plots.length} frescos</span></div>
+     <div class="card-b"><div class="segs">${S.plots.map(p=>`<i class="${!p.sensor?'s-none':ageMin(p.sensor.ts)<15?'s-ok':ageMin(p.sensor.ts)<30?'s-warn':'s-bad'}" title="${esc(p.name)}"></i>`).join('')}</div>
+      <div class="legend"><span style="--c:#38b676">&lt; 15 min</span><span style="--c:#e9b23c">&lt; 30 min</span><span style="--c:#d9544d">vencido</span></div></div></section>
+   </div>
+  </div>`;
+}
+
+function viewEvaluar(){
+ const plot=plotById(S.sel)||S.plots[0];
+ if(!plot)return head('Evaluar','Evaluar riego','')+`<div class="card">${empty('map','Sin parcelas','Registra una parcela para evaluar.')}</div>`;
+ const ev=S.evals[plot.id],c=calc(plot);
+ const sAge=plot.sensor?ageMin(plot.sensor.ts):null,wAge=ageMin(S.weather.ts);
+ const sOk=sAge!=null&&sAge<30,wOk=wAge<180;
+ const chk=(ok,icon,t,v,lim)=>`<div class="check"><span class="bub" style="${bubStyle(ok?'ok':'critica')}">${ic(ok?'check':'x')}</span><div><b>${t}</b><small>${v} · ${lim}</small></div></div>`;
+ let res='';
+ if(ev&&ev.status==='incompleta'){
+  res=`<div class="hero t-sindatos"><div><div class="k">Evaluación incompleta</div><h2>Faltan datos frescos</h2><p>${esc(ev.cause)}</p></div>
+   <button class="btn" data-act="reading" data-id="${plot.id}">${ic('radio')} Registrar lectura</button></div>`;
+ }else if(ev){
+  const t=toneOf(ev);
+  const big=ev.decision==='riega'?`${ev.crit?'Regar ya':'Regar hoy'}`:ev.decision==='espera'?'Esperar 6 h':'No regar hoy';
+  const sub=ev.decision==='riega'?`<div style="font-size:26px;font-weight:800;margin-top:10px" class="num">${fmt(ev.lo)} – ${fmt(ev.hi)} L</div><p>≈ ${ev.mm} mm · ${ev.crit?'Lo antes posible, ideal 05:30–07:00':'Entre 05:30 y 07:00'}</p>`:`<p>${esc(ev.why)}</p>`;
+  res=`<div class="hero t-${t}"><div><div class="k">Recomendación</div><h2>${big}</h2>${sub}</div>
+   <div style="display:grid;gap:10px;justify-items:end">${pill(t)}<span class="lit num">${ev.key&&ev.ts?`Evaluado ${ftime(ev.ts)}`:''}</span></div></div>
+   ${ev.decision==='riega'?`<p class="muted" style="margin-top:12px;font-size:14px">${esc(ev.why)}</p>`:''}
+   <div class="tiles"><div class="tile"><small>Confianza</small><b>${ev.conf}</b></div><div class="tile"><small>Próxima revisión</small><b>${ev.next}</b></div><div class="tile"><small>Humedad / umbral</small><b class="num">${ev.hp} % / ${ev.thr} %</b></div></div>
+   <div class="card" style="margin-top:16px;box-shadow:none"><div class="card-h"><h3>Cómo se calculó</h3><span class="note">Snapshot inmutable #${ev.id}</span></div>
+    <div class="card-b"><div class="steps">${ev.steps.map((s,i)=>`<div class="step ${i===ev.steps.length-1?'last':''}"><small>${s.k}</small><b class="num">${s.v}</b><span>${s.s}</span></div>`).join('')}</div></div></div>
+   ${ev.decision==='riega'?`<div style="margin-top:16px;display:flex;justify-content:flex-end"><button class="btn" data-act="new-irr" data-id="${plot.id}">${ic('check')} Registrar riego aplicado</button></div>`:''}`;
+ }
+ return head('Evaluar','Evaluar riego','El sistema recomienda, el agricultor decide.')+
+ `<div class="eval">
+  <section class="card"><div class="card-h"><h3>Parcelas</h3><span class="count num">${S.plots.length}</span></div>
+   <ul class="pick">${S.plots.map(p=>{const t=toneOf(S.evals[p.id]);return`<li><button data-act="sel-plot" data-id="${p.id}" class="${p.id===plot.id?'on':''}"><span class="sdot d-${t}"></span><span><b>${esc(p.name)}</b><small>${esc(farmerOf(p)?.name||'')} · ${CROPS.find(x=>x.id===p.crop).name}</small></span></button></li>`}).join('')}</ul></section>
+  <div class="stack">
+   <section class="card"><div class="card-h"><div><h3 style="font-size:17px">${esc(plot.name)}</h3><span class="muted" style="font-size:13px">${c.crop.name} · ${c.st.n} · día ${c.age} · suelo ${c.soil.name.toLowerCase()}</span></div>
+     <button class="btn primary" data-act="run-eval">${ic('play')} Evaluar</button></div>
+    <div class="card-b"><div class="checks">
+      ${chk(sOk,'',`Lectura de sensores`,plot.sensor?ageLabel(plot.sensor.ts):'sin lecturas','máx. 30 min')}
+      ${chk(wOk,'',`Pronóstico`,ageLabel(S.weather.ts),'máx. 3 h')}</div>
+     <p class="note" style="margin-top:12px">${ic('clock')} Evaluar es idempotente por parcela y hora: repetirlo no genera otra recomendación.</p></div></section>
+   ${res?`<section class="card"><div class="card-b">${res}</div></section>`:`<section class="card">${empty('droplets','Aún sin evaluación','Pulsa Evaluar para generar la recomendación de esta parcela.')}</section>`}
+  </div></div>`;
+}
+
+function viewAlertas(){
+ const all=alertsList(),f=S.alertF;
+ const list=all.filter(a=>f==='all'||a.tone===f);
+ const cnt=t=>all.filter(a=>a.tone===t).length;
+ const sentN=Object.keys(S.sent).length;
+ const chips=[['all','Todas',all.length],['critica','Críticas',cnt('critica')],['riega','Regar',cnt('riega')],['espera','Esperar',cnt('espera')],['sindatos','Sin datos',cnt('sindatos')]];
+ return head('Alertas','Alertas del día',`Auditoría matutina 05:30 ejecutada · ${S.plots.length} parcelas revisadas · ${sentN} avisos por WhatsApp`)+
+ `<div class="chips">${chips.map(c=>`<button class="chip ${f===c[0]?'on':''}" data-act="alert-f" data-f="${c[0]}">${c[1]} <em class="num">${c[2]}</em></button>`).join('')}</div>
+  <section class="card">${list.length?`<ol class="q">${list.map(a=>{const sent=S.sent[a.id];return`<li><div class="qrow" style="cursor:default">
+   <span class="qb" style="${bubStyle(a.tone)}">${ic(a.tone==='sindatos'?'radio':a.tone==='critica'?'alert':'droplets')}</span>
+   <span class="tx"><b>${esc(a.plot.name)}</b><small>${esc(farmerOf(a.plot)?.name||'')} · ${a.ev.crop}</small><p>${esc(a.ev.msg)}</p></span>
+   <span style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end">${pill(a.tone)}
+    ${sent?`<span class="pill t-ok" style="--x:0">${ic('msg')} Enviado ${sent}</span>`:`<button class="btn sm" data-act="send-wa" data-id="${a.id}">${ic('msg')} Enviar</button>`}
+    <button class="icon-btn" style="width:36px;height:36px" data-act="open-eval" data-id="${a.id}" aria-label="Abrir evaluación">${ic('arrow')}</button></span></div></li>`}).join('')}</ol>`
+   :empty('clip','Sin alertas en este filtro','No hay avisos que coincidan.')}</section>`;
+}
+
+function viewParcelas(){
+ const q=S.query.trim().toLowerCase();
+ const rows=S.plots.filter(p=>(S.cropF==='all'||p.crop===S.cropF)&&(!q||(p.name+' '+(farmerOf(p)?.name||'')).toLowerCase().includes(q)));
+ return head('Campo','Parcelas',`${S.plots.length} parcelas en seguimiento`,`<button class="btn primary" data-act="new-plot">${ic('plus')} Nueva parcela</button>`)+
+ `<div class="chips"><button class="chip ${S.cropF==='all'?'on':''}" data-act="crop-f" data-f="all">Todos</button>${CROPS.map(c=>`<button class="chip ${S.cropF===c.id?'on':''}" data-act="crop-f" data-f="${c.id}">${c.name}</button>`).join('')}</div>
+ <section class="card">${rows.length?`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Parcela</th><th>Cultivo · etapa</th><th>Suelo</th><th>Área</th><th>Sensor</th><th>Estado</th></tr></thead><tbody>
+  ${rows.map(p=>{const c=calc(p),ev=S.evals[p.id];return`<tr class="click" data-act="open-plot" data-id="${p.id}">
+   <td><div class="cell-main"><b>${esc(p.name)}</b><small>${esc(farmerOf(p)?.name||'Sin agricultor')}</small></div></td>
+   <td><div class="cell-main"><b>${c.crop.name}</b><small>${c.st.n} · día ${c.age}</small></div></td>
+   <td>${c.soil.name}</td><td class="num">${fmt(p.area)} m²</td>
+   <td><span class="fresh ${freshClass(p)}">${freshText(p)}</span></td>
+   <td>${ev?pill(toneOf(ev)):'<span class="muted">—</span>'}</td></tr>`}).join('')}</tbody></table></div>`
+  :empty('map','Sin resultados','Prueba con otro nombre o cultivo.')}</section>`;
+}
+
+function viewAgricultores(){
+ const q=S.query.trim().toLowerCase();
+ const rows=S.farmers.filter(f=>!q||f.name.toLowerCase().includes(q));
+ return head('Campo','Agricultores',`${S.farmers.length} registrados · acceso con PIN de 4 dígitos`,`<button class="btn primary" data-act="new-farmer">${ic('plus')} Nuevo agricultor</button>`)+
+ `<section class="card">${rows.length?`<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Agricultor</th><th>WhatsApp</th><th>Parcelas</th><th>PIN</th><th></th></tr></thead><tbody>
+  ${rows.map(f=>{const ps=S.plots.filter(p=>p.farmer===f.id);return`<tr><td><div class="who"><span class="avatar">${ini(f.name)}</span><div class="cell-main"><b>${esc(f.name)}</b></div></div></td>
+   <td class="num">${esc(f.phone)}</td><td>${ps.length?ps.map(p=>`<span class="pill t-sindatos" style="margin:2px 4px 2px 0">${esc(p.name)}</span>`).join(''):'<span class="muted">Sin parcelas</span>'}</td>
+   <td class="num" style="letter-spacing:.2em">••••</td><td class="r"><button class="btn sm" data-act="reset-pin" data-id="${f.id}">${ic('refresh')} Nuevo PIN</button></td></tr>`}).join('')}</tbody></table></div>`
+  :empty('users','Sin resultados','No hay agricultores con ese nombre.')}</section>`;
+}
+
+function viewSensores(){
+ const types=[['droplets','YL-69','Humedad del suelo · calibración de 2 puntos'],['cloud','FC-37','Lluvia · solo sí / no'],['thermo','DHT11','Temperatura · alimenta ET₀']];
+ return head('Campo','Sensores','Ingesta manual, demo o Arduino por POST /measurements',
+  `<button class="btn" data-act="demo-ingest">${ic('radio')} Ingesta demo</button><button class="btn primary" data-act="reading">${ic('plus')} Registrar lectura</button>`)+
+ `<div class="types">${types.map(t=>`<div class="card type"><span class="bub">${ic(t[0])}</span><div><b>${t[1]}</b><small>${t[2]}</small></div></div>`).join('')}</div>
+  <section class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Parcela</th><th>Humedad YL-69</th><th>Lluvia FC-37</th><th>Temp. DHT11</th><th>Última lectura</th><th class="r">Calibración</th></tr></thead><tbody>
+  ${S.plots.map(p=>{const s=p.sensor;return`<tr><td><div class="cell-main"><b>${esc(p.name)}</b><small>${esc(farmerOf(p)?.name||'')}</small></div></td>
+   <td>${s?`<div style="min-width:120px"><b class="num">${Math.round(humOf(p)*100)} %</b><div class="bar" style="margin-top:5px"><i style="width:${humOf(p)*100}%"></i></div></div>`:'<span class="muted">—</span>'}</td>
+   <td>${s?`<span class="pill ${s.rain?'t-riega':'t-sindatos'}">${s.rain?'Lluvia':'Seco'}</span>`:'—'}</td>
+   <td class="num">${s?s.temp.toFixed(1)+' °C':'—'}</td>
+   <td><span class="fresh ${freshClass(p)}">${freshText(p)}</span></td>
+   <td class="r">${s?`<button class="btn sm" data-act="calibrate" data-id="${p.id}">${s.cal.dry} / ${s.cal.wet}</button>`:`<button class="btn sm" data-act="reading" data-id="${p.id}">Activar</button>`}</td></tr>`}).join('')}</tbody></table></div></section>`;
+}
+
+function viewClima(){
+ const w=S.weather,age=ageMin(w.ts),left=Math.max(0,180-age),pct=clamp(age/180*100,0,100);
+ const sel=plotById(S.cSel)||S.plots[0];
+ return head('Campo','Clima',`${w.demo?'Datos demo (fallback)':'OpenWeatherMap'} · Chupaca, Junín · vigencia de 3 horas`,
+  `<button class="btn ${w.demo?'primary':''}" data-act="weather-demo">${w.demo?'Modo demo activo':'Usar modo demo'}</button><button class="btn primary" data-act="weather-refresh">${ic('refresh')} Actualizar pronóstico</button>`)+
+ `<div class="grid-2">
+  <section class="card"><div class="card-h"><h3>Lluvia próximas 12 h</h3><div class="chips" style="margin:0">${S.plots.map(p=>`<button class="chip ${sel.id===p.id?'on':''}" style="height:32px;font-size:12.5px" data-act="clima-sel" data-id="${p.id}">${esc(p.name)}</button>`).join('')}</div></div>
+   <div class="card-b">${rainBars(sel.fc.hourly)}<p class="note" style="margin-top:8px">Solo se descuenta lluvia si la probabilidad es ≥ 70 %, una sola vez.</p></div></section>
+  <section class="card"><div class="card-h"><h3>Vigencia</h3><span class="pill ${left>0?'t-ok':'t-critica'}">${left>0?'Vigente':'Vencido'}</span></div>
+   <div class="card-b"><div class="big num">${left>0?`${Math.floor(left/60)} h ${Math.round(left%60)} m`:'0 h'}</div><p class="muted" style="margin:6px 0 14px">restantes · obtenido ${ageLabel(w.ts)}</p>
+   <div class="bar"><i style="width:${100-pct}%;${left<30?'background:#d9544d':''}"></i></div></div></section></div>
+ <section class="card" style="margin-top:18px"><div class="card-h"><h3>Demanda hídrica por parcela</h3></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Parcela</th><th>Tmín / Tmáx</th><th>Lluvia</th><th>mm previstos</th><th>ET₀</th><th>ETc</th></tr></thead><tbody>
+ ${S.plots.map(p=>{const c=calc(p);return`<tr><td><div class="cell-main"><b>${esc(p.name)}</b><small>${c.crop.name} · Kc ${c.st.kc.toFixed(2)}</small></div></td>
+  <td class="num">${p.t.min}° / ${p.t.max}°</td><td><span class="pill ${p.fc.p>=70?'t-riega':'t-sindatos'} num">${p.fc.p} %</span></td><td class="num">${p.fc.mm} mm</td>
+  <td class="num">${c.et0.toFixed(1)} mm/d</td><td class="num"><b>${c.etc.toFixed(1)} mm/d</b></td></tr>`}).join('')}</tbody></table></div></section>`;
+}
+
+function histRows(){
+ const rows=S.irr.map(r=>({...r}));
+ Object.values(S.evals).forEach(ev=>{if(ev.decision==='riega'&&!S.irr.some(r=>r.plotId===ev.plotId&&new Date(r.ts).toDateString()===new Date().toDateString()))rows.push({ts:ev.ts,plotId:ev.plotId,rec:ev.lo,app:null,pending:true})});
+ return rows.sort((a,b)=>b.ts-a.ts);
+}
+function histDays(){
+ const rows=histRows(),out=[];
+ for(let i=6;i>=0;i--){
+  const d=new Date(Date.now()-i*DAY),k=d.toDateString(),rs=rows.filter(r=>new Date(r.ts).toDateString()===k);
+  out.push({l:d.toLocaleDateString('es-PE',{weekday:'short'}).replace('.','').slice(0,3),a:rs.reduce((s,r)=>s+(r.rec||0),0),b:rs.reduce((s,r)=>s+(r.app||0),0)});
+ }
+ return out;
+}
+function viewHistorial(){
+ const rows=histRows(),days=histDays();
+ const done=rows.filter(r=>r.app!=null&&r.rec);const ok=done.filter(r=>Math.abs(r.app-r.rec)/r.rec<=.1).length;
+ return head('Registro','Historial de riego','Lo recomendado frente a lo que el agricultor aplicó',`<button class="btn primary" data-act="new-irr">${ic('plus')} Registrar riego aplicado</button>`)+
+ `<div class="grid-2"><section class="card"><div class="card-h"><h3>Últimos 7 días</h3><div class="legend" style="margin:0"><span style="--c:#bfe3de">Recomendado</span><span style="--c:#12857f">Aplicado</span></div></div><div class="card-b">${pairBars(days)}</div></section>
+  <section class="card"><div class="card-h"><h3>Cumplimiento</h3></div><div class="card-b"><div class="big num">${done.length?Math.round(ok/done.length*100):0} %</div><p class="muted" style="margin:6px 0 14px">de los riegos dentro de ±10 % de lo recomendado</p><div class="bar"><i style="width:${done.length?ok/done.length*100:0}%"></i></div></div></section></div>
+ <section class="card" style="margin-top:18px"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Fecha</th><th>Parcela</th><th class="r">Recomendado</th><th class="r">Aplicado</th><th class="r">Diferencia</th><th>Estado</th></tr></thead><tbody>
+ ${rows.map(r=>{const p=plotById(r.plotId);let t,l,d='—';
+  if(!r.rec){t='sindatos';l='Sin recomendación'}else if(r.app==null){t='espera';l=r.pending?'Pendiente':'Sin registro'}
+  else{const x=(r.app-r.rec)/r.rec;d=(x>0?'+':'')+Math.round(x*100)+' %';if(Math.abs(x)<=.1){t='ok';l='Cumplido'}else if(x<0){t='espera';l='Menos riego'}else{t='riega';l='Más riego'}}
+  return`<tr><td class="num">${fday(r.ts)}</td><td><b>${esc(p?.name||'—')}</b></td><td class="r num">${r.rec?fmt(r.rec)+' L':'—'}</td><td class="r num">${r.app!=null?fmt(r.app)+' L':'—'}</td><td class="r num">${d}</td><td><span class="pill t-${t}">${l}</span></td></tr>`}).join('')}</tbody></table></div></section>`;
+}
+
+function viewCatalogos(){
+ const tab=S.catTab;
+ const tabs=`<div class="tabs" role="tablist">${[['cultivos','Cultivos'],['etapas','Etapas'],['suelos','Suelos']].map(t=>`<button role="tab" class="${tab===t[0]?'on':''}" data-act="tab" data-t="${t[0]}">${t[1]}</button>`).join('')}</div>`;
+ let body='';
+ if(tab==='cultivos')body=`<table class="tbl"><thead><tr><th>Cultivo</th><th>Etapas</th><th>Ciclo</th><th class="r">Kc máx.</th></tr></thead><tbody>${CROPS.map(c=>`<tr><td><b>${c.name}</b></td><td class="num">${c.stages.length}</td><td class="num">${c.stages[c.stages.length-1].to} días</td><td class="r num">${Math.max(...c.stages.map(s=>s.kc)).toFixed(2)}</td></tr>`).join('')}</tbody></table>`;
+ if(tab==='etapas')body=`<table class="tbl"><thead><tr><th>Cultivo</th><th>Etapa</th><th>Días</th><th class="r">Kc</th><th class="r">Zr (m)</th><th class="r">p</th></tr></thead><tbody>${CROPS.flatMap(c=>c.stages.map((s,i)=>`<tr><td>${i===0?`<b>${c.name}</b>`:''}</td><td>${s.n}</td><td class="num">${s.from}–${s.to}</td><td class="r num">${s.kc.toFixed(2)}</td><td class="r num">${s.zr.toFixed(2)}</td><td class="r num">${s.p.toFixed(2)}</td></tr>`)).join('')}</tbody></table>`;
+ if(tab==='suelos')body=`<table class="tbl"><thead><tr><th>Textura</th><th class="r">CC (m³/m³)</th><th class="r">PMP (m³/m³)</th><th class="r">Agua útil</th></tr></thead><tbody>${SOILS.map(s=>`<tr><td><b>${s.name}</b></td><td class="r num">${s.cc.toFixed(2)}</td><td class="r num">${s.pmp.toFixed(2)}</td><td class="r num">${Math.round((s.cc-s.pmp)*1000)} mm/m</td></tr>`).join('')}</tbody></table>`;
+ return head('Registro','Catálogos','Valores FAO-56 versionados; cada evaluación guarda la versión usada')+tabs+
+ `<section class="card"><div class="card-h"><h3>${cap(tab)}</h3><span class="ver">v1.0 · vigente</span></div><div class="tbl-wrap">${body}</div></section>`;
+}
+
+const CASES=[
+ ['Suelo crítico con lluvia alta','Humedad 15 % · lluvia 85 %','Regar sin esperar','Regar sin esperar'],
+ ['Lluvia cubre el déficit','Lluvia 85 % · 16 mm','Esperar 6 h','Esperar 6 h'],
+ ['Lluvia por debajo de 70 %','Lluvia 69 %','Sin descuento de lluvia','Sin descuento de lluvia'],
+ ['Lluvia en el límite','Lluvia 70 %','Descuento aplicado una sola vez','Descuento aplicado una sola vez'],
+ ['Lectura de sensor antigua','Lectura de hace 31 min','Evaluación incompleta + alerta','Evaluación incompleta + alerta'],
+ ['Pronóstico vencido','Pronóstico de hace 3 h 05 min','Evaluación incompleta (clima)','Evaluación incompleta (clima)'],
+ ['Humedad sobre el umbral','Humedad 78 % · umbral 55 %','No regar · revisión ≤ 24 h','No regar · revisión 24 h'],
+ ['Evaluar dos veces en la misma hora','Parcela 1 · 06:10 y 06:40','Una sola evaluación','Una sola evaluación'],
+ ['Redondeo del volumen','Déficit 40,3 mm · 400 m²','Rango en bloques de 50 L','16 100 – 16 150 L'],
+ ['DHT11 sin lectura','Temperatura ausente','ET₀ no calculable · incompleta','ET₀ no calculable · incompleta']];
+function viewValidacion(){
+ const n=S.val.n,r=34,circ=2*Math.PI*r;
+ return head('Registro','Reporte de validación','10 casos demo del curso-maqueta',
+  `<button class="btn" data-act="run-val" ${S.val.running?'disabled':''}>${ic('play')} Ejecutar de nuevo</button><button class="btn primary" data-act="print">${ic('down')} Exportar PDF</button>`)+
+ `<section class="card" style="margin-bottom:18px"><div class="vsum"><div class="ring"><svg viewBox="0 0 80 80" width="92" height="92"><circle cx="40" cy="40" r="${r}" fill="none" stroke="#e8eeec" stroke-width="8"/><circle cx="40" cy="40" r="${r}" fill="none" stroke="#38b676" stroke-width="8" stroke-linecap="round" stroke-dasharray="${n/10*circ} ${circ}" transform="rotate(-90 40 40)"/></svg><b class="num">${n}/10</b></div>
+  <div><h3 style="font-size:19px;font-weight:800">${n===10?'Todos los casos cumplen':S.val.running?'Ejecutando casos…':`${n} casos cumplen`}</h3><p class="muted">Motor hídrico FAO-56 · catálogos v1.0 · ${new Date().toLocaleDateString('es-PE')}</p></div></div></section>
+ <section class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>#</th><th>Caso</th><th>Entrada</th><th>Esperado</th><th>Obtenido</th><th>Resultado</th></tr></thead><tbody>
+ ${CASES.map((c,i)=>`<tr><td class="num muted">${i+1}</td><td><b>${c[0]}</b></td><td class="muted">${c[1]}</td><td>${c[2]}</td><td>${i<n?c[3]:'—'}</td><td>${i<n?'<span class="pill t-ok">Cumple</span>':i===n&&S.val.running?'<span class="pill t-sindatos">Ejecutando</span>':'<span class="pill t-sindatos">Pendiente</span>'}</td></tr>`).join('')}</tbody></table></div></section>`;
+}
+
+const VIEWS={resumen:viewResumen,evaluar:viewEvaluar,alertas:viewAlertas,parcelas:viewParcelas,agricultores:viewAgricultores,sensores:viewSensores,clima:viewClima,historial:viewHistorial,catalogos:viewCatalogos,validacion:viewValidacion};
+
+/* ============ router ============ */
+let CUR=(location.hash.replace('#/','')||'resumen');
+const route=()=>CUR;
+function renderNav(){
+ const r=route(),n=alertsList().length;
+ $('#nav').innerHTML=NAV.map(g=>`<h6>${g.g}</h6>`+g.i.map(i=>`<a href="#/${i[0]}" data-act="go" data-to="${i[0]}" class="${r===i[0]?'on':''}">${ic(i[2])}<span>${i[1]}</span>${i[0]==='alertas'&&n?`<span class="badge num">${n}</span>`:''}</a>`).join('')).join('');
+ const b=$('#bell');b.hidden=!n;b.textContent=n;
+}
+function renderView(){const r=VIEWS[route()]?route():'resumen';$('#view').innerHTML=VIEWS[r]();document.title=`${TITLES[r]} · YakuAI`;renderNav()}
+function nav(to){
+ CUR=VIEWS[to]?to:'resumen';
+ try{history.replaceState(null,'','#/'+CUR)}catch(err){}
+ renderView();window.scrollTo(0,0);$('#side').classList.remove('open');
+}
+window.addEventListener('hashchange',()=>{const r=location.hash.replace('#/','');if(VIEWS[r]&&r!==CUR)nav(r)});
+
+/* ============ modal / toast ============ */
+function toast(msg){$('.toast')?.remove();const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2800)}
+function closeModal(){$('#overlay')?.remove()}
+function openModal({title,sub,body,confirm='Guardar',onMount,onSubmit,wide,drawer}){
+ closeModal();const el=document.createElement('div');el.id='overlay';el.className='overlay'+(drawer?' dr':'');
+ el.innerHTML=`<div class="${drawer?'drawer':'modal'}${wide?' wide':''}" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+  <header class="m-head"><div><h2>${title}</h2>${sub?`<p>${sub}</p>`:''}</div><button class="icon-btn" data-act="close" aria-label="Cerrar">${ic('x')}</button></header>
+  <form class="m-body" novalidate>${body}</form>
+  ${onSubmit?`<footer class="m-foot"><button type="button" class="btn" data-act="close">Cancelar</button><button type="button" class="btn primary" id="m-ok">${confirm}</button></footer>`:''}</div>`;
+ document.body.appendChild(el);
+ const form=$('form',el);form.addEventListener('submit',e=>e.preventDefault());
+ if(onSubmit)$('#m-ok',el).addEventListener('click',()=>{if(onSubmit(form)!==false)closeModal()});
+ onMount&&onMount(form,el);$('input,select',form)?.focus();
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
+
+const plotOpts=sel=>S.plots.map(p=>`<option value="${p.id}" ${p.id===sel?'selected':''}>${esc(p.name)}</option>`).join('');
+
+/* ---- modales ---- */
+function modalNewPlot(){
+ let pts=[];
+ openModal({title:'Nueva parcela',sub:'Dibuja el área tocando las esquinas en el mapa',wide:true,confirm:'Guardar parcela',
+  body:`<div class="row2"><div class="field"><label>Nombre</label><input name="name" placeholder="Ej. La Esperanza" required></div>
+   <div class="field"><label>Agricultor</label><select name="farmer">${S.farmers.map(f=>`<option value="${f.id}">${esc(f.name)}</option>`).join('')}</select></div></div>
+   <div class="row2"><div class="field"><label>Cultivo</label><select name="crop">${CROPS.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
+   <div class="field"><label>Suelo</label><select name="soil">${SOILS.map(s=>`<option value="${s.id}" ${s.id==='franco'?'selected':''}>${s.name}</option>`).join('')}</select></div></div>
+   <div class="field"><label>Fecha de siembra</label><input name="sow" type="date" value="${new Date(Date.now()-10*DAY).toISOString().slice(0,10)}" max="${new Date().toISOString().slice(0,10)}"></div>
+   <div><svg id="draw" class="map draw" viewBox="0 0 400 260">${mapBase()}<g id="shape"></g></svg>
+    <div class="map-bar"><strong class="num" id="area">Área: 0 m²</strong><span style="display:flex;gap:8px"><button type="button" class="btn sm" id="undo">${ic('undo')} Deshacer</button><button type="button" class="btn sm" id="clear">Limpiar</button></span></div></div>`,
+  onMount(form){
+   const svg=$('#draw'),g=$('#shape');
+   const redraw=()=>{g.innerHTML=(pts.length>2?`<polygon points="${pts.join(' ')}" fill="#12857f" fill-opacity=".28" stroke="#12857f" stroke-width="2.5" stroke-linejoin="round"/>`:pts.length===2?`<polyline points="${pts.join(' ')}" fill="none" stroke="#12857f" stroke-width="2.5"/>`:'')+pts.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="5" fill="#fff" stroke="#12857f" stroke-width="2.5"/>`).join('');$('#area').textContent=`Área: ${fmt(pts.length>2?polyArea(pts):0)} m²`};
+   svg.addEventListener('click',e=>{const r=svg.getBoundingClientRect();pts.push([Math.round((e.clientX-r.left)/r.width*400),Math.round((e.clientY-r.top)/r.height*260)]);redraw()});
+   $('#undo').onclick=()=>{pts.pop();redraw()};$('#clear').onclick=()=>{pts=[];redraw()};
+  },
+  onSubmit(f){const d=Object.fromEntries(new FormData(f));
+   if(!d.name.trim()){toast('Escribe el nombre de la parcela');return false}
+   if(pts.length<3){toast('Dibuja el área con al menos 3 puntos');return false}
+   const id=Math.max(0,...S.plots.map(p=>p.id))+1,area=Math.round(polyArea(pts)),sow=Math.max(0,Math.round((Date.now()-new Date(d.sow).getTime())/DAY));
+   S.plots.push(mkPlot({id,name:d.name.trim(),farmer:+d.farmer,crop:d.crop,soil:d.soil,area,sow,h:60,p:20,mm:1,tx:21,tn:5,temp:12,sAge:null}));
+   S.evals[id]=evaluate(plotById(id));toast('Parcela registrada');renderView();renderNav();}});
+}
+function modalNewFarmer(){
+ openModal({title:'Nuevo agricultor',sub:'Recibirá avisos por WhatsApp y entra con PIN',
+  body:`<div class="field"><label>Nombre completo</label><input name="name" required></div>
+   <div class="row2"><div class="field"><label>WhatsApp</label><input name="phone" placeholder="+51 9XX XXX XXX"></div>
+   <div class="field"><label>PIN (4 dígitos)</label><input name="pin" inputmode="numeric" maxlength="4" value="${String(1000+Math.floor(Math.random()*9000))}"></div></div>`,
+  onSubmit(f){const d=Object.fromEntries(new FormData(f));
+   if(!d.name.trim()){toast('Escribe el nombre');return false}
+   if(!/^\d{4}$/.test(d.pin)){toast('El PIN debe tener 4 dígitos');return false}
+   S.farmers.push({id:Math.max(0,...S.farmers.map(x=>x.id))+1,name:d.name.trim(),phone:d.phone||'—',pin:d.pin});toast('Agricultor registrado');renderView()}});
+}
+function modalReading(id){
+ const p0=plotById(id)||S.plots[0],s0=p0?.sensor;
+ openModal({title:'Registrar lectura',sub:'Equivale a POST /measurements',
+  body:`<div class="field"><label>Parcela</label><select name="plot">${plotOpts(p0.id)}</select></div>
+   <div class="row2"><div class="field"><label>YL-69 (lectura ADC 0–1023)</label><input name="raw" type="number" min="0" max="1023" value="${s0?s0.raw:600}"></div>
+   <div class="field"><label>DHT11 (°C)</label><input name="temp" type="number" step="0.1" value="${s0?s0.temp:12}"></div></div>
+   <div class="field"><label>FC-37 (lluvia)</label><select name="rain"><option value="0">Sin lluvia</option><option value="1" ${s0?.rain?'selected':''}>Lluvia detectada</option></select></div>
+   <div class="code" id="payload"></div><p class="note" id="hnote"></p>`,
+  onMount(form){
+   const upd=()=>{const p=plotById(+form.plot.value),cal=p.sensor?.cal||{dry:1010,wet:320},h=clamp((cal.dry-form.raw.value)/(cal.dry-cal.wet),0,1);
+    $('#payload').textContent=`POST /measurements\n{ "plot_id": ${p.id}, "yl69_raw": ${form.raw.value||0},\n  "fc37_rain": ${form.rain.value==='1'}, "dht11_temp": ${form.temp.value||0} }`;
+    $('#hnote').innerHTML=`${ic('droplets')} Humedad calibrada: <b class="num">${Math.round(h*100)} %</b>`};
+   form.addEventListener('input',upd);upd();},
+  onSubmit(f){const p=plotById(+f.plot.value),cal=p.sensor?.cal||{dry:1010,wet:320};
+   p.sensor={cal,raw:clamp(+f.raw.value,0,1023),rain:f.rain.value==='1',temp:+f.temp.value,ts:Date.now()};toast('Lectura registrada · datos frescos');renderView();renderNav()}});
+}
+function modalCalibrate(id){
+ const p=plotById(id),cal={...p.sensor.cal};
+ openModal({title:`Calibrar YL-69 · ${esc(p.name)}`,sub:'Calibración de 2 puntos: sensor seco y sensor en agua',
+  body:`<div class="row2"><div class="field"><label>ADC en seco (0 %)</label><input name="dry" type="number" value="${cal.dry}"></div><div class="field"><label>ADC saturado (100 %)</label><input name="wet" type="number" value="${cal.wet}"></div></div>
+   <div class="field"><label>Prueba: lectura ADC</label><input name="test" type="range" min="0" max="1023" value="${p.sensor.raw}"><small id="tv"></small></div>`,
+  onMount(form){const upd=()=>{const d=+form.dry.value,w=+form.wet.value;$('#tv').innerHTML=`ADC ${form.test.value} → <b>${Math.round(clamp((d-form.test.value)/(d-w||1),0,1)*100)} %</b> de humedad`};form.addEventListener('input',upd);upd()},
+  onSubmit(f){const d=+f.dry.value,w=+f.wet.value;if(d<=w){toast('El valor seco debe ser mayor que el saturado');return false}p.sensor.cal={dry:d,wet:w};toast('Calibración guardada');renderView()}});
+}
+function modalIrr(id){
+ const p0=plotById(id)||S.plots[0],ev=S.evals[p0.id];
+ openModal({title:'Registrar riego aplicado',sub:'Lo que el agricultor realmente aplicó',
+  body:`<div class="field"><label>Parcela</label><select name="plot">${plotOpts(p0.id)}</select></div>
+   <div class="field"><label>Litros aplicados</label><input name="app" type="number" min="0" step="50" value="${ev?.decision==='riega'?ev.lo:''}" placeholder="Ej. 16000"><small>Recomendado hoy: ${ev?.decision==='riega'?fmt(ev.lo)+' L':'sin recomendación de riego'}</small></div>`,
+  onSubmit(f){const a=+f.app.value;if(!(a>0)){toast('Ingresa los litros aplicados');return false}
+   const pid=+f.plot.value,e=S.evals[pid];S.irr.push({ts:Date.now(),plotId:pid,rec:e?.decision==='riega'?e.lo:null,app:a});toast('Riego registrado');renderView()}});
+}
+function drawerPlot(id){
+ const p=plotById(id),c=calc(p),ev=S.evals[id],f=farmerOf(p);
+ openModal({title:esc(p.name),sub:`${esc(f?.name||'Sin agricultor')} · ${c.crop.name}`,drawer:true,
+  body:`${plotMap(polyFor(p.area,p.id))}
+   ${ev?`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">${pill(toneOf(ev))}<span class="muted" style="font-size:13px">${esc(ev.msg)}</span></div>`:''}
+   <dl class="kv"><dt>Área</dt><dd class="num">${fmt(p.area)} m²</dd><dt>Siembra</dt><dd>${new Date(p.sowDate).toLocaleDateString('es-PE')} · día ${c.age}</dd>
+    <dt>Etapa</dt><dd>${c.st.n}</dd><dt>Kc · Zr · p</dt><dd class="num">${c.st.kc.toFixed(2)} · ${c.st.zr.toFixed(2)} m · ${c.st.p.toFixed(2)}</dd>
+    <dt>Suelo</dt><dd>${c.soil.name}</dd><dt>CC · PMP</dt><dd class="num">${c.soil.cc.toFixed(2)} · ${c.soil.pmp.toFixed(2)}</dd>
+    <dt>Humedad actual</dt><dd class="num">${p.sensor?Math.round(humOf(p)*100)+' %':'—'}</dd><dt>Última lectura</dt><dd>${freshText(p)}</dd></dl>
+   <div style="display:flex;gap:10px;flex-wrap:wrap"><button type="button" class="btn primary" data-act="open-eval" data-id="${id}">${ic('droplets')} Evaluar</button><button type="button" class="btn" data-act="reading" data-id="${id}">${ic('radio')} Registrar lectura</button></div>`});
+}
+
+/* ============ acciones ============ */
+const A={
+ close:closeModal,
+ menu:()=>$('#side').classList.toggle('open'),
+ go:t=>nav(t.dataset.to),
+ refresh:t=>{const i=$('.ic',t);i.classList.add('spin');setTimeout(()=>{renderView();toast('Resumen actualizado')},500)},
+ 'open-eval':t=>{closeModal();S.sel=+t.dataset.id;nav('evaluar')},
+ 'sel-plot':t=>{S.sel=+t.dataset.id;renderView()},
+ 'run-eval':()=>{const p=plotById(S.sel);runEvaluation(p);renderView();renderNav()},
+ 'alert-f':t=>{S.alertF=t.dataset.f;renderView()},
+ 'send-wa':t=>{S.sent[+t.dataset.id]=ftime(Date.now());toast('Aviso enviado por WhatsApp');renderView()},
+ 'crop-f':t=>{S.cropF=t.dataset.f;renderView()},
+ 'open-plot':t=>drawerPlot(+t.dataset.id),
+ 'new-plot':modalNewPlot,'new-farmer':modalNewFarmer,
+ 'reset-pin':t=>{const f=S.farmers.find(x=>x.id===+t.dataset.id);f.pin=String(1000+Math.floor(Math.random()*9000));toast(`PIN nuevo para ${f.name}: ${f.pin}`)},
+ reading:t=>{closeModal();modalReading(+t.dataset.id)},
+ calibrate:t=>modalCalibrate(+t.dataset.id),
+ 'new-irr':t=>modalIrr(+t.dataset.id),
+ 'demo-ingest':()=>{S.plots.forEach(p=>{if(p.sensor){p.sensor.ts=Date.now();p.sensor.raw=clamp(p.sensor.raw+Math.round((Math.random()-.5)*30),0,1023)}});toast('Ingesta demo: lecturas frescas');renderView();renderNav()},
+ 'weather-refresh':()=>{S.weather.ts=Date.now();toast('Pronóstico actualizado · vigente 3 h');renderView()},
+ 'weather-demo':()=>{S.weather.demo=!S.weather.demo;S.weather.ts=Date.now();toast(S.weather.demo?'Modo demo (fallback) activado':'Fuente OpenWeatherMap');renderView()},
+ 'clima-sel':t=>{S.cSel=+t.dataset.id;renderView()},
+ tab:t=>{S.catTab=t.dataset.t;renderView()},
+ 'run-val':()=>{S.val={n:0,running:true};renderView();const it=setInterval(()=>{S.val.n++;if(S.val.n>=10){S.val.running=false;clearInterval(it)}if(route()==='validacion')renderView()},380)},
+ print:()=>window.print()
+};
+document.addEventListener('click',e=>{
+ if(e.target.id==='overlay'){closeModal();return}
+ const t=e.target.closest('[data-act]');
+ if(t&&A[t.dataset.act]){if(t.tagName==='A')e.preventDefault();A[t.dataset.act](t,e)}
+});
+$('#q').addEventListener('input',e=>{S.query=e.target.value;if(!['parcelas','agricultores'].includes(route()))nav('parcelas');else renderView()});
+
+/* ============ arranque ============ */
+$('#today').textContent=todayLong();
+seed();renderNav();renderView();
+setInterval(()=>{if(!$('#overlay')){renderView()}},60000);
+</script>
+</body>
+</html>

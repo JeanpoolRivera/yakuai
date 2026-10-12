@@ -302,8 +302,13 @@ export function Irrigations(): React.JSX.Element {
                               </div>
                             </TableCell>
                             <TableCell>{r.plot?.name ?? `#${r.plot_id}`}</TableCell>
-                            <TableCell className="text-right tabular-nums">{rec === null ? "—" : `${fmtNum(rec)} L`}</TableCell>
-                            <TableCell className="text-right tabular-nums"><strong className="font-semibold">{fmtNum(apl)} L</strong></TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {rec === null ? "—" : <>{fmtNum(rec)} L<span className="volume-bar recommended" aria-hidden="true"><i style={{ width: `${Math.max(0, rec) / Math.max(rec, apl, 1) * 100}%` }} /></span></>}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              <strong className="font-semibold">{fmtNum(apl)} L</strong>
+                              <span className="volume-bar" aria-hidden="true"><i style={{ width: `${Math.max(0, apl) / Math.max(rec ?? 0, apl, 1) * 100}%` }} /></span>
+                            </TableCell>
                             <TableCell>
                               {desv === null ? (
                                 "—"

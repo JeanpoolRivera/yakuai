@@ -14,7 +14,7 @@ export function Topbar({
   menuRef?: React.Ref<HTMLButtonElement>;
 }): React.JSX.Element {
   return (
-    <header className="sticky top-0 z-20 flex min-h-[68px] items-center gap-4 border-b border-neutral-200 bg-[#ffffffef] px-8 py-3 backdrop-blur-md max-[1000px]:px-6 max-[700px]:min-h-16 max-[700px]:gap-2.5 max-[700px]:px-4 max-[700px]:py-2.5">
+    <header className="workspace-topbar sticky top-0 z-20 flex min-h-[68px] items-center gap-4 border-b border-neutral-200 bg-[#ffffffef] px-8 py-3 backdrop-blur-md max-[1000px]:px-6 max-[700px]:min-h-16 max-[700px]:gap-2.5 max-[700px]:px-4 max-[700px]:py-2.5">
       <button
         ref={menuRef}
         type="button"

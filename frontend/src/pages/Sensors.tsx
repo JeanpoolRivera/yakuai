@@ -287,7 +287,7 @@ export function Sensors(): React.JSX.Element {
                 <>
                   <div className="grid gap-2">
                     {coll.items.map((s) => (
-                      <article key={s.id} className="flex gap-3 rounded-lg border border-neutral-200 bg-white p-4 shadow-card">
+                      <article key={s.id} className="sensor-tile flex gap-3 rounded-lg border border-neutral-200 bg-white p-4 shadow-card">
                         <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-primary-50 text-primary-700">
                           {deviceIcon(s.type)}
                         </span>
@@ -302,10 +302,13 @@ export function Sensors(): React.JSX.Element {
                             <span>Pin {s.pin ?? "—"}</span>
                           </div>
                           {s.latest_measurement ? (
-                            <p className="mt-1 text-xs text-neutral-500">
-                              Última lectura: {s.latest_measurement.norm_value ?? s.latest_measurement.raw_value}
-                              {s.type === "humedad" ? " %" : ""} · {ageLabel(s.latest_measurement.measured_at)}
-                            </p>
+                            <div>
+                              <p className="reading-value tabular-nums">
+                                {s.latest_measurement.norm_value ?? s.latest_measurement.raw_value}
+                                <small> {s.type === "humedad" || s.type === "aire_hr" ? "%" : s.type === "aire_temp" ? "°C" : s.type === "caudal" ? "L/min" : "(0/1)"}</small>
+                              </p>
+                              <p className="text-xs text-neutral-500">Última lectura · {ageLabel(s.latest_measurement.measured_at)}</p>
+                            </div>
                           ) : (
                             <p className="mt-1 text-xs text-neutral-500">Sin lecturas registradas.</p>
                           )}

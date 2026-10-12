@@ -144,7 +144,7 @@ export function Catalogs(): React.JSX.Element {
                                     <TableRow key={s.id}>
                                       <TableCell title={ETAPAS[s.stage] ?? s.stage}>{ETAPAS[s.stage] ?? s.stage}</TableCell>
                                       <TableCell className="text-right tabular-nums">{s.days}</TableCell>
-                                      <TableCell className="text-right tabular-nums">{s.kc}</TableCell>
+                                      <TableCell className="text-right tabular-nums">{s.kc}<div className="catalog-meter" aria-hidden="true"><span style={{ width: `${Math.max(0, Number(s.kc)) / Math.max(1, ...(c.stages ?? []).map((stage) => Number(stage.kc))) * 100}%` }} /></div></TableCell>
                                       <TableCell className="text-right tabular-nums">{s.root_depth_m}</TableCell>
                                       <TableCell className="text-right tabular-nums">{s.depletion_fraction}</TableCell>
                                     </TableRow>

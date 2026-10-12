@@ -17,7 +17,7 @@ export function PageHead({
   className?: string;
 }): React.JSX.Element {
   return (
-    <header className={cn("flex flex-wrap items-end justify-between gap-4 pb-6", className)}>
+    <header className={cn("page-heading flex flex-wrap items-end justify-between gap-4 pb-6", className)}>
       <div className="min-w-0">
         {crumbs ? <p className="sr-only">{crumbs}</p> : null}
         <p className="text-2xs font-semibold uppercase tracking-wider text-primary-700">{eyebrow}</p>

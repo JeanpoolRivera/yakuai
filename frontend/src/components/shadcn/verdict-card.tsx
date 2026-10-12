@@ -32,7 +32,7 @@ export function VerdictCard({
 }): React.JSX.Element {
   const { Icon, card } = VERDICT[tone];
   return (
-    <Card className={cn(card)}>
+    <Card className={cn("verdict-panel", card)}>
       <CardContent className="grid gap-4 p-6">
         <div className="flex items-start gap-3">
           <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/70 text-neutral-700">
@@ -41,7 +41,7 @@ export function VerdictCard({
           <div className="min-w-0">
             <p className="text-2xs font-semibold uppercase tracking-wider text-neutral-600">{kicker}</p>
             <h2 className="mt-1 text-xl font-semibold tracking-tight text-neutral-800">{title}</h2>
-            {amount ? <p className="mt-1 text-2xl font-semibold tabular-nums text-neutral-800">{amount}</p> : null}
+            {amount ? <p className="verdict-amount mt-1 text-2xl font-semibold tabular-nums text-neutral-800">{amount}</p> : null}
           </div>
         </div>
         {chips.length > 0 ? (

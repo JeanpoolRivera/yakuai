@@ -1,0 +1,91 @@
+/* Authenticated workspace: visual adaptation of the technical-panel proposal.
+   Semantic result colors and all domain decisions remain owned by YakuAI. */
+.yaku-workspace {
+  --color-primary-50: #e6f4f1;
+  --color-primary-100: #c5e6e0;
+  --color-primary-200: #a6d7ce;
+  --color-primary-600: #0f8b7f;
+  --color-primary-700: #0b6e66;
+  --color-primary-800: #08504a;
+  --color-primary-900: #15414a;
+  --color-primary-950: #0d2a2f;
+  --color-neutral-50: #f5f8f7;
+  --color-neutral-100: #eef2f1;
+  --color-neutral-200: #dde5e3;
+  --color-neutral-500: #5f7378;
+  --color-neutral-600: #52696e;
+  --color-neutral-700: #33474e;
+  --color-neutral-800: #0e1e24;
+  --radius-lg: 1.375rem;
+  --radius-md: .875rem;
+  --radius-sm: .75rem;
+  background: var(--color-neutral-100);
+  font-size: .9375rem;
+}
+.yaku-workspace .page-heading h1 { font-size: clamp(1.75rem, 3vw, 2.35rem); line-height: 1.15; letter-spacing: -.04em; }
+.yaku-workspace .page-heading { padding-bottom: 1.75rem; }
+.yaku-workspace .page-heading p:last-child { max-width: 65ch; }
+.yaku-workspace .workspace-card { box-shadow: 0 1px 2px #0e1e2408, 0 16px 36px -26px #0e1e2440; }
+.yaku-workspace .stat-card { min-width: 0; }
+.yaku-workspace .stat-card > div:nth-child(2) { overflow-wrap: anywhere; }
+.yaku-workspace .workspace-sidebar a { border-radius: .875rem; }
+.yaku-workspace .workspace-sidebar a.active { background: #0d2a2f; color: #fff; border-color: #0d2a2f; }
+.yaku-workspace .workspace-sidebar a.active svg { color: #c8f169; }
+.yaku-workspace .workspace-topbar { background: #eef2f1ed; }
+.yaku-workspace .workspace-main { width: 100%; max-width: 100rem; margin-inline: auto; }
+.yaku-workspace .summary-brief { background: linear-gradient(125deg, #0d2a2f, #15414a); border: 0; padding: clamp(1.5rem, 3vw, 2.5rem); border-radius: 1.75rem; }
+.yaku-workspace .summary-brief h2 { color: #fff; font-size: clamp(1.5rem, 2.5vw, 2rem); }
+.yaku-workspace .summary-brief > div:first-of-type > p { color: #c5e6e0; }
+.yaku-workspace .summary-brief > span { background: #c8f169; color: #0d2a2f; }
+.yaku-workspace .verdict-panel { border-radius: 1.625rem; }
+.yaku-workspace .verdict-panel h2 { font-size: clamp(1.8rem, 3vw, 2.75rem); line-height: 1.12; }
+.yaku-workspace .verdict-amount { font-size: clamp(1.5rem, 2.6vw, 2.25rem); overflow-wrap: anywhere; }
+.yaku-workspace .trace-ledger { gap: 0; }
+.yaku-workspace .trace-ledger dt, .yaku-workspace .trace-ledger dd { padding-block: .7rem; border-bottom: 1px dashed #dde5e3; }
+.yaku-workspace .trace-ledger dd { text-align: right; }
+.yaku-workspace .plot-tile { border-top: 4px solid #0f8b7f; padding: 1.25rem; }
+.yaku-workspace .alert-tile { padding: 1.25rem; flex-wrap: wrap; }
+.yaku-workspace .alert-tile > div:last-child { flex-direction: row; align-items: center; justify-content: space-between; width: 100%; border-top: 1px solid #dde5e3; padding-top: .875rem; }
+.yaku-workspace .sensor-tile { padding: 1.25rem; flex-wrap: wrap; }
+.yaku-workspace .sensor-tile > div:last-child { width: 100%; flex-direction: row; padding-top: .75rem; border-top: 1px solid #dde5e3; }
+.yaku-workspace .weather-overview { background: linear-gradient(125deg, #0d2a2f, #15414a); border-radius: 1.375rem; padding: 1.5rem; }
+.yaku-workspace .weather-overview p, .yaku-workspace .weather-overview span { color: #e6f4f1; }
+.yaku-workspace .weather-overview > span { background: #c8f169; color: #0d2a2f; }
+.yaku-workspace .reading-value { font-size: 1.75rem; font-weight: 600; line-height: 1.2; color: #0e1e24; margin-block: .75rem .25rem; }
+.yaku-workspace .reading-value small { font-size: .8rem; font-weight: 400; }
+.yaku-workspace .volume-bar { display: block; height: .375rem; border-radius: 999px; background: #e9eeed; margin-top: .5rem; overflow: hidden; }
+.yaku-workspace .volume-bar i { display: block; height: 100%; border-radius: inherit; background: #0f8b7f; }
+.yaku-workspace .volume-bar.recommended i { background: #9bcfc5; }
+.yaku-workspace .catalog-meter { height: .5rem; background: #e9eeed; border-radius: 999px; overflow: hidden; margin-top: .4rem; }
+.yaku-workspace .catalog-meter span { display: block; height: 100%; background: #0f8b7f; border-radius: inherit; }
+@media (min-width: 1400px) {
+  .yaku-workspace .alert-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .yaku-workspace .trace-ledger dt { padding-bottom: 0; border: 0; }
+  .yaku-workspace .trace-ledger dd { text-align: left; padding-top: .25rem; }
+  .yaku-workspace .page-heading > div:last-child { max-width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .yaku-workspace *, .yaku-workspace *::before, .yaku-workspace *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+}
+.yaku-workspace .plot-outline { display: block; width: 100%; height: 110px; background: #e9f0ea; border-radius: .875rem; }
+.yaku-workspace div.plot-outline { display: flex; }
+.yaku-workspace .validation-summary { background: linear-gradient(125deg, #0d2a2f, #15414a); color: white; border: 0; }
+.yaku-workspace .validation-summary h2 { color: white; font-size: 1.6rem; }
+.yaku-workspace .validation-summary p { color: #c5e6e0; }
+.yaku-workspace .validation-score { display: grid; place-items: center; width: 6rem; height: 6rem; border: 6px solid #c5e6e0; border-radius: 50%; flex: none; font-size: 1.35rem; font-weight: 600; color: #fff; }
+@media (max-width: 700px) {
+ .yaku-workspace .mobile-card-table { border: 0; overflow: visible; }
+ .yaku-workspace .mobile-card-table table { display: block; }
+ .yaku-workspace .mobile-card-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+ .yaku-workspace .mobile-card-table tbody { display: grid; gap: 1rem; }
+ .yaku-workspace .mobile-card-table tbody tr { display: grid; gap: .75rem; padding: 1.25rem; border: 1px solid #dde5e3; border-radius: 1.375rem; background: white; }
+ .yaku-workspace .mobile-card-table td { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; padding: 0; text-align: left; white-space: normal; }
+ .yaku-workspace .mobile-card-table td:not(:first-child)::before { content: attr(data-label); font-size: .75rem; color: #5f7378; }
+ .yaku-workspace .mobile-card-table td:last-child { border-top: 1px solid #dde5e3; padding-top: .75rem; }
+}
+.yaku-workspace .evaluation-trace details { padding: .5rem; box-shadow: 0 1px 2px #0e1e2408; }
+.yaku-workspace .evaluation-trace summary { padding: 1rem; }
+.yaku-workspace .evaluation-trace .trace-ledger { padding: 1rem; }
+.yaku-workspace .validation-summary > div > div:first-child { align-items: center; }

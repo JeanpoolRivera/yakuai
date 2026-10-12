@@ -62,7 +62,7 @@ export function TechShell({
   }, [crumb, location.pathname]);
 
   return (
-    <div className="flex min-h-dvh bg-neutral-100">
+    <div className="yaku-workspace flex min-h-dvh bg-neutral-100">
       <a
         href="#contenido"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[900] focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-primary-700 focus:shadow-toast"
@@ -80,7 +80,7 @@ export function TechShell({
       <aside
         ref={sidebarRef}
         aria-label="Navegación principal"
-        className="invisible fixed bottom-0 left-0 top-0 z-[90] flex w-[min(300px,calc(100vw-44px))] -translate-x-full flex-col bg-white transition-transform duration-200 data-[open=true]:visible data-[open=true]:translate-x-0 min-[1001px]:visible min-[1001px]:sticky min-[1001px]:top-0 min-[1001px]:h-dvh min-[1001px]:w-[248px] min-[1001px]:shrink-0 min-[1001px]:translate-x-0 min-[1001px]:border-r min-[1001px]:border-neutral-200 min-[1001px]:transition-none"
+        className="workspace-sidebar invisible fixed bottom-0 left-0 top-0 z-[90] flex w-[min(300px,calc(100vw-44px))] -translate-x-full flex-col bg-white transition-transform duration-200 data-[open=true]:visible data-[open=true]:translate-x-0 min-[1001px]:visible min-[1001px]:sticky min-[1001px]:top-0 min-[1001px]:h-dvh min-[1001px]:w-[248px] min-[1001px]:shrink-0 min-[1001px]:translate-x-0 min-[1001px]:border-r min-[1001px]:border-neutral-200 min-[1001px]:transition-none"
         data-open={navOpen}
       >
         <div className="relative flex h-full flex-col min-[1001px]:static">
@@ -99,7 +99,7 @@ export function TechShell({
       </aside>
       <div className="flex min-w-0 flex-1 flex-col" ref={workRef}>
         <Topbar crumb={crumb} nombre={nombre} onMenu={() => setNavOpen(true)} menuRef={menuRef} />
-        <main id="contenido" tabIndex={-1} className="min-w-0 flex-1 px-[clamp(24px,3vw,44px)] py-8 focus:outline-none max-[1000px]:px-6 max-[1000px]:py-7 max-[700px]:px-4 max-[700px]:py-6">
+        <main id="contenido" tabIndex={-1} className="workspace-main min-w-0 flex-1 px-[clamp(24px,3vw,44px)] py-8 focus:outline-none max-[1000px]:px-6 max-[1000px]:py-7 max-[700px]:px-4 max-[700px]:py-6">
           {children}
         </main>
         <footer className="flex flex-wrap justify-between gap-4 border-t border-neutral-200 px-8 py-5 text-[10px] text-neutral-600 max-[700px]:px-4">

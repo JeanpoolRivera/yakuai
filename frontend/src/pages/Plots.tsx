@@ -18,6 +18,8 @@ import { Input } from "../components/shadcn/input";
 import { PaginationControls } from "../components/shadcn/PaginationControls";
 import { Stepper } from "../components/shadcn/Stepper";
 import { SearchInput } from "../components/shadcn/search-input";
+import { PlotOutline } from "../components/shadcn/plot-outline";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "../components/shadcn/sheet";
 import { FormField } from "../components/forms/FormField";
 import { useCollection } from "../hooks/useCollection";
 import { submitForm } from "../lib/dom";
@@ -107,6 +109,7 @@ export function Plots(): React.JSX.Element {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Plot | null>(null);
+  const [detail, setDetail] = useState<Plot | null>(null);
   const [step, setStep] = useState(1);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [drawInfo, setDrawInfo] = useState<string | null>(null);
@@ -394,7 +397,8 @@ export function Plots(): React.JSX.Element {
                 <>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {coll.items.map((p) => (
-                      <article key={p.id} className="grid gap-3 rounded-lg border border-neutral-200 bg-white p-4 shadow-card">
+                      <article key={p.id} className="plot-tile grid gap-3 rounded-lg border border-neutral-200 bg-white p-4 shadow-card">
+                        <PlotOutline boundary={p.boundary} />
                         <div className="flex items-center justify-between gap-2">
                           <span aria-hidden="true" className="grid h-10 w-10 place-items-center rounded-lg bg-primary-50 text-primary-700">
                             <Sprout className="h-[22px] w-[22px]" />
@@ -412,7 +416,7 @@ export function Plots(): React.JSX.Element {
                           <div><dt className="text-xs text-neutral-500">Riego</dt><dd className="font-medium capitalize text-neutral-800">{p.irrigation_system ?? "—"}</dd></div>
                         </dl>
                         <div className="flex items-center justify-between gap-2 border-t border-neutral-200 pt-3">
-                          <span className="text-xs text-neutral-500">Datos de la parcela</span>
+                          <Button variant="ghost" size="sm" onClick={() => setDetail(p)} aria-label={`Ver detalle de ${p.name}`}>Ver detalle</Button>
                           <Button variant="outline" size="sm" onClick={() => openEdit(p)} aria-label={`Editar parcela ${p.name}`}>
                             <Pencil className="h-4 w-4" aria-hidden="true" /> Editar
                           </Button>
@@ -432,6 +436,30 @@ export function Plots(): React.JSX.Element {
           </div>
         </>
       )}
+
+      <Sheet open={detail !== null} onOpenChange={(open) => { if (!open) setDetail(null); }}>
+        <SheetContent className="yaku-workspace w-full overflow-y-auto sm:max-w-lg">
+          {detail ? <>
+            <SheetHeader className="mb-6 pr-5 text-left">
+              <SheetTitle className="text-2xl">{detail.name}</SheetTitle>
+              <SheetDescription>{detail.farmer?.name ?? "Sin agricultor"} · {detail.crop?.name ?? "Sin cultivo"}</SheetDescription>
+            </SheetHeader>
+            <PlotOutline boundary={detail.boundary} />
+            <dl className="trace-ledger my-5 grid grid-cols-[auto_1fr] gap-x-4 text-sm">
+              <dt>Estado</dt><dd>{detail.status}</dd>
+              <dt>Superficie</dt><dd>{fmtNum(detail.area_m2)} m²</dd>
+              <dt>Origen del área</dt><dd>{detail.area_origin === "dibujo" ? "Contorno dibujado" : "Medición manual"}</dd>
+              <dt>Siembra</dt><dd>{fmtDate(detail.sowing_date)}</dd>
+              <dt>Suelo</dt><dd>{soils.find((s) => s.code === detail.soil_texture_code)?.name ?? detail.soil_texture_code}</dd>
+              <dt>Sistema de riego</dt><dd>{detail.irrigation_system}</dd>
+              <dt>Eficiencia</dt><dd>{fmtNum(Number(detail.irrigation_efficiency) * 100)} %</dd>
+              <dt>Caudal</dt><dd>{detail.flow_lpm === null ? "Sin registrar" : `${fmtNum(detail.flow_lpm)} L/min`}</dd>
+              <dt>Coordenadas</dt><dd>{detail.latitude}, {detail.longitude}</dd>
+            </dl>
+            <Button className="w-full" onClick={() => { setDetail(null); openEdit(detail); }}><Pencil className="h-4 w-4" aria-hidden="true" />Editar datos de la parcela</Button>
+          </> : null}
+        </SheetContent>
+      </Sheet>
 
       <Dialog
         open={modalOpen}
