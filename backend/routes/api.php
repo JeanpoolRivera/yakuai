@@ -53,6 +53,7 @@ Route::middleware(['auth:sanctum', 'yakuai'])->group(function (): void {
     Route::post('/sensors', [SensorController::class, 'store']);
     Route::get('/sensors/{sensor}', [SensorController::class, 'show']);
     Route::patch('/sensors/{sensor}', [SensorController::class, 'update']);
+    Route::post('/sensors/{sensor}/simular', [SensorController::class, 'simular']);
 
     Route::get('/measurements', [MeasurementController::class, 'index']);
     Route::post('/measurements', [MeasurementController::class, 'store'])->name('measurements.store');

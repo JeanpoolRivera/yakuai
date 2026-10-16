@@ -1,34 +1,31 @@
 /* Sensores: registro con calibración + lectura manual/demo + estados. */
+import "../styles/sensors.css";
+import { SensorOverview, sensorValue } from "../components/sensors/SensorOverview";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { Check, Clock, Cloud, Droplet, LoaderCircle, Plus, Radio, Thermometer, TriangleAlert } from "lucide-react";
+import { ArrowRight, Cloud, Droplet, LoaderCircle, Plus, Radio, Search, Thermometer } from "lucide-react";
 import { ApiError, friendlyError } from "../api/client";
 import {
   createMeasurement,
   createSensor,
   listPlots,
   listSensors,
+  simulateSensor,
 } from "../api/endpoints";
 import type { Plot, Sensor } from "../api/types";
-import { PageHead } from "../components/shadcn/page-head";
-import { Stat } from "../components/shadcn/Stat";
-import { Badge } from "../components/shadcn/badge";
-import { Banner, Empty, Loading } from "../components/shadcn/feedback";
-import { Button } from "../components/shadcn/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/shadcn/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../components/shadcn/dialog";
+import { Action, FieldBlank, FieldDialogContent as DialogContent, FieldError, FieldLoading, FieldPage, Status } from "../components/field/FieldUI";
+
+import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "../components/shadcn/dialog";
 import { Input } from "../components/shadcn/input";
-import { FilterTabs } from "../components/shadcn/filter-tabs";
+
 import { PaginationControls } from "../components/shadcn/PaginationControls";
-import { SearchInput } from "../components/shadcn/search-input";
+
 import { FormField } from "../components/forms/FormField";
 import { useCollection } from "../hooks/useCollection";
-import { submitForm } from "../lib/dom";
+
 import { ageLabel, fmtNum, localInputToIso, nowLocalInput } from "../lib/format";
 import { toastError, toastInfo, toastOk } from "../lib/toast";
 
-const SELECT_CLS =
-  "h-12 w-full rounded-sm border border-neutral-400 bg-white px-3 text-sm text-neutral-800 transition-all hover:border-primary-600 focus-visible:border-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600/15 disabled:cursor-not-allowed disabled:opacity-50";
 
 const TIPOS = [
   { value: "humedad", label: "Humedad de suelo", model: "YL-69" },
@@ -74,10 +71,18 @@ function deviceIcon(type: string): React.JSX.Element {
 }
 
 export function Sensors(): React.JSX.Element {
+
+  const [activePlot, setActivePlot] = useState("");
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 60000); return () => clearInterval(timer); }, []);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+
+  const [readingOpen, setReadingOpen] = useState(false);
   const [sensors, setSensors] = useState<Sensor[]>([]);
   const [plots, setPlots] = useState<Plot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [parcelFilter, setParcelFilter] = useState("");
   const [tab, setTab] = useState<Tab>("todos");
 
   const [open, setOpen] = useState(false);
@@ -94,6 +99,7 @@ export function Sensors(): React.JSX.Element {
   const [mRaw, setMRaw] = useState("");
   const [mAt, setMAt] = useState("");
   const [sending, setSending] = useState(false);
+  const [simulating, setSimulating] = useState(false);
 
   async function load(): Promise<void> {
     setLoading(true);
@@ -116,13 +122,13 @@ export function Sensors(): React.JSX.Element {
   const coll = useCollection(sensors, {
     perPage: 8,
     search: (s, q) =>
-      `${s.type} ${s.model} ${s.plot?.name ?? ""} #${s.id}`.toLowerCase().includes(q),
-    filter: (s) => (tab === "todos" ? true : tab === "ok" ? s.status === "ok" : s.status !== "ok"),
+      `${TIPOS.find((t) => t.value === s.type)?.label ?? s.type} ${s.model} ${s.plot?.name ?? ""} #${s.id}`.toLowerCase().includes(q),
+    filter: (s) => (!parcelFilter || s.plot_id === Number(parcelFilter)) && (tab === "todos" ? true : tab === "ok" ? s.status === "ok" && s.is_active : s.status !== "ok" || !s.is_active),
     sort: (a, b) => b.id - a.id,
   });
 
   const operativos = sensors.filter((s) => s.status === "ok" && s.is_active).length;
-  const enRevision = sensors.filter((s) => s.status !== "ok").length;
+  const enRevision = sensors.filter((s) => s.status !== "ok" || !s.is_active).length;
 
   function onTypeChange(v: string): void {
     setSType(v);
@@ -162,6 +168,26 @@ export function Sensors(): React.JSX.Element {
     }
   }
 
+  async function onSimulate(): Promise<void> {
+    const target = parcelSensors.find((s) => s.type === "humedad" && s.is_active)
+      ?? sensors.find((s) => s.type === "humedad" && s.is_active);
+    if (!target) {
+      toastError("No hay sensor de humedad activo para simular.");
+      return;
+    }
+    setSimulating(true);
+    try {
+      await simulateSensor(target.id);
+      toastOk(`Dato simulado en sensor #${target.id} (${target.plot?.name ?? ""}).`);
+      await load();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) toastInfo("Ya hay un dato en este minuto, espera un poco.");
+      else toastError(friendlyError(err, "No se pudo simular el dato."));
+    } finally {
+      setSimulating(false);
+    }
+  }
+
   async function onSendReading(e: FormEvent): Promise<void> {
     e.preventDefault();
     if (!mSensor || mRaw.trim() === "") {
@@ -182,9 +208,10 @@ export function Sensors(): React.JSX.Element {
         measured_at: mAt ? localInputToIso(mAt) : new Date().toISOString().slice(0, 19),
         origin: "manual",
       });
-      if (m.quality === "ok") toastOk(`Lectura aceptada (${m.norm_value ?? "—"}%).`);
+      if (m.quality === "ok") toastOk("Lectura guardada correctamente.");
       else toastInfo("Valor imposible: fue a cuarentena para revisión.");
       setMRaw("");
+      setReadingOpen(false);
       await load();
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) toastInfo("Medición duplicada: ya existía ese dato.");
@@ -194,286 +221,79 @@ export function Sensors(): React.JSX.Element {
     }
   }
 
-  return (
-    <div>
-      <PageHead
-        eyebrow="Monitoreo de campo"
-        title="Sensores y lecturas"
-        desc="Administra los dispositivos de tus parcelas y registra sus lecturas en un solo lugar."
-        crumbs="YakuAI / Sensores"
-        actions={
-          <Button onClick={() => setOpen(true)}>
-            <Plus className="h-4 w-4" aria-hidden="true" /> Registrar sensor
-          </Button>
-        }
-      />
+  const selected = sensors.find((s) => s.id === selectedId) ?? null;
+  const reading = selected?.latest_measurement;
+  const stateLabel = (s: Sensor): string => !s.is_active ? "Inactivo" : STATUS_LABEL[s.status] ?? s.status;
+  const stateTone = (s: Sensor): "neutral" | "good" | "warn" => !s.is_active ? "neutral" : s.status === "ok" ? "good" : s.status === "anomalo" ? "warn" : "neutral";
+  function openReading(id?: number): void { setMSensor(id ? String(id) : ""); setMRaw(""); setMAt(""); setReadingOpen(true); }
 
-      {loading ? (
-        <Loading text="Cargando sensores…" />
-      ) : error ? (
-        <Banner kind="bad">
-          {error}{" "}
-          <Button variant="link" size="sm" onClick={() => void load()}>
-            Reintentar
-          </Button>
-        </Banner>
-      ) : (
-        <>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Stat
-              value={fmtNum(sensors.length)}
-              label="Sensores registrados"
-              icon={<Radio className="h-[18px] w-[18px]" aria-hidden="true" />}
-            />
-            <Stat
-              value={fmtNum(operativos)}
-              label="Operativos"
-              icon={<Check className="h-[18px] w-[18px]" aria-hidden="true" />}
-              tone={operativos < sensors.length ? "warn" : "ok"}
-              sub="Con dato reciente y válido"
-            />
-            <Stat
-              value={fmtNum(enRevision)}
-              label="En revisión"
-              icon={<TriangleAlert className="h-[18px] w-[18px]" aria-hidden="true" />}
-              tone={enRevision > 0 ? "warn" : undefined}
-              sub="Sensores que requieren atención"
-            />
-          </div>
+  const availablePlots = plots.length ? plots : Array.from(new Map(sensors.filter(s=>s.plot).map(s=>[s.plot_id,s.plot!])).values());
+  const active = availablePlots.find(p=>String(p.id)===activePlot) ?? availablePlots[0];
+  const parcelSensors = sensors.filter(s=>s.plot_id===active?.id);
+  function configure(type: string): void {
+    setSPlot(active ? String(active.id) : "");
+    onTypeChange(type); setFieldErrors({}); setOpen(true);
+  }
 
-          <div className="mt-4 grid items-start gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-            <section aria-label="Lista de sensores" className="grid content-start gap-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-2xs font-semibold uppercase tracking-wider text-primary-700">Dispositivos</p>
-                  <h2 className="mt-1 text-xl font-semibold tracking-tight text-neutral-800">Red de sensores</h2>
-                </div>
-                <span className="text-xs text-neutral-500">{sensors.length} registrados</span>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <FilterTabs<Tab>
-                  label="Filtrar por estado"
-                  value={tab}
-                  onChange={(v) => {
-                    setTab(v);
-                    coll.setPage(1);
-                  }}
-                  options={[
-                    { value: "todos", label: `Todos (${sensors.length})` },
-                    { value: "ok", label: `Operativos (${operativos})` },
-                    { value: "rev", label: `En revisión (${enRevision})` },
-                  ]}
-                />
-                <SearchInput
-                  value={coll.query}
-                  onChange={coll.setQuery}
-                  placeholder="Buscar por tipo, modelo o parcela…"
-                  label="Buscar sensores"
-                  className="min-w-[200px] flex-1"
-                />
-              </div>
-              {coll.total === 0 ? (
-                <Empty
-                  icon={<Radio className="h-5 w-5" aria-hidden="true" />}
-                  title={coll.query || tab !== "todos" ? "Sin coincidencias" : "Aún no hay sensores"}
-                  hint="Registra el YL-69 de cada parcela con su calibración seco/mojado."
-                  action={
-                    coll.query || tab !== "todos" ? undefined : (
-                      <Button onClick={() => setOpen(true)}>Registrar sensor</Button>
-                    )
-                  }
-                />
-              ) : (
-                <>
-                  <div className="grid gap-2">
-                    {coll.items.map((s) => (
-                      <article key={s.id} className="sensor-tile flex gap-3 rounded-lg border border-neutral-200 bg-white p-4 shadow-card">
-                        <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-primary-50 text-primary-700">
-                          {deviceIcon(s.type)}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <h3 className="font-semibold text-neutral-800">
-                            {TIPOS.find((type) => type.value === s.type)?.label ?? s.type}
-                          </h3>
-                          <p className="text-sm text-neutral-500">{s.plot?.name ?? `Parcela #${s.plot_id}`}</p>
-                          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-neutral-500">
-                            <span>Sensor #{s.id}</span>
-                            <span>{s.model || "Sin modelo"}</span>
-                            <span>Pin {s.pin ?? "—"}</span>
-                          </div>
-                          {s.latest_measurement ? (
-                            <div>
-                              <p className="reading-value tabular-nums">
-                                {s.latest_measurement.norm_value ?? s.latest_measurement.raw_value}
-                                <small> {s.type === "humedad" || s.type === "aire_hr" ? "%" : s.type === "aire_temp" ? "°C" : s.type === "caudal" ? "L/min" : "(0/1)"}</small>
-                              </p>
-                              <p className="text-xs text-neutral-500">Última lectura · {ageLabel(s.latest_measurement.measured_at)}</p>
-                            </div>
-                          ) : (
-                            <p className="mt-1 text-xs text-neutral-500">Sin lecturas registradas.</p>
-                          )}
-                        </div>
-                        <div className="flex shrink-0 flex-col items-end gap-1.5">
-                          <Badge variant={s.status === "ok" ? "success" : s.status === "anomalo" ? "warning" : "secondary"}>
-                            {STATUS_LABEL[s.status] ?? s.status}
-                          </Badge>
-                          {!s.is_active ? <Badge variant="secondary">Inactivo</Badge> : null}
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                  <PaginationControls
-                  page={coll.page}
-                  pages={coll.pages}
-                  onPageChange={coll.setPage}
-                  count={`${coll.total} en total`}
-                />
-                </>
-              )}
-            </section>
-
-            <aside className="grid content-start gap-3">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Registrar una lectura</CardTitle>
-                  <CardDescription>Ingresa una medición manual o de prueba para uno de tus sensores.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={(e) => void onSendReading(e)} className="grid gap-4">
-                    <FormField label="Sensor" required htmlFor="m-sensor">
-                      <select id="m-sensor" className={SELECT_CLS} value={mSensor} onChange={(e) => setMSensor(e.target.value)}>
-                        <option value="">Selecciona…</option>
-                        {sensors.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            #{s.id} · {s.type} · {s.plot?.name ?? ""}
-                          </option>
-                        ))}
-                      </select>
-                    </FormField>
-                    <FormField label="Valor crudo" required htmlFor="m-raw">
-                      <Input
-                        id="m-raw"
-                        inputMode="decimal"
-                        placeholder="Ej. 650"
-                        value={mRaw}
-                        onChange={(e) => setMRaw(e.target.value)}
-                      />
-                    </FormField>
-                    <FormField label="Fecha y hora" hint="Opcional. Si se deja vacío, se usará el momento actual." htmlFor="m-at">
-                      <Input
-                        id="m-at"
-                        type="datetime-local"
-                        max={nowLocalInput()}
-                        value={mAt}
-                        onChange={(e) => setMAt(e.target.value)}
-                      />
-                    </FormField>
-                    <Button type="submit" disabled={sending} className="w-full">
-                      {sending ? (
-                        <>
-                          <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-                          Guardar lectura
-                        </>
-                      ) : (
-                        <>Guardar lectura</>
-                      )}
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-              <div className="flex items-start gap-3 rounded-lg border border-info-100 bg-info-50 p-4">
-                <Clock className="h-5 w-5 shrink-0 text-info-600" aria-hidden="true" />
-                <div className="text-sm">
-                  <strong className="font-semibold text-neutral-800">Lecturas al día</strong>
-                  <p className="mt-0.5 text-neutral-600">Después de 3 horas sin lecturas, el sensor pasa al estado «Sin datos».</p>
-                </div>
-              </div>
-            </aside>
-          </div>
-        </>
-      )}
-
-      <Dialog
-        open={open}
-        onOpenChange={(o) => {
-          if (!o && !saving) setOpen(false);
-        }}
-      >
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Registrar sensor</DialogTitle>
-            <DialogDescription>Asocia el dispositivo a su parcela y completa sus datos técnicos.</DialogDescription>
-          </DialogHeader>
-          <form id="sensor-form" onSubmit={(e) => void onCreateSensor(e)} className="grid gap-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField label="Parcela" required htmlFor="s-plot" error={fieldErrors.plot_id?.[0]}>
-                <select id="s-plot" className={SELECT_CLS} value={sPlot} onChange={(e) => setSPlot(e.target.value)}>
-                  <option value="">Selecciona…</option>
-                  {plots.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-              <FormField label="Tipo" required htmlFor="s-type" error={fieldErrors.type?.[0]}>
-                <select id="s-type" className={SELECT_CLS} value={sType} onChange={(e) => onTypeChange(e.target.value)}>
-                  {TIPOS.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField label="Modelo" htmlFor="s-model" error={fieldErrors.model?.[0]}>
-                <Input id="s-model" value={sModel} onChange={(e) => setSModel(e.target.value)} />
-              </FormField>
-              <FormField label="Pin" hint="Ej. A0" htmlFor="s-pin" error={fieldErrors.pin?.[0]}>
-                <Input id="s-pin" value={sPin} onChange={(e) => setSPin(e.target.value)} />
-              </FormField>
-            </div>
-            {sType === "humedad" ? (
-              <fieldset className="grid gap-3 rounded-lg border border-neutral-200 p-4">
-                <legend className="px-1 text-sm font-medium text-neutral-600">Calibración en 2 puntos (seco / mojado)</legend>
-                <Banner kind="info">YL-69 entrega 0–1023 en crudo. Referencias típicas: seco ≈ 1020, mojado ≈ 320.</Banner>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField label="Seco ref (0–1023)" required htmlFor="s-dry" error={fieldErrors.dry_ref?.[0]}>
-                    <Input id="s-dry" inputMode="numeric" value={sDry} onChange={(e) => setSDry(e.target.value)} />
-                  </FormField>
-                  <FormField label="Mojado ref (0–1023)" required htmlFor="s-wet" error={fieldErrors.wet_ref?.[0]}>
-                    <Input id="s-wet" inputMode="numeric" value={sWet} onChange={(e) => setSWet(e.target.value)} />
-                  </FormField>
-                </div>
-              </fieldset>
-            ) : (
-              <Banner kind="info">
-                {sType === "lluvia"
-                  ? "FC-37 solo avisa lluvia sí/no (valores 0 o 1). No aporta milímetros ni requiere calibración."
-                  : sType === "caudal"
-                    ? "Caudal YF-S201: rango válido 0–60."
-                    : "DHT11: temperatura -10 a 60 °C, humedad relativa 0–100."}
-              </Banner>
-            )}
-          </form>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>
-              Cancelar
-            </Button>
-            <Button disabled={saving} onClick={() => submitForm("sensor-form")}>
-              {saving ? (
-                <>
-                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  Registrar
-                </>
-              ) : (
-                <>Registrar</>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+  return <div className="sensor-module"><FieldPage title="Sensores" intro="Conoce el suelo, la lluvia y el ambiente de cada parcela." actions={<>
+    <Action tone="line" disabled={loading || simulating || !sensors.length || !!error} onClick={() => void onSimulate()}>{simulating ? "Simulando…" : "Simular datos"}</Action>
+    <Action tone="line" disabled={loading || !sensors.length || !!error} onClick={() => openReading()}>Registrar lectura</Action>
+    <Action disabled={loading || !!error} onClick={() => {setSPlot(active ? String(active.id) : "");setFieldErrors({});setOpen(true);}}><Plus size={16} aria-hidden="true" />Registrar sensor</Action>
+  </>}>
+    {loading ? <FieldLoading>Cargando sensores…</FieldLoading> : error ? <FieldError retry={() => void load()}>{error}</FieldError> : <>
+      {active && <>
+        <section className="sensor-parcel-context" aria-label="Parcela de monitoreo"><div><label htmlFor="sensor-active-plot">Parcela</label><select id="sensor-active-plot" value={active.id} onChange={e=>setActivePlot(e.target.value)}>{availablePlots.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></div><div className="sensor-parcel-meta"><strong>{active.crop?.name ?? "Sin cultivo"} · {fmtNum(active.area_m2)} m²</strong><span>{active.farmer?.name ?? "Monitoreo de campo"}</span></div><span className="sensor-context-note">Última lectura de cada medición</span></section>
+        <SensorOverview sensors={parcelSensors} now={now} onRead={openReading} onDetail={setSelectedId} onRegister={configure}/>
+      </>}
+      {!sensors.length && <FieldBlank title="Aún no hay sensores" icon={<Radio size={24}/>}>Configura los sensores de tu parcela para comenzar el monitoreo.</FieldBlank>}
+      <details className="sensor-management"><summary>Administrar registros y equipos opcionales<span>Configuración e inventario completo</span></summary>
+      <section className="field-panel device-inventory" aria-label="Registros de sensores">
+        <header className="sensor-inventory-heading"><h2>Dispositivos</h2><p>Consulta su estado, revisa una lectura o registra una nueva medición.</p></header>
+        <div className="sensor-inventory-controls">
+          <div className="sensor-state-tabs" aria-label="Filtrar por estado">{([{id:"todos",name:"Todos",count:sensors.length},{id:"ok",name:"Operativos",count:operativos},{id:"rev",name:"Por revisar",count:enRevision}] as const).map((item) => <button key={item.id} type="button" aria-label={`${item.name} (${item.count})`} aria-pressed={tab === item.id} onClick={() => { setTab(item.id); coll.setPage(1); }}>{item.name}<span>{item.count}</span></button>)}</div>
+          <div className="sensor-inventory-filters"><select className="field-select" aria-label="Filtrar por parcela" value={parcelFilter} onChange={(e) => {setParcelFilter(e.target.value);coll.setPage(1);}}><option value="">Todas las parcelas</option>{plots.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select><label className="field-search"><Search size={16} aria-hidden="true" /><input type="search" placeholder="Buscar por tipo, modelo o parcela" aria-label="Buscar sensores" value={coll.query} onChange={(e) => coll.setQuery(e.target.value)} /></label>{(coll.query || parcelFilter || tab !== "todos") && <Action tone="quiet" onClick={() => {coll.setQuery("");setParcelFilter("");setTab("todos");}}>Restablecer</Action>}</div>
+        </div>
+        {!coll.total ? <FieldBlank title={sensors.length ? "Sin coincidencias" : "Sin registros"} icon={<Radio size={24} />} action={sensors.length ? <Action tone="line" onClick={() => {coll.setQuery("");setTab("todos");setParcelFilter("");}}>Limpiar filtros</Action> : <Action onClick={() => {setSPlot(active ? String(active.id) : "");setFieldErrors({});setOpen(true);}}>Registrar sensor</Action>}>{sensors.length ? "Prueba con otra búsqueda, parcela o estado." : "Añade un dispositivo y asígnalo a su parcela."}</FieldBlank> : <>
+          <div className="device-table-wrap"><table className="device-table"><caption className="sr-only">Sensores y últimas mediciones</caption><thead><tr><th scope="col">Dispositivo</th><th scope="col">Parcela</th><th scope="col">Estado</th><th scope="col">Medición reciente</th><th scope="col"><span className="sr-only">Acciones</span></th></tr></thead><tbody>{coll.items.map((s) => {
+            const m=s.latest_measurement;
+            return <tr key={s.id}><td><div className="device-name"><span className="device-icon">{deviceIcon(s.type)}</span><div><strong>{TIPOS.find((t) => t.value === s.type)?.label ?? s.type}</strong><small>#{s.id} · {s.model || "Sin modelo"}</small></div></div></td><td data-label="Parcela">{s.plot?.name ?? `Parcela #${s.plot_id}`}</td><td data-label="Estado"><Status tone={stateTone(s)}>{stateLabel(s)}</Status></td><td data-label="Medición reciente"><strong className="device-reading">{sensorValue(s)}</strong><small>{m ? ageLabel(m.measured_at) : "Pendiente de registro"}{m?.quality==="anomalo" ? " · En revisión" : ""}</small></td><td><Action tone="quiet" aria-label={`Ver sensor ${s.id}`} onClick={() => setSelectedId(s.id)}>Ver detalle<ArrowRight size={14} /></Action></td></tr>;
+          })}</tbody></table></div><div className="device-pagination"><PaginationControls page={coll.page} pages={coll.pages} onPageChange={coll.setPage} count={`${coll.total} dispositivos`} /></div>
+        </>}
+      </section>
+      </details>
+      <p className="field-footnote">La evaluación de riego requiere humedad de los últimos 30 minutos. El estado del sensor no garantiza la vigencia de su lectura.</p>
+    </>}
+    <Dialog open={selected !== null} onOpenChange={(value) => {if(!value) setSelectedId(null);}}>
+      <DialogContent>{selected && <>
+        <DialogHeader><p className="field-eyebrow">SENSOR #{selected.id}</p><DialogTitle>{TIPOS.find((t) => t.value === selected.type)?.label ?? selected.type}</DialogTitle><DialogDescription>{selected.plot?.name ?? `Parcela #${selected.plot_id}`} · {selected.model || "Modelo no especificado"}</DialogDescription></DialogHeader>
+        <Status tone={stateTone(selected)}>{stateLabel(selected)}</Status>
+        <div className="sensor-value-stage"><p>Última lectura</p><strong className="reading-number">{sensorValue(selected)}</strong><p>{reading ? `Registrada ${ageLabel(reading.measured_at)}` : "Todavía no hay una medición registrada"}</p>{reading?.quality === "anomalo" && <Status tone="warn">Lectura en revisión</Status>}</div>
+        <dl className="field-facts"><div><dt>Conexión</dt><dd>{selected.pin ?? "—"}</dd></div><div><dt>Origen de lectura</dt><dd>{reading?.origin ?? "—"}</dd></div>{selected.type === "humedad" && <><div><dt>Referencia en seco</dt><dd>{selected.dry_ref ?? "—"}</dd></div><div><dt>Referencia en mojado</dt><dd>{selected.wet_ref ?? "—"}</dd></div></>}</dl>
+        <Action onClick={() => {openReading(selected.id);setSelectedId(null);}} aria-label={`Registrar lectura del sensor ${selected.id}`}><Plus size={15} />Nueva lectura</Action>
+      </>}</DialogContent>
+    </Dialog>
+    <Dialog open={readingOpen} onOpenChange={(value) => { if (!sending) setReadingOpen(value); }}>
+      <DialogContent className="field-dialog sm:max-w-lg">
+        <DialogHeader><p className="field-eyebrow">Datos de campo</p><DialogTitle>Nueva lectura</DialogTitle><DialogDescription>Registra el valor que muestra tu dispositivo.</DialogDescription></DialogHeader>
+        <form onSubmit={(e) => void onSendReading(e)} className="field-form">
+          <FormField label="Sensor" required htmlFor="m-sensor"><select className="field-select w-full" id="m-sensor" required value={mSensor} onChange={(e) => setMSensor(e.target.value)}><option value="">Selecciona un dispositivo</option>{sensors.map((s) => <option key={s.id} value={s.id}>#{s.id} · {TIPOS.find((t) => t.value === s.type)?.label ?? s.type} · {s.plot?.name ?? `Parcela #${s.plot_id}`}</option>)}</select></FormField>
+          <FormField label="Valor crudo" required htmlFor="m-raw" hint="Ingresa la lectura original, antes de su normalización."><Input id="m-raw" required inputMode="decimal" value={mRaw} onChange={(e) => setMRaw(e.target.value)} /></FormField>
+          <details className="field-disclosure"><summary>¿La medición se tomó antes?</summary><div className="mt-4"><FormField label="Fecha y hora" htmlFor="m-at" hint="Si lo dejas vacío, se registrará el momento actual."><Input id="m-at" type="datetime-local" max={nowLocalInput()} value={mAt} onChange={(e) => setMAt(e.target.value)} /></FormField></div></details>
+          <div className="field-form-footer"><Action tone="quiet" disabled={sending} onClick={() => setReadingOpen(false)}>Cancelar</Action><Action type="submit" disabled={sending}>{sending && <LoaderCircle size={16} className="animate-spin" />}{sending ? "Guardando…" : "Guardar lectura"}</Action></div>
+        </form>
+      </DialogContent>
+    </Dialog>
+    <Dialog open={open} onOpenChange={(value) => { if (!saving) setOpen(value); }}>
+      <DialogContent className="field-dialog sm:max-w-xl">
+        <DialogHeader><p className="field-eyebrow">Conecta tu campo</p><DialogTitle>Registrar sensor</DialogTitle><DialogDescription>Indica la parcela y la medición. El DHT11 utiliza un registro para temperatura y otro para humedad del aire.</DialogDescription></DialogHeader>
+        <form onSubmit={(e) => void onCreateSensor(e)} className="field-form">
+          <FormField label="Parcela" required htmlFor="s-plot" error={fieldErrors.plot_id?.[0]}><select id="s-plot" required className="field-select w-full" value={sPlot} onChange={(e) => setSPlot(e.target.value)}><option value="">Selecciona una parcela</option>{plots.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></FormField>
+          <FormField label="Tipo de sensor" required htmlFor="s-type" error={fieldErrors.type?.[0]}><select id="s-type" className="field-select w-full" value={sType} onChange={(e) => onTypeChange(e.target.value)}><optgroup label="Sensores principales">{TIPOS.filter(t=>t.value!=="caudal").map((t) => <option key={t.value} value={t.value}>{t.model} · {t.label}</option>)}</optgroup><optgroup label="Equipo opcional"><option value="caudal">YF-S201 · Caudal</option></optgroup></select></FormField>
+          <div className="field-form-pair"><FormField label="Modelo" htmlFor="s-model" error={fieldErrors.model?.[0]}><Input id="s-model" value={sModel} onChange={(e) => setSModel(e.target.value)} /></FormField><FormField label="Pin de conexión" htmlFor="s-pin" error={fieldErrors.pin?.[0]}><Input id="s-pin" value={sPin} onChange={(e) => setSPin(e.target.value)} /></FormField></div>
+          {sType === "humedad" ? <fieldset className="field-calibration"><legend>Calibración en 2 puntos (seco / mojado)</legend><p>YL-69 entrega valores de 0 a 1023. Usa las referencias de tu dispositivo.</p><div className="field-form-pair"><FormField label="Seco ref (0–1023)" required htmlFor="s-dry" error={fieldErrors.dry_ref?.[0]}><Input id="s-dry" type="number" min={0} max={1023} required value={sDry} onChange={(e) => setSDry(e.target.value)} /></FormField><FormField label="Mojado ref (0–1023)" required htmlFor="s-wet" error={fieldErrors.wet_ref?.[0]}><Input id="s-wet" type="number" min={0} max={1023} required value={sWet} onChange={(e) => setSWet(e.target.value)} /></FormField></div></fieldset> : <p className="field-form-note">{sType === "lluvia" ? "FC-37 solo avisa lluvia sí/no (0 o 1). No necesita calibración." : sType === "caudal" ? "YF-S201: rango de caudal de 0 a 60 L/min." : "DHT11: temperatura de −10 a 60 °C y humedad relativa de 0 a 100%."}</p>}
+          <div className="field-form-footer"><Action tone="quiet" disabled={saving} onClick={() => setOpen(false)}>Cancelar</Action><Action type="submit" disabled={saving}>{saving && <LoaderCircle size={16} className="animate-spin" />}{saving ? "Registrando…" : "Registrar"}</Action></div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  </FieldPage></div>;
 }

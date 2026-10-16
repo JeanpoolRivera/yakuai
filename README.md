@@ -71,8 +71,10 @@ flowchart TD
     A --> H[Historial compara recomendado vs aplicado]
 ```
 
-Flujo de excepción: sensor callado 3 h → degradado; valor imposible →
-cuarentena; doble envío → misma evaluación; OWM falla → incompleta por clima.
+Flujo de excepción: sensor callado 3 h → `sin_datos` (comando); valor imposible →
+cuarentena (`quality=anomalo`, se guarda pero no decide); doble envío → misma evaluación;
+OWM falla → pronóstico `demo / owm_fallo_*` con mismo esquema (no incompleta directa;
+incompleta solo si no hay pronóstico o está vencido >3 h).
 
 ## 6. Reglas de negocio (Definido)
 
@@ -84,7 +86,7 @@ cuarentena; doble envío → misma evaluación; OWM falla → incompleta por cli
 5. Lluvia solo pospone si prob ≥ 70 % + mm que cubren lo que falta, en 2
    bloques seguidos, espera 6 h; si suelo crítico, se riega igual.
 6. Salida en rango de 50 L + momento 05:30-07:00 + confianza por frescura +
-   próxima hora. Haba = seca. MO por defecto 1 %.
+   próxima revisión según resultado. Haba = seca.
 
 ## 7. Roles y permisos (Definido)
 

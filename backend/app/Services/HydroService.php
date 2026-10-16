@@ -145,6 +145,52 @@ class HydroService
         $max = $min + 50;
         $snapshot['volumen_bruto_L'] = round($gross, 2);
 
+        // Plan ejecutable v1.1: siguiente riego a cualquier hora buena.
+        // Crítico → ahora. Mañana 05:30–10:00 y tarde 16:00–19:00 son ventanas
+        // buenas; mediodía 11:00–15:00 se evita salvo crítico.
+        $litros = (int) round($gross);
+        $flow = (float) ($plot->flow_lpm ?? 0);
+        $minutos = $flow > 0 ? (int) ceil($litros / $flow) : null;
+        $ventanaMin = 90; // jornada base 05:30–07:00 para partición
+        $inicio = $this->proximoInicio($now, $isCritical);
+        $motivoHora = $isCritical ? 'ahora (crítico)'
+            : ($inicio->format('H:i') === '05:30' ? 'próxima ventana buena (mañana)'
+            : 'próxima ventana buena (hoy)');
+        if ($minutos === null) {
+            $snapshot['plan'] = [
+                'litros' => $litros,
+                'minutos' => null,
+                'inicio' => $inicio->toDateTimeString(),
+                'fin' => null,
+                'jornadas' => 1,
+                'nota' => 'Anota tu caudal (flow_lpm) para calcular minutos.',
+            ];
+        } elseif ($minutos <= $ventanaMin) {
+            $snapshot['plan'] = [
+                'litros' => $litros,
+                'minutos' => $minutos,
+                'inicio' => $inicio->toDateTimeString(),
+                'fin' => $inicio->copy()->addMinutes($minutos)->toDateTimeString(),
+                'jornadas' => 1,
+                'nota' => null,
+            ];
+        } else {
+            $jornadas = (int) ceil($minutos / $ventanaMin);
+            $snapshot['plan'] = [
+                'litros' => $litros,
+                'minutos' => $minutos,
+                'inicio' => $inicio->toDateTimeString(),
+                'fin' => $inicio->copy()->addDays($jornadas - 1)->setTime(5, 30)->addMinutes($minutos - ($jornadas - 1) * $ventanaMin)->toDateTimeString(),
+                'jornadas' => $jornadas,
+                'nota' => "No entra en una ventana: partir en {$jornadas} mañanas 05:30–07:00.",
+            ];
+        }
+        $snapshot['proximo_riego'] = [
+            'fecha' => $snapshot['plan']['inicio'],
+            'litros' => $litros,
+            'motivo' => $motivoHora,
+        ];
+
         return [
             'result' => 'riega', 'stage' => $stage->stage,
             'min_liters' => $min, 'max_liters' => $max,
@@ -167,6 +213,44 @@ class HydroService
             'next_at' => $now->copy()->addHour(),
             'is_critical' => false, 'snapshot' => $snapshot,
         ];
+    }
+
+    /**
+     * Próxima hora buena para regar: crítico → ahora; mañana 05:30–10:00
+     * y tarde 16:00–19:00 son buenas; mediodía se evita salvo crítico.
+     */
+    private function proximoInicio(CarbonInterface $now, bool $isCritical): CarbonInterface
+    {
+        if ($isCritical) {
+            return $now->copy();
+        }
+
+        $h = (int) $now->format('H');
+        $m = (int) $now->format('i');
+        $hm = $h * 60 + $m;
+
+        // Mañana 05:30–10:00 → en 15 min.
+        if ($hm >= 5 * 60 + 30 && $hm < 10 * 60) {
+            return $now->copy()->addMinutes(15);
+        }
+
+        // Tarde 16:00–19:00 → en 15 min.
+        if ($hm >= 16 * 60 && $hm < 19 * 60) {
+            return $now->copy()->addMinutes(15);
+        }
+
+        // Antes de las 05:30 → hoy 05:30.
+        if ($hm < 5 * 60 + 30) {
+            return $now->copy()->setTime(5, 30);
+        }
+
+        // Entre 10:00 y 16:00 (sol fuerte) → hoy 16:00.
+        if ($hm < 16 * 60) {
+            return $now->copy()->setTime(16, 0);
+        }
+
+        // Después de las 19:00 → mañana 05:30.
+        return $now->copy()->addDay()->setTime(5, 30);
     }
 
     private function stageFor(Crop $crop, mixed $sowingDate, CarbonInterface $now): mixed

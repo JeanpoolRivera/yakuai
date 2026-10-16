@@ -11,7 +11,7 @@ No se modificaron rutas, autenticación, peticiones, contratos, cálculos, permi
 ## Reglas del sistema
 
 - Fuente única de valores: `src/styles/globals.css` (`@theme` Tailwind v4) reflejada en `src/lib/theme.ts` para JS. Cambiar siempre ambos.
-- Excepción: `src/styles/login.css` (acceso/recuperación, selectores bajo `.access`) usa los mismos tokens vía `var(--color-*)`.
+- Excepción retirada 2026-10-13: `src/styles/login.css` fue eliminado (réplica v2 Tailwind); acceso usa `globals.css`.
 - Tipografía: Inter / Segoe UI / system-ui (sin descargas). Base 14 px, titulares 24–32 px, tiny 12 px.
 - Espaciado base 4 px. Radios: 6 px controles, 8–12 px tarjetas, 12–16 px modales, pill en badges/avatar.
 - Verde primario `#146852` (acción) / `#092e2b` (superficies oscuras); acento `#d6e8a9` solo en momentos de decisión. Semáforos siempre con icono + palabra, nunca solo color.
@@ -30,7 +30,7 @@ No se modificaron rutas, autenticación, peticiones, contratos, cálculos, permi
 | `styles/login.css` | Acceso y recuperación (AuthLayout intacto) |
 | `lib/theme.ts` | Tokens en TS + types |
 | `lib/utils.ts` | `cn()` (formato vive en `lib/format.ts`) |
-| `components/shadcn/` | 39 componentes base + barrel `components/shadcn.tsx` |
+| `components/shadcn/` | base shadcn + barrel `components/shadcn.tsx` |
 | `components/shadcn/plot-map.tsx` | Mapa Leaflet (proveedor OSM intacto) |
 | `components/charts/` | Wrappers Recharts (Line/Area/Bar) |
 | `components/forms/` | FormField (a11y por clonado), FormSection, Wizard |
@@ -49,4 +49,4 @@ No se modificaron rutas, autenticación, peticiones, contratos, cálculos, permi
 - `tsc -b`: 0 errores. `lint`: 0 errores (19 advertencias benignas).
 - `vitest`: 135/135 (incluye 7 tests portados: SoilMeter×4, FormField, DataTable, FilterTabs).
 - `vite build`: correcto.
-- Pendiente manual: inspección visual escritorio/tablet/móvil × rol + `sudo rm -rf frontend/dist` (artefacto root-owned).
+- Pendiente manual: inspección visual escritorio/tablet/móvil × rol.

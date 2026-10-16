@@ -9,6 +9,7 @@ use App\Models\Measurement;
 use App\Models\Plot;
 use App\Services\HydroService;
 use App\Services\MessageService;
+use App\Services\OwmService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -40,7 +41,7 @@ class EvaluationController extends Controller
         return response()->json(['data' => $evaluation->load('plot')]);
     }
 
-    public function evaluate(Request $request, Plot $plot, HydroService $hydro): JsonResponse
+    public function evaluate(Request $request, Plot $plot, HydroService $hydro, OwmService $owm): JsonResponse
     {
         $user = $request->user();
 
@@ -77,6 +78,11 @@ class EvaluationController extends Controller
         $forecast = Forecast::where('plot_id', $plot->id)
             ->latest('fetched_at')
             ->first();
+
+        // Auto-refresh OWM: si no hay pronóstico o tiene >2h, traerlo solo.
+        if ($forecast === null || $forecast->fetched_at->diffInMinutes($now) > 120) {
+            $forecast = $owm->refresh($plot);
+        }
 
         $calc = $hydro->evaluate($plot, $measurement, $forecast, $now);
 

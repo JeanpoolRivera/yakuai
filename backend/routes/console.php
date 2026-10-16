@@ -10,6 +10,8 @@ Artisan::command('inspire', function () {
 
 Schedule::command('yakuai:sensores:revisar')->everyFifteenMinutes();
 
+Schedule::command('yakuai:esperas:revisar')->everyThirtyMinutes();
+
 Schedule::command('yakuai:auditoria:matutina')->dailyAt('05:30');
 
 Schedule::command('yakuai:pronosticos:limpiar')->weekly();

@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Propuesta Resumen — tokens oficiales del sistema</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f6f8;--surface:#fff;--line:#e1e7ec;
+  --ink:#172b36;--ink-2:#4d626f;--muted:#5d727f;--faint:#a5b3bd;
+  --p-50:#edf7f2;--p-100:#d9eee4;--p-200:#bee0d2;--p-600:#207c63;--p-700:#146852;--p-950:#092e2b;
+  --lime:#d6e8a9;
+  --warn-t:#99610b;--warn-bg:#fff7e6;
+  --crit-t:#b91c1c;--crit-bg:#fff1f1;
+  --info-t:#326899;--info-bg:#edf5fc;
+  --nodata-t:#5d727f;--nodata-bg:#f4f6f8;
+  --ok-t:#15803d;--ok-bg:#edf7ef;
+  --shadow:0 1px 3px rgba(23,43,54,.06),0 1px 2px rgba(23,43,54,.04);
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:32px 24px 70px}
+.num{font-variant-numeric:tabular-nums}
+/* banner excepción */
+.eyebrow{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.phead{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;padding-bottom:24px}
+.phead h1{font-size:24px;font-weight:600;letter-spacing:-.055em;margin:8px 0 0}
+.phead p{margin:8px 0 0;color:var(--muted);font-size:13px;max-width:68ch}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:36px;padding:0 14px;border-radius:7px;border:1px solid var(--line);background:#fff;font-weight:600;font-size:13px}
+.hero{display:flex;flex-wrap:wrap;align-items:center;gap:20px;background:var(--p-950);color:#fff;border-radius:16px;padding:32px 36px;margin:6px 0 16px;box-shadow:var(--shadow)}
+.hero .big-ic{width:56px;height:56px;border-radius:50%;background:var(--lime);color:var(--p-950);display:grid;place-items:center;font-size:26px;font-weight:700;flex:none}
+.hero .k{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#c5d9d4}
+.hero h2{font-size:30px;font-weight:600;letter-spacing:-.02em;margin:8px 0 0;color:#fff}
+.hero p{margin:10px 0 0;color:#c5d9d4;font-size:14px}
+.hero .window{margin-left:auto;background:#fff;border:0;border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:10px;color:var(--p-700)}
+.hero .window small{display:block;font-size:12px;color:var(--muted)}
+.hero .window b{font-size:14px;color:var(--ink)}
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--p-600);border-radius:7px;padding:14px 16px;box-shadow:var(--shadow)}
+.kpi.warn{border-top-color:var(--warn-t)}.kpi.bad{border-top-color:var(--crit-t)}.kpi.info{border-top-color:var(--info-t)}
+.kpi small{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.kpi b{display:block;font-size:30px;font-weight:600;letter-spacing:-.04em;margin-top:6px}
+.kpi span{font-size:12px;color:var(--muted)}
+/* centro + eventos */
+.main{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(280px,1fr);gap:12px;margin-top:12px;align-items:start}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:7px;box-shadow:var(--shadow)}
+.card-h{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line)}
+.card-h h3{margin:0;font-size:14px;font-weight:600}
+.tabs{display:flex;gap:6px}
+.tabs button{border:1px solid var(--line);background:#fff;border-radius:9999px;min-height:32px;padding:0 12px;font-size:12px;font-weight:600;color:var(--muted)}
+.tabs button.on{background:var(--p-700);color:#fff;border-color:var(--p-700)}
+.chart{padding:8px 10px 4px}
+.log{list-style:none;margin:0;padding:6px}
+.log li{display:flex;gap:10px;padding:11px 12px;border-bottom:1px solid var(--line);font-size:13px}
+.log li:last-child{border:0}
+.log time{color:var(--faint);font-size:11.5px;min-width:64px}
+.dot{width:9px;height:9px;border-radius:50%;margin-top:5px;flex:none}
+.note{font-size:12px;color:var(--muted)}
+.link{font-size:13px;font-weight:600;color:var(--p-700);text-decoration:none}
+/* campos */
+.fields{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
+.field{background:var(--surface);border:1px solid var(--line);border-radius:7px;box-shadow:var(--shadow);padding:16px}
+.field .top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.field b{font-size:14px;font-weight:600}
+.field .meta{font-size:12px;color:var(--muted);margin-top:2px}
+.todo{display:inline-block;margin-top:0;font-size:10px;font-weight:600;letter-spacing:.08em;padding:4px 10px;border-radius:9999px;border:1px solid}
+.todo.go{color:#fff;background:var(--p-700);border-color:var(--p-700)}
+.todo.wait{color:var(--info-t);background:var(--info-bg);border-color:#dcebfd}
+.todo.off{color:var(--nodata-t);background:var(--nodata-bg);border-color:var(--line)}
+.meter{height:10px;background:var(--bg);border-radius:9999px;margin-top:12px;position:relative}
+.meter i{position:absolute;left:0;top:0;bottom:0;border-radius:9999px;background:var(--p-600)}
+.meter u{position:absolute;top:-4px;width:2px;height:18px;background:var(--ink)}
+.field .vals{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-top:6px}
+@media (max-width:1000px){.kpis{grid-template-columns:1fr 1fr}.main{grid-template-columns:1fr}.fields{grid-template-columns:1fr 1fr}}
+@media (max-width:640px){.wrap{padding:20px 16px 56px}.kpis{grid-template-columns:1fr}.fields{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section class="hero" aria-label="Tu siguiente decisión">
+    <span class="big-ic">✓</span>
+    <div style="min-width:0;flex:1">
+      <div class="k">Tu siguiente decisión</div>
+      <h2>Chacra Alta en crítico: suelo al 12 %</h2>
+      <p>Riega hoy sin esperar lluvia.</p>
+    </div>
+    <button style="margin-left:auto;background:#fff;color:var(--p-950);border:0;border-radius:7px;min-height:44px;min-width:44px;padding:0 22px;font-weight:600;font-size:14px">Ver parcela</button>
+  </section>
+
+  <div class="kpis">
+    <div class="kpi bad"><small>Estado de la red</small><b class="num">1 crítica</b><span>Requiere visita hoy</span></div>
+    <div class="kpi warn"><small>Acción de hoy</small><b class="num">3 riegos</b><span>≈ 48.600 L en ventana</span></div>
+    <div class="kpi info"><small>Lluvia 6 h</small><b class="num">20 %</b><span>Bajo el umbral del 70 %</span></div>
+    <div class="kpi"><small>Sensores</small><b class="num">5/6</b><span>Revisar 1 equipo</span></div>
+  </div>
+
+  <div class="main">
+    <section class="card" aria-label="Humedad 24 horas">
+      <div class="card-h"><h3>Humedad del suelo · 24 h</h3>
+        <div style="display:flex;align-items:center;gap:10px"><span class="note">Chacra Alta · hace 8 min</span>
+        <div class="tabs"><button class="on">Chacra Alta</button><button>Los Pinos</button><button>Qocha</button></div></div>
+      </div>
+      <div class="chart">
+        <svg viewBox="0 0 560 200" width="100%" role="img" aria-label="Curva de humedad con línea de umbral">
+          <line x1="30" x2="550" y1="150" y2="150" stroke="#e1e7ec"/><line x1="30" x2="550" y1="95" y2="95" stroke="#e1e7ec"/><line x1="30" x2="550" y1="40" y2="40" stroke="#e1e7ec"/>
+          <line x1="30" x2="550" y1="72" y2="72" stroke="#b91c1c" stroke-dasharray="6 5" stroke-width="1.5"/>
+          <text x="548" y="64" text-anchor="end" font-size="11" fill="#b91c1c">umbral 55 %</text>
+          <path d="M30 60 C90 62 130 70 180 82 S280 110 330 128 S450 152 550 158" fill="none" stroke="#207c63" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="550" cy="158" r="6" fill="#b91c1c"/>
+          <text x="30" y="185" font-size="11" fill="#a5b3bd">ayer</text><text x="548" y="185" font-size="11" fill="#a5b3bd" text-anchor="end">ahora · 12 %</text>
+        </svg>
+      </div>
+    </section>
+    <section class="card" aria-label="Registro de eventos">
+      <div class="card-h"><h3>Eventos</h3><span class="note">hoy · 4</span></div>
+      <ul class="log">
+        <li><span class="dot" style="background:#b91c1c"></span><div><b><a href="#" style="color:inherit;text-decoration:none">Chacra Alta cruzó el umbral <span aria-hidden="true">→</span></a></b><br><time>06:12 · hace 8 min · Evaluar</time></div></li>
+        <li><span class="dot" style="background:#146852"></span><div><b><a href="#" style="color:inherit;text-decoration:none">Riego aplicado · Los Pinos <span aria-hidden="true">→</span></a></b><br><time>ayer 18:40 · 16.000 L · Historial</time></div></li>
+        <li><span class="dot" style="background:#b45309"></span><div><b><a href="#" style="color:inherit;text-decoration:none">Sensor vencido · El Mirador <span aria-hidden="true">→</span></a></b><br><time>hace 3 h · máx. 30 min · Sensores</time></div></li>
+        <li><span class="dot" style="background:#a5b3bd"></span><div><b><a href="#" style="color:inherit;text-decoration:none">Pronóstico actualizado <span aria-hidden="true">→</span></a></b><br><time>hace 1 h · vigente 3 h · Clima</time></div></li>
+      </ul>
+      <div style="border-top:1px solid var(--line);padding:10px 18px;text-align:center">
+        <a href="#" class="link">Evaluar de todos modos →</a>
+      </div>
+      <!-- Vacío: "Sin eventos hoy" + mismo CTA "Evaluar de todos modos →" -->
+    </section>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+    <section class="card" aria-label="Clima">
+      <div class="card-h"><h3>Clima</h3><span class="pill t-ok">Vigente</span></div>
+      <div style="padding:18px">
+        <div style="display:flex;align-items:baseline;gap:10px"><span style="font-size:40px;font-weight:800;letter-spacing:-.03em;line-height:1" class="num">13°C</span><span class="note">Chacra Alta · prioritaria · <a href="#" class="link">ver red</a></span></div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px">
+          <div style="background:var(--bg);border-radius:12px;padding:10px 12px"><small style="display:block;font-size:11px;color:var(--muted)">Lluvia máx.</small><b class="num">85 %</b></div>
+          <div style="background:var(--bg);border-radius:12px;padding:10px 12px"><small style="display:block;font-size:11px;color:var(--muted)">Fuente</small><b>OWM</b></div>
+          <div style="background:var(--bg);border-radius:12px;padding:10px 12px"><small style="display:block;font-size:11px;color:var(--muted)">Vence en</small><b class="num">1 h 48 m</b></div>
+          <div style="background:var(--bg);border-radius:12px;padding:10px 12px"><small style="display:block;font-size:11px;color:var(--muted)">Evaluadas hoy</small><b class="num">2</b></div>
+        </div>
+        <div style="height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:14px"><i style="display:block;height:100%;width:64%;border-radius:99px;background:var(--p-600)"></i></div>
+      </div>
+    </section>
+    <section class="card" aria-label="Sensores">
+      <div class="card-h"><h3>Sensores</h3><span class="pill t-espera">Revisar 1</span></div>
+      <div style="padding:18px">
+        <div style="display:flex;align-items:baseline;gap:10px"><span style="font-size:40px;font-weight:800;letter-spacing:-.03em;line-height:1" class="num">5</span><span class="note">lecturas frescas (&lt; 30 min)</span></div>
+        <div style="display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px;margin-top:16px">
+          <i style="height:10px;border-radius:99px;background:#38b676"></i><i style="height:10px;border-radius:99px;background:#38b676"></i><i style="height:10px;border-radius:99px;background:#e9b23c"></i><i style="height:10px;border-radius:99px;background:#d9544d"></i><i style="height:10px;border-radius:99px;background:#38b676"></i><i style="height:10px;border-radius:99px;background:#e9b23c"></i>
+        </div>
+        <div class="legend" style="display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:10px">
+          <span><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#38b676;margin-right:6px"></i>&lt; 15 min</span>
+          <span><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#e9b23c;margin-right:6px"></i>&lt; 30 min</span>
+          <span><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#d9544d;margin-right:6px"></i>Vencido</span>
+        </div>
+        <p class="note" style="margin:10px 0 0">Caído: El Mirador (3 h) · <a href="#" class="link">ver sensores</a></p>
+      </div>
+    </section>
+  </div>
+
+</div>
+</body>
+</html>

@@ -35,7 +35,22 @@ class MessageService
         }
 
         if ($evaluation->min_liters !== null) {
-            $lines[] = "🪣 Cantidad aprox.: {$evaluation->min_liters}–{$evaluation->max_liters} litros";
+            $plan = $evaluation->inputs_snapshot['plan'] ?? null;
+            if (is_array($plan) && isset($plan['litros'])) {
+                $lines[] = "🪣 Riega {$plan['litros']} litros (rango {$evaluation->min_liters}–{$evaluation->max_liters})"
+                    .(isset($plan['minutos']) && $plan['minutos'] !== null ? " = {$plan['minutos']} min" : '');
+                if (isset($plan['inicio']) && $plan['inicio'] !== null) {
+                    $lines[] = '🕐 Inicia: '.substr((string) $plan['inicio'], 0, 16);
+                }
+                if (isset($plan['fin']) && $plan['fin'] !== null) {
+                    $lines[] = '🏁 Termina: '.substr((string) $plan['fin'], 0, 16);
+                }
+                if (! empty($plan['nota'])) {
+                    $lines[] = '⚠️ '.$plan['nota'];
+                }
+            } else {
+                $lines[] = "🪣 Cantidad aprox.: {$evaluation->min_liters}–{$evaluation->max_liters} litros";
+            }
         }
 
         $lines[] = '🕐 Riega temprano: 05:30–07:00';

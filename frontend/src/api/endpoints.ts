@@ -120,6 +120,10 @@ export function createSensor(input: SensorInput): Promise<Sensor> {
   return api<Sensor>("sensors", { method: "POST", body: input });
 }
 
+export function simulateSensor(sensorId: number): Promise<Measurement> {
+  return api<Measurement>(`sensors/${sensorId}/simular`, { method: "POST" });
+}
+
 /* ---------- Mediciones ---------- */
 export interface MeasurementInput {
   sensor_id: number;
@@ -132,22 +136,16 @@ export function createMeasurement(input: MeasurementInput): Promise<Measurement>
   return api<Measurement>("measurements", { method: "POST", body: input });
 }
 
-/* ---------- Clima ---------- */
-export interface WeatherDemo {
-  rain_mm?: number;
-  rain_prob?: number;
-  temp_max?: number;
-  temp_min?: number;
-}
+/* ---------- Clima (solo OWM en vivo; demo manual eliminado) ---------- */
 
 export function getWeather(plotId: number): Promise<Forecast> {
   return api<Forecast>(`plots/${plotId}/weather`);
 }
 
-export function refreshWeather(plotId: number, demo?: WeatherDemo): Promise<Forecast> {
+export function refreshWeather(plotId: number): Promise<Forecast> {
   return api<Forecast>(`plots/${plotId}/weather/refresh`, {
     method: "POST",
-    body: demo ? { demo } : {},
+    body: {},
   });
 }
 

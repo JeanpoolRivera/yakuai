@@ -1,7 +1,8 @@
 /* Evaluar riego: elige parcela → veredicto idempotente + historial + WhatsApp. */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "../app/auth";
 import { Link, useLocation } from "react-router-dom";
-import { ArrowRight, ChevronDown, Clock, Gauge, LoaderCircle, Map as MapIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Clock, CloudRain, Droplet, LoaderCircle, Search, Sprout } from "lucide-react";
 import { ApiError } from "../api/client";
 import {
   createIrrigation,
@@ -10,22 +11,21 @@ import {
   listEvaluations,
   listIrrigations,
   listPlots,
+  refreshWeather,
 } from "../api/endpoints";
 import type { Evaluation, Plot } from "../api/types";
-import { PageHead } from "../components/shadcn/page-head";
-import { Badge, badgeVariantForTone } from "../components/shadcn/badge";
-import { Banner, Empty, Loading } from "../components/shadcn/feedback";
-import { Button } from "../components/shadcn/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/shadcn/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/shadcn/table";
-import { SoilMeter } from "../components/shadcn/soil-meter";
-import { VerdictCard, type VerdictTone } from "../components/shadcn/verdict-card";
-import { FormField } from "../components/forms/FormField";
-import { toastError, toastInfo, toastOk } from "../lib/toast";
-import { ageLabel, badgeToneForResult, fmtDateTime, fmtNum, reasonLabel, resultLabel, toNum } from "../lib/format";
+import { Action, FieldBlank, FieldError, FieldLoading, FieldPage, Status } from "../components/field/FieldUI";
 
-const SELECT_CLS =
-  "h-12 w-full rounded-sm border border-neutral-400 bg-white px-3 text-sm text-neutral-800 transition-all hover:border-primary-600 focus-visible:border-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600/15 disabled:cursor-not-allowed disabled:opacity-50";
+
+
+
+
+
+
+
+import { toastError, toastInfo, toastOk } from "../lib/toast";
+import { ageLabel, fmtDateTime, fmtNum, reasonLabel, resultLabel, toNum } from "../lib/format";
+
 
 const INCOMPLETE_HELP: Record<string, { text: string; to: string; action: string }> = {
   sin_humedad_valida: {
@@ -41,13 +41,21 @@ const INCOMPLETE_HELP: Record<string, { text: string; to: string; action: string
 };
 
 function verdictTitle(e: Evaluation): string {
-  if (e.result === "riega") return e.is_critical ? "Riega hoy mismo" : "Toca regar";
-  if (e.result === "no") return "La tierra está bien";
-  if (e.result === "espera") return "Mejor espera";
+  if (e.result === "riega") return e.is_critical ? "Riego prioritario" : "Es momento de regar";
+  if (e.result === "no") return "No es necesario regar";
+  if (e.result === "espera") return "Espera antes de regar";
   return "Revisar datos";
 }
 
 export function Evaluate(): React.JSX.Element {
+  const { role } = useAuth();
+  const isStaff = role === "tecnico" || role === "admin";
+  const [view, setView] = useState<"evaluation" | "history">("evaluation");
+  const [query, setQuery] = useState("");
+  const [visible, setVisible] = useState(9);
+  const resultTitle = useRef<HTMLHeadingElement>(null);
+  const historyRequest = useRef(0);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [plots, setPlots] = useState<Plot[]>([]);
   const [plotId, setPlotId] = useState<number | null>(null);
   const [history, setHistory] = useState<Evaluation[]>([]);
@@ -58,6 +66,8 @@ export function Evaluate(): React.JSX.Element {
   const [sharing, setSharing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => { if (current && !busy && view === "evaluation") resultTitle.current?.focus(); }, [current, busy, view]);
 
   const location = useLocation();
   const requestedPlotId = useMemo(() => {
@@ -82,15 +92,17 @@ export function Evaluate(): React.JSX.Element {
   }, [requestedPlotId]);
 
   async function loadHistory(id: number): Promise<void> {
+    const request = ++historyRequest.current;
+    setHistoryError(null);
     setLoadingHist(true);
     try {
       // El backend ignora plot_id para agricultor: filtramos en cliente.
       const h = await listEvaluations(id);
-      setHistory(h.filter((e) => e.plot_id === id).slice(0, 20));
+      if (request === historyRequest.current) setHistory(h.filter((e) => e.plot_id === id).sort((a, b) => Date.parse(b.evaluated_at) - Date.parse(a.evaluated_at)).slice(0, 20));
     } catch {
-      setHistory([]);
+      if (request === historyRequest.current) { setHistory([]); setHistoryError("No se pudo cargar el historial."); }
     } finally {
-      setLoadingHist(false);
+      if (request === historyRequest.current) setLoadingHist(false);
     }
   }
 
@@ -98,15 +110,23 @@ export function Evaluate(): React.JSX.Element {
     if (plotId !== null) {
       setCurrent(null);
       void loadHistory(plotId);
-    }
+    } else { setCurrent(null); setHistory([]); }
+    return () => { historyRequest.current += 1; };
   }, [plotId]);
 
   const plot = useMemo(() => plots.find((p) => p.id === plotId) ?? null, [plots, plotId]);
 
   async function onEvaluate(): Promise<void> {
     if (plotId === null) return;
+    setCurrent(null);
     setBusy(true);
     try {
+      // 1 clic = actualiza clima OWM y evalúa con dato fresco.
+      try {
+        await refreshWeather(plotId);
+      } catch {
+        // Si el refresh falla, se evalúa igual (el backend usa el último válido).
+      }
       const ev = await evaluatePlot(plotId);
       setCurrent(ev);
       await loadHistory(plotId);
@@ -183,238 +203,56 @@ export function Evaluate(): React.JSX.Element {
   const umb = typeof snap.umbral === "number" ? snap.umbral * 100 : null;
   const pmp = typeof snap.pmp === "number" ? snap.pmp * 100 : null;
 
-  const traceability = current ? (
-              <details open className="rounded-lg border border-neutral-200 bg-white text-sm">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-3 font-medium text-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600/15 [&::-webkit-details-marker]:hidden">
-                  Cómo se calculó · Datos usados
-                  <ChevronDown className="h-3.5 w-3.5 text-neutral-500" aria-hidden="true" />
-                </summary>
-                <div className="grid gap-2 border-t border-neutral-200 p-3">
-                  <dl className="trace-ledger grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-                    <dt className="text-neutral-500">ET₀ / ETc</dt>
-                    <dd className="font-medium tabular-nums text-neutral-800">
-                      {toNum(snap.et0_mm_dia)?.toFixed(2) ?? "—"} / {toNum(snap.etc_mm_dia)?.toFixed(2) ?? "—"} mm/día
-                    </dd>
-                    <dt className="text-neutral-500">Umbral / Lámina neta</dt>
-                    <dd className="font-medium tabular-nums text-neutral-800">
-                      {typeof snap.umbral === "number" ? `${(snap.umbral * 100).toFixed(2)}%` : "—"} /{" "}
-                      {typeof snap.lamina_neta_mm === "number" ? `${snap.lamina_neta_mm.toFixed(1)} mm` : "—"}
-                    </dd>
-                    <dt className="text-neutral-500">Volumen bruto</dt>
-                    <dd className="font-medium tabular-nums text-neutral-800">
-                      {typeof snap.volumen_bruto_L === "number" ? `${fmtNum(snap.volumen_bruto_L)} L` : "—"}
-                    </dd>
-                    <dt className="text-neutral-500">Lluvia prevista 6 h</dt>
-                    <dd className="font-medium tabular-nums text-neutral-800">
-                      {typeof snap.rain_mm === "number" ? `${snap.rain_mm} mm` : "—"} (
-                      {typeof snap.rain_prob === "number" ? `${Math.round(snap.rain_prob * 100)}%` : "—"})
-                    </dd>
-                    <dt className="text-neutral-500">Suelo / Kc / Zr</dt>
-                    <dd className="font-medium text-neutral-800">
-                      {String(snap.soil_code ?? "—")} · Kc {String(snap.kc ?? "—")} · Zr {String(snap.zr_m ?? "—")} m
-                    </dd>
-                    <dt className="text-neutral-500">Etapa</dt>
-                    <dd className="font-medium text-neutral-800">{current.stage ? `Etapa ${current.stage}` : "—"}</dd>
-                    <dt className="text-neutral-500">Revisar</dt>
-                    <dd className="font-medium text-neutral-800">{current.next_at ? fmtDateTime(current.next_at) : "Sin próxima revisión"}</dd>
-                  </dl>
-                </div>
-              </details>
-  ) : null;
+  const matching = plots.filter((p) => `${p.name} ${p.crop?.name ?? ""}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()));
+  const tone = current?.is_critical ? "bad" : current?.result === "riega" ? "warn" : current?.result === "no" ? "good" : current?.result === "espera" ? "blue" : "neutral";
 
-  return (
-    <div>
-      <PageHead
-        eyebrow="Planificación del riego"
-        title="Evaluar riego"
-        desc="Del estado del suelo a una recomendación clara. Selecciona una parcela para comenzar."
-        crumbs="YakuAI / Evaluar"
-      />
+  function choose(id: number | null): void {
+    if (id === plotId) return;
+    historyRequest.current += 1;
+    setCurrent(null); setHistory([]); setPlotId(id); setView("evaluation");
+  }
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
-        <Card aria-label="Seleccionar parcela" className="xl:col-span-2">
-          <CardHeader>
-            <CardTitle>Selecciona una parcela</CardTitle>
-            <CardDescription>La recomendación utiliza sus datos de suelo, cultivo y clima.</CardDescription>
-          </CardHeader>
-          <CardContent className="evaluation-selector grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_auto] xl:items-end">
-            {loadingPlots ? (
-              <Loading text="Cargando parcelas…" />
-            ) : error ? (
-              <Banner kind="bad">{error}</Banner>
-            ) : plots.length === 0 ? (
-              <Empty
-                icon={<MapIcon className="h-5 w-5" aria-hidden="true" />}
-                title="Sin parcelas"
-                hint="Tu técnico debe registrar tu parcela primero."
-              />
-            ) : (
-              <>
-                <FormField label="Parcela" required htmlFor="ev-plot">
-                  <select
-                    id="ev-plot"
-                    className={SELECT_CLS}
-                    value={plotId ?? ""}
-                    onChange={(e) => setPlotId(e.target.value ? Number(e.target.value) : null)}
-                  >
-                    <option value="">Selecciona…</option>
-                    {plots.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} · {p.farmer?.name ?? ""} · {p.crop?.name ?? ""}
-                      </option>
-                    ))}
-                  </select>
-                </FormField>
-                {plot ? (
-                  <dl className="grid grid-cols-2 gap-2 rounded-md bg-neutral-100 p-3 text-sm">
-                    <div><dt className="text-xs text-neutral-500">Cultivo</dt><dd className="font-medium text-neutral-800">{plot.crop?.name ?? "—"}</dd></div>
-                    <div><dt className="text-xs text-neutral-500">Superficie</dt><dd className="font-medium tabular-nums text-neutral-800">{fmtNum(plot.area_m2)} m²</dd></div>
-                    <div><dt className="text-xs text-neutral-500">Siembra</dt><dd className="font-medium text-neutral-800">{plot.sowing_date}</dd></div>
-                    <div><dt className="text-xs text-neutral-500">Sistema de riego</dt><dd className="font-medium text-neutral-800">{plot.irrigation_system}</dd></div>
-                  </dl>
-                ) : null}
-                <p className="flex items-start gap-2 text-sm text-neutral-600 xl:sr-only">
-                  <Gauge className="mt-0.5 h-[18px] w-[18px] shrink-0 text-primary-700" aria-hidden="true" />
-                  Evalúa las condiciones actuales para saber si es momento de regar.
-                </p>
-                <Button size="lg" className="w-full" disabled={plotId === null || busy} onClick={() => void onEvaluate()}>
-                  {busy ? (
-                    <>
-                      <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" />
-                      Evaluar riego
-                    </>
-                  ) : (
-                    <>Evaluar riego</>
-                  )}
-                </Button>
-                <p className="text-xs text-neutral-500 xl:col-span-3">Si ya evaluaste esta parcela en esta misma hora, se mostrará el mismo resultado.</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <section aria-live="polite" aria-label="Resultado" className="min-w-0">
-          {!current ? (
-            <Empty
-              icon={<Gauge className="h-5 w-5" aria-hidden="true" />}
-              title="Tu recomendación aparecerá aquí"
-              hint="Selecciona una parcela y pulsa Evaluar riego para consultar el resultado y los datos que lo respaldan."
-            />
-          ) : (
-            <VerdictCard
-              tone={current.result as VerdictTone}
-              kicker={`${plot?.name ?? `Parcela #${current.plot_id}`} · ${fmtDateTime(current.evaluated_at)} · ${ageLabel(current.evaluated_at)}`}
-              title={verdictTitle(current)}
-              amount={
-                current.result === "riega" && current.min_liters && current.max_liters
-                  ? `${fmtNum(current.min_liters)}–${fmtNum(current.max_liters)} L`
-                  : undefined
-              }
-              chips={[
-                "Horario 05:30–07:00",
-                `Confianza ${current.confidence ?? "—"}`,
-                hum !== null ? `Humedad ${hum.toFixed(1)}%` : "Humedad —",
-              ]}
-              action={
-                <>
-                  <Button variant="outline" size="sm" disabled={sharing} onClick={() => void onShare()}>
-                    {sharing ? (
-                      <>
-                        <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-                        Compartir por WhatsApp
-                      </>
-                    ) : (
-                      <>Compartir por WhatsApp</>
-                    )}
-                  </Button>
-                  {current.result === "riega" ? (
-                    <Button size="sm" disabled={confirming} onClick={() => void onConfirmIrrigation()}>
-                      {confirming ? (
-                        <>
-                          <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-                          Ya regué
-                        </>
-                      ) : (
-                        <>Ya regué</>
-                      )}
-                    </Button>
-                  ) : null}
-                  {current.is_critical ? <Badge variant="destructive">Prioridad</Badge> : null}
-                  <Badge variant={badgeVariantForTone(badgeToneForResult(current.result, current.is_critical))}>
-                    {resultLabel(current.result)}
-                  </Badge>
-                </>
-              }
-            >
-              <p className="text-sm text-neutral-700">{reasonLabel(current.reason)}</p>
-              {current.result === "incompleta" && INCOMPLETE_HELP[current.reason] ? (
-                <p className="text-sm text-neutral-700">
-                  {INCOMPLETE_HELP[current.reason].text}{" "}
-                  <Link
-                    className="inline-flex items-center gap-1 text-sm font-medium text-primary-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600/15"
-                    to={INCOMPLETE_HELP[current.reason].to}
-                  >
-                    {INCOMPLETE_HELP[current.reason].action} <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                  </Link>
-                </p>
-              ) : null}
-              <SoilMeter actual={hum} umbral={umb} critico={pmp} />
-
-            </VerdictCard>
-          )}
-        </section>
-        {current ? <section aria-label="Datos de la evaluación" className="evaluation-trace min-w-0">{traceability}</section> : null}
-      </div>
-
-      <Card className="mt-4" aria-label="Evaluaciones anteriores">
-        <CardHeader>
-          <CardTitle>Historial de evaluaciones</CardTitle>
-          <CardDescription>Consulta los resultados anteriores de la parcela seleccionada (últimas 20).</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {plotId === null ? (
-            <p className="text-sm text-neutral-500">Elige una parcela para ver su historial.</p>
-          ) : loadingHist ? (
-            <Loading text="Cargando historial…" />
-          ) : history.length === 0 ? (
-            <Empty
-              icon={<Clock className="h-5 w-5" aria-hidden="true" />}
-              title="Sin historial"
-              hint="Esta parcela aún no tiene evaluaciones."
-            />
-          ) : (
-            <div className="relative w-full overflow-x-auto rounded-md border border-neutral-200" role="region" aria-label="Historial de evaluaciones" tabIndex={0}>
-              <Table>
-                <caption className="sr-only">Historial de evaluaciones de la parcela</caption>
-                <TableHeader>
-                  <TableRow className="bg-neutral-50 hover:bg-neutral-50">
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Resultado</TableHead>
-                    <TableHead className="text-right tabular-nums">Cantidad</TableHead>
-                    <TableHead>Motivo</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {history.map((h) => (
-                    <TableRow key={h.id}>
-                      <TableCell>{fmtDateTime(h.evaluated_at)}</TableCell>
-                      <TableCell>
-                        <Badge variant={badgeVariantForTone(badgeToneForResult(h.result, h.is_critical))}>
-                          {h.is_critical ? "Crítica" : resultLabel(h.result)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {h.min_liters && h.max_liters ? `${fmtNum(h.min_liters)}–${fmtNum(h.max_liters)} L` : "—"}
-                      </TableCell>
-                      <TableCell className="text-neutral-500">{reasonLabel(h.reason)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
+  return <FieldPage title="Evaluar riego" intro="Una decisión de riego, con los datos de tu parcela." actions={
+    <Action tone="line" disabled={plotId === null || busy} onClick={() => setView(view === "history" ? "evaluation" : "history")}><Clock size={16} />{view === "history" ? "Volver a evaluación" : "Historial de la parcela"}</Action>
+  }>
+    {loadingPlots ? <FieldLoading>Cargando parcelas…</FieldLoading> : error ? <FieldError>{error}</FieldError> : <div className="irrigation-workspace">
+      <aside className="irrigation-context" aria-label="Seleccionar parcela">
+        <header className="field-panel-heading"><span className="field-step">01</span><div><h2>Selecciona la parcela</h2><p>El punto de partida de tu evaluación.</p></div></header>
+        <div className="irrigation-search"><label className="field-search"><Search size={16} aria-hidden="true" /><input type="search" aria-label="Buscar parcela" placeholder="Buscar parcela o cultivo" value={query} disabled={busy || confirming} onChange={(e) => { setQuery(e.target.value); setVisible(9); }} /></label></div>
+        {!plots.length ? <FieldBlank title="Sin parcelas" icon={<Sprout size={24} />}>Primero debe registrarse una parcela.</FieldBlank> : !matching.length ? <FieldBlank title="No encontramos esa parcela" action={<Action tone="line" onClick={() => setQuery("")}>Limpiar búsqueda</Action>}>Prueba con otro nombre o cultivo.</FieldBlank> : <div className="irrigation-plot-list">{matching.slice(0,visible).map((p) => <button type="button" key={p.id} className="irrigation-plot" aria-pressed={plotId === p.id} aria-label={`Seleccionar ${p.name}`} disabled={busy || confirming} onClick={() => choose(p.id)}>
+          <span className="irrigation-plot-icon"><Sprout size={19} aria-hidden="true" /></span><span><strong>{p.name}</strong><small>{p.crop?.name ?? "Sin cultivo"} · {fmtNum(p.area_m2)} m²</small>{isStaff && p.farmer?.name && <small>{p.farmer.name}</small>}</span><span className="choice-mark" aria-hidden="true">{plotId === p.id && <Check size={12} />}</span>
+        </button>)}</div>}
+        {visible < matching.length && <Action tone="quiet" onClick={() => setVisible((n) => n + 9)}>Mostrar más parcelas</Action>}
+        <footer className="irrigation-context-footer">{plot ? <dl><div><dt>Sistema de riego</dt><dd>{({goteo:"Goteo",aspersion:"Aspersión",gravedad:"Gravedad"})[plot.irrigation_system]}</dd></div><div><dt>Fecha de siembra</dt><dd>{plot.sowing_date}</dd></div></dl> : <p>Selecciona una parcela para continuar.</p>}<Action disabled={!plot || busy || confirming} onClick={() => { setView("evaluation"); void onEvaluate(); }}>{busy ? <LoaderCircle size={16} className="animate-spin" /> : <Droplet size={16} />}Evaluar riego<ArrowRight size={16} /></Action></footer>
+      </aside>
+      <div className="irrigation-main">
+      {view === "history" ? <section className="field-panel" aria-label="Evaluaciones anteriores">
+        <header className="field-panel-heading"><div><h2>Evaluaciones anteriores</h2><p>{plot?.name} · Últimos 20 resultados</p></div></header>
+        {loadingHist ? <FieldLoading>Cargando historial…</FieldLoading> : historyError ? <FieldError retry={() => { if (plotId !== null) void loadHistory(plotId); }}>{historyError}</FieldError> : !history.length ? <FieldBlank title="Sin historial" icon={<Clock size={24} />}>Esta parcela aún no tiene evaluaciones.</FieldBlank> : <ol className="eval-history">{history.map((h) => <li key={h.id}><time dateTime={h.evaluated_at}>{fmtDateTime(h.evaluated_at)}</time><div><Status tone={h.is_critical ? "bad" : h.result === "riega" ? "warn" : h.result === "no" ? "good" : "neutral"}>{h.is_critical ? "Riego prioritario" : resultLabel(h.result)}</Status><p>{reasonLabel(h.reason)}</p></div><span>{h.min_liters && h.max_liters ? `${fmtNum(h.min_liters)}–${fmtNum(h.max_liters)} L` : "—"}</span></li>)}</ol>}
+      </section> : busy ? <div className="field-panel"><FieldLoading>Analizando suelo, cultivo y clima…</FieldLoading></div> : !current ? <section className="evaluation-ready" aria-label="Preparar evaluación">
+        <header className="field-panel-heading"><span className="field-step">02</span><div><h2>Recomendación de riego</h2><p>La información necesaria para decidir.</p></div></header>
+        <div className="evaluation-ready-body"><span className="evaluation-emblem"><Droplet size={32} strokeWidth={1.4} /></span><p className="field-eyebrow">{plot ? plot.name : "TU PRÓXIMA DECISIÓN"}</p><h2>{plot ? "Todo empieza con los datos." : "¿Necesita agua tu parcela?"}</h2><p>Al evaluar, conocerás si conviene regar, esperar o mantener la humedad actual, y cuánta agua aplicar cuando corresponda.</p></div>
+        <div className="evaluation-inputs"><div><Droplet size={19} /><strong>Suelo</strong><span>Humedad reciente</span></div><div><Sprout size={19} /><strong>Cultivo</strong><span>Etapa y necesidades</span></div><div><CloudRain size={19} /><strong>Clima</strong><span>Previsión de lluvia</span></div></div>
+        <p className="evaluation-ready-note">Si falta información, te indicaremos qué dato necesita revisión.</p>
+      </section> : <section aria-live="polite" aria-label="Resultado">      <article className="eval-report">
+        <header className="eval-report-top"><div><p className="field-eyebrow">Informe de riego</p><h2 ref={resultTitle} tabIndex={-1}>{plot?.name ?? `Parcela #${current.plot_id}`}</h2><p>Evaluada {ageLabel(current.evaluated_at)}</p></div><Status tone={tone}>{current.is_critical ? "Prioridad alta" : resultLabel(current.result)}</Status></header>
+        <div className="eval-verdict"><div className="eval-decision" data-result={current.result}>
+          <h3>{verdictTitle(current)}</h3><p>{reasonLabel(current.reason)}</p>
+          {current.result === "riega" && current.min_liters && current.max_liters && <><div className="eval-volume">{fmtNum(current.min_liters)}–{fmtNum(current.max_liters)} <small>L</small></div><p>Volumen recomendado para esta parcela</p></>}
+          {current.result === "incompleta" && INCOMPLETE_HELP[current.reason] && <><p>{INCOMPLETE_HELP[current.reason].text}</p>{isStaff ? <Link className="field-button line mt-4" to={INCOMPLETE_HELP[current.reason].to} state={{plotId:current.plot_id}}>{INCOMPLETE_HELP[current.reason].action}<ArrowRight size={15} /></Link> : <p>Contacta a tu técnico para actualizar los datos de esta parcela.</p>}</>}
+        </div><dl className="eval-evidence">
+          <div className="evidence-line"><Droplet size={21} /><div><dt>Humedad del suelo</dt><dd>{hum === null ? "Sin lectura válida" : `${hum.toFixed(1)}%`}</dd>{umb !== null && <span className="field-footnote">Umbral de riego: {umb.toFixed(1)}%</span>}</div></div>
+          <div className="evidence-line"><CloudRain size={21} /><div><dt>Lluvia prevista · 6 horas</dt><dd>{typeof snap.rain_mm === "number" ? `${snap.rain_mm} mm` : "Sin datos"}</dd>{typeof snap.rain_prob === "number" && <span className="field-footnote">{Math.round(snap.rain_prob * 100)}% de probabilidad</span>}</div></div>
+          <div className="evidence-line"><Clock size={21} /><div><dt>Próxima revisión</dt><dd>{current.next_at ? fmtDateTime(current.next_at) : "No programada"}</dd></div></div>
+        </dl></div>
+        <footer className="eval-report-actions"><Action tone="quiet" disabled={confirming} onClick={() => choose(null)}><ArrowLeft size={15} />Cambiar parcela</Action><div className="field-actions"><Action tone="line" disabled={sharing} onClick={() => void onShare()}>{sharing ? "Preparando…" : "Compartir por WhatsApp"}</Action>{current.result === "riega" && <Action disabled={confirming} onClick={() => void onConfirmIrrigation()}>{confirming && <LoaderCircle size={16} className="animate-spin" />}{confirming ? "Registrando…" : "Ya regué"}</Action>}</div></footer>
+      </article>
+      <details className="field-disclosure"><summary>Consultar el cálculo y los datos utilizados</summary><dl className="field-facts">
+        <div><dt>Evaluada</dt><dd>{fmtDateTime(current.evaluated_at)}</dd></div><div><dt>Confianza</dt><dd>{current.confidence ?? "No disponible"}</dd></div><div><dt>ET₀ / ETc</dt><dd>{toNum(snap.et0_mm_dia)?.toFixed(2) ?? "—"} / {toNum(snap.etc_mm_dia)?.toFixed(2) ?? "—"} mm/día</dd></div>
+        <div><dt>Punto de marchitez</dt><dd>{pmp !== null ? `${pmp.toFixed(1)}%` : "—"}</dd></div><div><dt>Lámina neta</dt><dd>{typeof snap.lamina_neta_mm === "number" ? `${snap.lamina_neta_mm.toFixed(1)} mm` : "—"}</dd></div><div><dt>Volumen bruto</dt><dd>{typeof snap.volumen_bruto_L === "number" ? `${fmtNum(snap.volumen_bruto_L)} L` : "—"}</dd></div>
+        <div><dt>Suelo / etapa</dt><dd>{String(snap.soil_code ?? "—")} / {current.stage ?? "—"}</dd></div><div><dt>Kc / profundidad de raíz</dt><dd>{String(snap.kc ?? "—")} / {String(snap.zr_m ?? "—")} m</dd></div>
+      </dl></details>
+      <p className="field-footnote">Las evaluaciones de una misma hora conservan el mismo resultado.</p>
+    </section>}</div></div>}
+  </FieldPage>;
 }

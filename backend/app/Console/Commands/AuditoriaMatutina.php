@@ -9,6 +9,7 @@ use App\Models\Measurement;
 use App\Models\Plot;
 use App\Models\User;
 use App\Services\HydroService;
+use App\Services\OwmService;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -21,6 +22,7 @@ class AuditoriaMatutina extends Command
 {
     public function __construct(
         private readonly HydroService $hydro,
+        private readonly OwmService $owm,
     ) {
         parent::__construct();
     }
@@ -79,6 +81,10 @@ class AuditoriaMatutina extends Command
             $forecast = Forecast::where('plot_id', $plot->id)
                 ->latest('fetched_at')
                 ->first();
+
+            if ($forecast === null || $forecast->fetched_at->diffInMinutes($now) > 120) {
+                $forecast = $this->owm->refresh($plot);
+            }
 
             $calc = $this->hydro->evaluate($plot, $measurement, $forecast, $now);
 

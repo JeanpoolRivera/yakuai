@@ -13,14 +13,16 @@ const api = vi.hoisted(()=>({
  getEvaluationMessage:vi.fn(),
 }));
 vi.mock("../api/endpoints",()=>api);
+const auth = vi.hoisted(() => ({role:"tecnico"}));
+vi.mock("../app/auth",()=>({useAuth:()=>auth}));
 afterEach(()=>{cleanup();vi.clearAllMocks();});
 async function evaluateRiega():Promise<void> {
  api.listPlots.mockResolvedValue(plots);
  api.listEvaluations.mockResolvedValue([]);
  api.evaluatePlot.mockResolvedValue(evaluations[0]);
  render(<MemoryRouter><Evaluate/></MemoryRouter>);
- await screen.findByRole("option",{name:/El Molino/});
- fireEvent.change(screen.getByLabelText(/Parcela/),{target:{value:"1"}});
+ await screen.findByRole("button",{name:"Seleccionar El Molino"});
+ fireEvent.click(screen.getByRole("button",{name:"Seleccionar El Molino"}));
  fireEvent.click(screen.getByRole("button",{name:"Evaluar riego"}));
  await screen.findByRole("button",{name:"Ya regué"});
 }
@@ -44,7 +46,7 @@ describe("Confirmar riego",()=>{
   api.listPlots.mockResolvedValue(plots);
   api.listEvaluations.mockResolvedValue([]);
   render(<MemoryRouter initialEntries={[{pathname:"/",state:{plotId:2}}]}><Evaluate/></MemoryRouter>);
-  expect(await screen.findByText(/2,250/)).toBeInTheDocument();
+  expect(await screen.findByRole("button",{name:"Seleccionar La Esperanza"})).toHaveAttribute("aria-pressed","true");
  });
  const incompleteBase = {
   id:10,plot_id:1,evaluated_at:new Date().toISOString(),stage:null,
@@ -53,8 +55,8 @@ describe("Confirmar riego",()=>{
  };
  async function renderAndSelect():Promise<void> {
   render(<MemoryRouter><Evaluate/></MemoryRouter>);
-  await screen.findByRole("option",{name:/El Molino/});
-  fireEvent.change(screen.getByLabelText(/Parcela/),{target:{value:"1"}});
+  await screen.findByRole("button",{name:"Seleccionar El Molino"});
+  fireEvent.click(screen.getByRole("button",{name:"Seleccionar El Molino"}));
  }
  it("orienta a sensores cuando falta humedad válida",async()=>{
   api.listPlots.mockResolvedValue(plots);
@@ -74,5 +76,45 @@ describe("Confirmar riego",()=>{
   fireEvent.click(screen.getByRole("button",{name:"Evaluar riego"}));
   const link = await screen.findByRole("link",{name:/Ir a clima/});
   expect(link).toHaveAttribute("href","/clima");
+ });
+});
+
+describe("Cambio de parcela",()=>{
+ it("descarta el resultado al quitar la selección",async()=>{
+  await evaluateRiega();
+  fireEvent.click(screen.getByRole("button",{name:"Cambiar parcela"}));
+  expect(screen.queryByRole("button",{name:"Ya regué"})).not.toBeInTheDocument();
+  expect(screen.getByRole("button",{name:"Evaluar riego"})).toBeDisabled();
+  expect(screen.queryByRole("heading",{name:"Evaluaciones anteriores"})).not.toBeInTheDocument();
+ });
+});
+
+
+describe("Selección e historial",()=>{
+ it("conserva el historial al volver a pulsar la parcela seleccionada",async()=>{
+  api.listPlots.mockResolvedValue(plots);
+  api.listEvaluations.mockResolvedValue([evaluations[0]]);
+  render(<MemoryRouter><Evaluate/></MemoryRouter>);
+  const plot=await screen.findByRole("button",{name:"Seleccionar El Molino"});
+  fireEvent.click(plot);
+  await waitFor(()=>expect(api.listEvaluations).toHaveBeenCalledWith(1));
+  fireEvent.click(plot);
+  fireEvent.click(screen.getByRole("button",{name:"Historial de la parcela"}));
+  expect(await screen.findByText("1,400–1,800 L")).toBeInTheDocument();
+ });
+});
+
+describe("Permisos en orientación de evaluación",()=>{
+ it("orienta al agricultor sin ofrecer rutas exclusivas del técnico",async()=>{
+  auth.role="agricultor";
+  api.listPlots.mockResolvedValue(plots);
+  api.listEvaluations.mockResolvedValue([]);
+  api.evaluatePlot.mockRejectedValue(new ApiError("Faltan datos",422,{}, {...evaluations[0],result:"incompleta",reason:"sin_humedad_valida"}));
+  render(<MemoryRouter><Evaluate/></MemoryRouter>);
+  fireEvent.click(await screen.findByRole("button",{name:"Seleccionar El Molino"}));
+  fireEvent.click(screen.getByRole("button",{name:"Evaluar riego"}));
+  expect(await screen.findByText(/Contacta a tu técnico/)).toBeInTheDocument();
+  expect(screen.queryByRole("link",{name:/Ir a sensores/})).not.toBeInTheDocument();
+  auth.role="tecnico";
  });
 });

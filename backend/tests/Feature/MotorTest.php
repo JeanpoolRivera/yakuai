@@ -179,14 +179,15 @@ class MotorTest extends TestCase
             ->assertJsonPath('data.reason', 'sin_humedad_valida');
     }
 
-    public function test_clima_vencido_incompleta(): void
+    public function test_clima_vencido_se_auto_refresca(): void
     {
         $this->medir(20);
         $this->clima(null, 200);
 
+        // Auto-refresh OWM (>2h): con clima vencido se trae uno fresco y evalúa.
         $this->evaluar()
-            ->assertStatus(422)
-            ->assertJsonPath('data.reason', 'sin_clima_valido');
+            ->assertCreated()
+            ->assertJsonPath('data.result', 'riega');
     }
 
     public function test_sin_medicion_incompleta(): void

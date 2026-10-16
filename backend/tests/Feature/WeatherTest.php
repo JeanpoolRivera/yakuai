@@ -36,16 +36,23 @@ class WeatherTest extends TestCase
         ]);
     }
 
-    public function test_demo_guarda_mismo_esquema(): void
+    public function test_refresh_trae_owm_en_vivo(): void
     {
+        Http::fake(['api.openweathermap.org/*' => Http::response([
+            'list' => [
+                ['rain' => ['3h' => 4.0], 'pop' => 0.8, 'main' => ['temp_max' => 25, 'temp_min' => 12, 'temp' => 20]],
+                ['rain' => ['3h' => 6.0], 'pop' => 0.9, 'main' => ['temp_max' => 24, 'temp_min' => 11, 'temp' => 19]],
+            ],
+        ], 200)]);
+        config(['services.owm.key' => 'clave-test']);
+
         Sanctum::actingAs(User::factory()->create(['role' => 'tecnico']));
         $plot = $this->plot();
 
-        $response = $this->postJson("/api/v1/plots/{$plot->id}/weather/refresh", [
-            'demo' => ['rain_mm' => 10, 'rain_prob' => 0.8, 'temp_max' => 25, 'temp_min' => 12],
-        ])->assertCreated();
+        $response = $this->postJson("/api/v1/plots/{$plot->id}/weather/refresh")
+            ->assertCreated();
 
-        $this->assertSame('demo', $response->json('data.origin'));
+        $this->assertSame('owm', $response->json('data.origin'));
         $this->assertSame(10.0, (float) $response->json('data.rain_mm'));
         $this->assertNotNull($response->json('data.fetched_at'));
         $this->assertNotNull($response->json('data.period_to'));
@@ -64,13 +71,35 @@ class WeatherTest extends TestCase
             ->assertJsonPath('data.origin', 'owm_fallo_401');
     }
 
-    public function test_agricultor_no_puede_actualizar_clima(): void
+    public function test_agricultor_tambien_actualiza_clima_en_vivo(): void
     {
-        Sanctum::actingAs(User::factory()->create(['role' => 'agricultor']));
-        $plot = $this->plot();
+        Http::fake(['api.openweathermap.org/*' => Http::response([
+            'list' => [
+                ['rain' => ['3h' => 1.0], 'pop' => 0.5, 'main' => ['temp_max' => 25, 'temp_min' => 12, 'temp' => 20]],
+            ],
+        ], 200)]);
+        config(['services.owm.key' => 'clave-test']);
 
-        $this->postJson("/api/v1/plots/{$plot->id}/weather/refresh", ['demo' => []])
-            ->assertForbidden();
+        $this->seed(CatalogSeeder::class);
+        $farmer = Farmer::create(['name' => 'Test']);
+        $cropId = Crop::where('code', 'papa')->firstOrFail()->id;
+        $plot = Plot::create([
+            'farmer_id' => $farmer->id,
+            'name' => 'P1',
+            'latitude' => -12.0667,
+            'longitude' => -75.2833,
+            'area_m2' => 100,
+            'crop_id' => $cropId,
+            'sowing_date' => now()->subDays(10)->toDateString(),
+            'soil_texture_code' => 'franco',
+            'irrigation_system' => 'goteo',
+            'irrigation_efficiency' => 0.90,
+        ]);
+        Sanctum::actingAs(User::factory()->create(['role' => 'agricultor', 'farmer_id' => $farmer->id]));
+
+        $this->postJson("/api/v1/plots/{$plot->id}/weather/refresh")
+            ->assertCreated()
+            ->assertJsonPath('data.origin', 'owm');
     }
 
     public function test_latest_404_sin_pronostico(): void

@@ -33,21 +33,12 @@ class WeatherController extends Controller
 
     public function refresh(Request $request, Plot $plot, OwmService $owm): JsonResponse
     {
-        if (! in_array($request->user()->role, ['admin', 'tecnico'], true)) {
-            return response()->json([
-                'error' => ['message' => 'Sin permiso para esta acción.'],
-            ], 403);
+        $forbidden = $this->forbiddenIfCantAccessPlot($request, $plot);
+        if ($forbidden !== null) {
+            return $forbidden;
         }
 
-        $demo = $request->validate([
-            'demo' => ['sometimes', 'array'],
-            'demo.rain_mm' => ['sometimes', 'numeric', 'min:0'],
-            'demo.rain_prob' => ['sometimes', 'numeric', 'min:0', 'max:1'],
-            'demo.temp_max' => ['sometimes', 'numeric'],
-            'demo.temp_min' => ['sometimes', 'numeric'],
-        ])['demo'] ?? null;
-
-        $forecast = $owm->refresh($plot, $demo);
+        $forecast = $owm->refresh($plot);
 
         return response()->json(['data' => $forecast], 201);
     }
