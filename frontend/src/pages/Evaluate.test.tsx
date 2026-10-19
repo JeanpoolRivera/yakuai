@@ -15,7 +15,7 @@ const api = vi.hoisted(()=>({
 vi.mock("../api/endpoints",()=>api);
 const auth = vi.hoisted(() => ({role:"tecnico"}));
 vi.mock("../app/auth",()=>({useAuth:()=>auth}));
-afterEach(()=>{cleanup();vi.clearAllMocks();});
+afterEach(()=>{cleanup();vi.clearAllMocks();localStorage.clear();document.documentElement.classList.remove("field-mode");});
 async function evaluateRiega():Promise<void> {
  api.listPlots.mockResolvedValue(plots);
  api.listEvaluations.mockResolvedValue([]);
@@ -23,7 +23,7 @@ async function evaluateRiega():Promise<void> {
  render(<MemoryRouter><Evaluate/></MemoryRouter>);
  await screen.findByRole("button",{name:"Seleccionar El Molino"});
  fireEvent.click(screen.getByRole("button",{name:"Seleccionar El Molino"}));
- fireEvent.click(screen.getByRole("button",{name:"Evaluar riego"}));
+ fireEvent.click(screen.getByRole("button",{name:"Evaluar esta parcela"}));
  await screen.findByRole("button",{name:"Ya regué"});
 }
 describe("Confirmar riego",()=>{
@@ -63,7 +63,7 @@ describe("Confirmar riego",()=>{
   api.listEvaluations.mockResolvedValue([]);
   api.evaluatePlot.mockRejectedValue(new ApiError("Faltan datos.",422,{},{...incompleteBase,result:"incompleta",reason:"sin_humedad_valida"}));
   await renderAndSelect();
-  fireEvent.click(screen.getByRole("button",{name:"Evaluar riego"}));
+  fireEvent.click(screen.getByRole("button",{name:"Evaluar esta parcela"}));
   const link = await screen.findByRole("link",{name:/Ir a sensores/});
   expect(link).toHaveAttribute("href","/sensores");
   expect(screen.getByText(/ahora mismo/)).toBeInTheDocument();
@@ -73,34 +73,34 @@ describe("Confirmar riego",()=>{
   api.listEvaluations.mockResolvedValue([]);
   api.evaluatePlot.mockRejectedValue(new ApiError("Faltan datos.",422,{},{...incompleteBase,result:"incompleta",reason:"sin_clima_valido"}));
   await renderAndSelect();
-  fireEvent.click(screen.getByRole("button",{name:"Evaluar riego"}));
+  fireEvent.click(screen.getByRole("button",{name:"Evaluar esta parcela"}));
   const link = await screen.findByRole("link",{name:/Ir a clima/});
   expect(link).toHaveAttribute("href","/clima");
  });
 });
 
 describe("Cambio de parcela",()=>{
- it("descarta el resultado al quitar la selección",async()=>{
+ it("descarta el resultado al elegir otra parcela",async()=>{
   await evaluateRiega();
-  fireEvent.click(screen.getByRole("button",{name:"Cambiar parcela"}));
+  fireEvent.click(screen.getByRole("button",{name:"Seleccionar La Esperanza"}));
   expect(screen.queryByRole("button",{name:"Ya regué"})).not.toBeInTheDocument();
-  expect(screen.getByRole("button",{name:"Evaluar riego"})).toBeDisabled();
+  expect(screen.getByRole("button",{name:"Evaluar esta parcela"})).not.toBeDisabled();
   expect(screen.queryByRole("heading",{name:"Evaluaciones anteriores"})).not.toBeInTheDocument();
  });
 });
 
 
 describe("Selección e historial",()=>{
- it("conserva el historial al volver a pulsar la parcela seleccionada",async()=>{
+ it("muestra el historial de la parcela en un panel plegable",async()=>{
   api.listPlots.mockResolvedValue(plots);
   api.listEvaluations.mockResolvedValue([evaluations[0]]);
   render(<MemoryRouter><Evaluate/></MemoryRouter>);
   const plot=await screen.findByRole("button",{name:"Seleccionar El Molino"});
   fireEvent.click(plot);
   await waitFor(()=>expect(api.listEvaluations).toHaveBeenCalledWith(1));
-  fireEvent.click(plot);
-  fireEvent.click(screen.getByRole("button",{name:"Historial de la parcela"}));
-  expect(await screen.findByText("1,400–1,800 L")).toBeInTheDocument();
+  expect(screen.queryByText("1,400–1,800 litros")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button",{name:"Ver historial"}));
+  expect(await screen.findByText("1,400–1,800 litros")).toBeInTheDocument();
  });
 });
 
@@ -112,9 +112,49 @@ describe("Permisos en orientación de evaluación",()=>{
   api.evaluatePlot.mockRejectedValue(new ApiError("Faltan datos",422,{}, {...evaluations[0],result:"incompleta",reason:"sin_humedad_valida"}));
   render(<MemoryRouter><Evaluate/></MemoryRouter>);
   fireEvent.click(await screen.findByRole("button",{name:"Seleccionar El Molino"}));
-  fireEvent.click(screen.getByRole("button",{name:"Evaluar riego"}));
+  fireEvent.click(screen.getByRole("button",{name:"Evaluar esta parcela"}));
   expect(await screen.findByText(/Contacta a tu técnico/)).toBeInTheDocument();
   expect(screen.queryByRole("link",{name:/Ir a sensores/})).not.toBeInTheDocument();
   auth.role="tecnico";
+ });
+});
+
+describe("Cálculo del técnico",()=>{
+ it("muestra los recuadros del cálculo solo al técnico",async()=>{
+  api.listPlots.mockResolvedValue(plots);
+  api.listEvaluations.mockResolvedValue([]);
+  api.evaluatePlot.mockResolvedValue(evaluations[0]);
+  render(<MemoryRouter><Evaluate/></MemoryRouter>);
+  fireEvent.click(await screen.findByRole("button",{name:"Seleccionar El Molino"}));
+  fireEvent.click(screen.getByRole("button",{name:"Evaluar esta parcela"}));
+  await screen.findByRole("button",{name:"Ya regué"});
+  expect(screen.getByText("Consultar el cálculo y los datos utilizados")).toBeInTheDocument();
+  expect(screen.getByText("ET₀")).toBeInTheDocument();
+ });
+ it("oculta el cálculo al agricultor",async()=>{
+  auth.role="agricultor";
+  api.listPlots.mockResolvedValue(plots);
+  api.listEvaluations.mockResolvedValue([]);
+  api.evaluatePlot.mockResolvedValue(evaluations[0]);
+  render(<MemoryRouter><Evaluate/></MemoryRouter>);
+  fireEvent.click(await screen.findByRole("button",{name:"Seleccionar El Molino"}));
+  fireEvent.click(screen.getByRole("button",{name:"Evaluar esta parcela"}));
+  await screen.findByRole("button",{name:"Ya regué"});
+  expect(screen.queryByText("Consultar el cálculo y los datos utilizados")).not.toBeInTheDocument();
+  auth.role="tecnico";
+ });
+});
+
+describe("Modo campo",()=>{
+ it("alterna la escala desde el encabezado y conserva la preferencia",async()=>{
+  api.listPlots.mockResolvedValue(plots);
+  api.listEvaluations.mockResolvedValue([]);
+  render(<MemoryRouter><Evaluate/></MemoryRouter>);
+  const toggle=await screen.findByRole("switch",{name:"Modo campo"});
+  expect(toggle).toHaveAttribute("aria-checked","false");
+  fireEvent.click(toggle);
+  expect(toggle).toHaveAttribute("aria-checked","true");
+  expect(document.documentElement).toHaveClass("field-mode");
+  expect(localStorage.getItem("yakuai-field-mode")).toBe("1");
  });
 });

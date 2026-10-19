@@ -34,7 +34,6 @@ export { SearchInput } from "./shadcn/search-input";
 export { Stepper } from "./shadcn/Stepper";
 export { Confirm } from "./shadcn/confirm";
 export { SoilMeter } from "./shadcn/soil-meter";
-export { VerdictHero, type VerdictTone } from "./shadcn/VerdictHero";
 export { LineChart, type ChartPoint } from "./charts/LineChart";
 export { AreaChart } from "./charts/AreaChart";
 export { BarChart } from "./charts/BarChart";

@@ -128,6 +128,21 @@ export interface Forecast {
 
 export type EvalResult = "riega" | "no" | "espera" | "incompleta";
 
+export interface EvalPlan {
+  litros: number;
+  minutos: number | null;
+  inicio: string;
+  fin: string | null;
+  jornadas: number;
+  nota: string | null;
+}
+
+export interface EvalProximoRiego {
+  fecha: string;
+  litros: number;
+  motivo: string;
+}
+
 export interface EvalSnapshot {
   fuente?: string;
   crop_code?: string;
@@ -148,6 +163,8 @@ export interface EvalSnapshot {
   umbral?: number;
   lamina_neta_mm?: number;
   volumen_bruto_L?: number;
+  plan?: EvalPlan | null;
+  proximo_riego?: EvalProximoRiego | null;
   [key: string]: unknown;
 }
 

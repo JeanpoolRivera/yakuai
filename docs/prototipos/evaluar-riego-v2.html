@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>YakuAI · Evaluar riego (prototipo v2)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   YakuAI · Design Tokens (prototipo)
+   Fuente de verdad visual. Contraste WCAG 2.2 AA verificado.
+   ============================================================ */
+:root {
+  /* Marca */
+  --primary-50:  #e8f5f0;
+  --primary-100: #cde9de;
+  --primary-200: #a6d7c6;
+  --primary-400: #3f9c7d;
+  --primary-600: #146852;
+  --primary-700: #0f5544;
+  --primary-800: #0c4438;
+  --primary-900: #0a332b;
+
+  /* Semántica */
+  --success-bg: #e8f5ec;
+  --success-fg: #0f5942;   /* contraste 6.2:1 sobre success-bg */
+  --warning-bg: #fff4dc;
+  --warning-fg: #7a4a05;   /* contraste 6.5:1 sobre warning-bg */
+  --info-bg:    #e9f1fb;
+  --info-fg:    #1f4a75;   /* contraste 7.1:1 sobre info-bg */
+  --neutral-bg: #f1f4f5;
+  --neutral-fg: #43545e;   /* contraste 6.0:1 sobre neutral-bg */
+  --danger-bg:  #fdeceb;
+  --danger-fg:  #8f2530;   /* contraste 6.8:1 sobre danger-bg */
+
+  /* Neutros */
+  --ink-900: #10201f;
+  --ink-800: #1b2f2e;
+  --ink-700: #33474e;
+  --ink-600: #52696e;
+  --ink-500: #647a7e;
+  --ink-400: #8a9a9c;
+  --line:    #e2e9e6;
+  --line-soft: #eef2f0;
+  --surface: #ffffff;
+  --canvas:  #f2f5f4;
+
+  /* Tipografía */
+  --font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --t-xs: 0.75rem;
+  --t-sm: 0.8125rem;
+  --t-base: 0.9375rem;
+  --t-lg: 1.0625rem;
+  --t-xl: clamp(1.25rem, 1rem + 1vw, 1.5rem);
+  --t-2xl: clamp(1.5rem, 1.1rem + 1.8vw, 2rem);
+  --t-3xl: clamp(1.9rem, 1.3rem + 2.6vw, 2.75rem);
+
+  /* Espaciado / radios / sombras */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-10: 40px;
+  --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 22px; --r-full: 999px;
+  --shadow-sm: 0 1px 2px rgba(16,32,31,.06);
+  --shadow-md: 0 4px 14px -6px rgba(16,32,31,.14), 0 2px 4px rgba(16,32,31,.05);
+  --shadow-lg: 0 18px 40px -22px rgba(16,32,31,.28);
+  --focus: 0 0 0 3px rgba(20,104,82,.28);
+
+  /* Targets accesibles */
+  --target: 44px;
+
+  /* Modo campo: escala tipográfica y targets al alza */
+  --field-scale: 1;
+  --target-scale: 1;
+}
+
+/* Modo campo (care mode) */
+html.field-mode {
+  --field-scale: 1.22;
+  --target-scale: 1.18;
+  --t-base: 1.0625rem;
+}
+
+* { box-sizing: border-box; }
+html { font-size: calc(16px * 1); }
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: calc(var(--t-base) * var(--field-scale));
+  line-height: 1.55;
+  color: var(--ink-800);
+  background: var(--canvas);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+h1, h2, h3, h4, p, dl, dd, dt, ol, li { margin: 0; }
+button { font-family: inherit; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+  border-radius: var(--r-sm);
+}
+
+/* ============================================================
+   Layout del prototipo (controles de demo)
+   ============================================================ */
+.demo-bar {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-6);
+  background: var(--ink-900); color: #e8f0ee;
+  font-size: var(--t-xs);
+}
+.demo-bar .demo-title { font-weight: 600; margin-right: auto; letter-spacing: .02em; }
+.demo-group { display: flex; align-items: center; gap: var(--sp-2); }
+.demo-group > span { color: #9fb4af; }
+.demo-seg { display: inline-flex; background: rgba(255,255,255,.08); border-radius: var(--r-full); padding: 3px; }
+.demo-seg button {
+  border: 0; background: transparent; color: #cddad6;
+  padding: 6px 12px; border-radius: var(--r-full);
+  font-size: var(--t-xs); font-weight: 500;
+}
+.demo-seg button[aria-pressed="true"] { background: var(--primary-600); color: #fff; }
+
+/* ============================================================
+   App shell
+   ============================================================ */
+.app { max-width: 1180px; margin: 0 auto; padding: var(--sp-8) var(--sp-6) var(--sp-10); }
+
+.page-head {
+  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
+  gap: var(--sp-4); margin-bottom: var(--sp-8);
+}
+.eyebrow {
+  font-size: calc(var(--t-xs) * var(--field-scale));
+  font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--primary-600); margin-bottom: var(--sp-2);
+}
+h1 { font-size: calc(var(--t-2xl) * var(--field-scale)); letter-spacing: -.035em; line-height: 1.15; font-weight: 700; }
+.page-head p { color: var(--ink-600); font-size: calc(var(--t-sm) * var(--field-scale)); margin-top: var(--sp-2); max-width: 52ch; }
+.head-actions { display: flex; gap: var(--sp-3); align-items: center; }
+
+/* ============================================================
+   Botones (targets accesibles)
+   ============================================================ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
+  min-height: calc(var(--target) * var(--target-scale));
+  padding: 0 var(--sp-5); border-radius: var(--r-sm);
+  border: 1px solid transparent; font-size: calc(var(--t-sm) * var(--field-scale));
+  font-weight: 600; transition: background .15s, border-color .15s;
+}
+.btn svg { flex-shrink: 0; }
+.btn-primary { background: var(--primary-600); color: #fff; }
+.btn-primary:hover { background: var(--primary-700); }
+.btn-ghost { background: var(--surface); border-color: var(--line); color: var(--ink-700); }
+.btn-ghost:hover { background: var(--primary-50); border-color: var(--primary-200); }
+.btn-quiet { background: transparent; color: var(--primary-700); padding-inline: var(--sp-3); }
+.btn-quiet:hover { background: var(--primary-50); }
+.btn-lg { min-height: calc(52px * var(--target-scale)); padding-inline: var(--sp-6); font-size: calc(var(--t-base) * var(--field-scale)); }
+.btn-block { width: 100%; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ============================================================
+   Workspace: selector + panel
+   ============================================================ */
+.workspace { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: var(--sp-6); align-items: start; }
+
+.card {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-lg); overflow: hidden;
+}
+
+.panel-head {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-6); border-bottom: 1px solid var(--line-soft);
+}
+.step-badge {
+  display: grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0;
+  border-radius: var(--r-sm); border: 1px solid var(--primary-100);
+  background: var(--primary-50); color: var(--primary-700);
+  font-size: var(--t-xs); font-weight: 700;
+}
+.panel-head h2 { font-size: calc(var(--t-base) * var(--field-scale)); font-weight: 650; letter-spacing: -.02em; }
+.panel-head p { font-size: calc(var(--t-xs) * var(--field-scale)); color: var(--ink-500); margin-top: 2px; }
+
+/* Selector de parcela */
+.plot-search { padding: var(--sp-4) var(--sp-5) var(--sp-3); }
+.search-box {
+  display: flex; align-items: center; gap: var(--sp-2);
+  min-height: calc(var(--target) * var(--target-scale));
+  padding: 0 var(--sp-4); border: 1px solid var(--line);
+  border-radius: var(--r-sm); background: var(--surface); color: var(--ink-500);
+}
+.search-box input { border: 0; background: transparent; width: 100%; font: inherit; font-size: var(--t-sm); outline: none; }
+
+.plot-list { padding: 0 var(--sp-3) var(--sp-3); display: grid; gap: var(--sp-1); max-height: 420px; overflow: auto; }
+.plot-item {
+  display: flex; align-items: center; gap: var(--sp-3); width: 100%; text-align: left;
+  padding: var(--sp-3); border: 1px solid transparent; border-radius: var(--r-md);
+  background: transparent; color: var(--ink-800);
+}
+.plot-item:hover { background: var(--primary-50); }
+.plot-item[aria-pressed="true"] { background: var(--primary-50); border-color: var(--primary-100); }
+.plot-ico {
+  display: grid; place-items: center; width: calc(38px * var(--target-scale)); height: calc(38px * var(--target-scale));
+  flex-shrink: 0; border-radius: var(--r-sm); background: var(--primary-50); color: var(--primary-600);
+}
+.plot-item[aria-pressed="true"] .plot-ico { background: var(--primary-600); color: #fff; }
+.plot-meta { flex: 1; min-width: 0; }
+.plot-meta strong { display: block; font-size: calc(var(--t-sm) * var(--field-scale)); font-weight: 600; }
+.plot-meta small { display: block; font-size: calc(var(--t-xs) * var(--field-scale)); color: var(--ink-500); margin-top: 2px; }
+.plot-check {
+  width: 18px; height: 18px; border-radius: var(--r-full); flex-shrink: 0;
+  border: 1.5px solid var(--line); display: grid; place-items: center;
+}
+.plot-item[aria-pressed="true"] .plot-check { background: var(--primary-600); border-color: var(--primary-600); color: #fff; }
+
+.plot-context { padding: var(--sp-5); border-top: 1px solid var(--line-soft); background: #fafcfb; }
+.plot-context dl { display: grid; gap: var(--sp-2); margin-bottom: var(--sp-4); }
+.plot-context dl > div { display: flex; justify-content: space-between; gap: var(--sp-3); font-size: var(--t-xs); }
+.plot-context dt { color: var(--ink-500); }
+.plot-context dd { color: var(--ink-800); font-weight: 500; }
+
+/* ============================================================
+   Veredicto (hero)
+   ============================================================ */
+.verdict { display: grid; gap: 0; }
+.verdict-hero {
+  padding: var(--sp-8);
+  border-bottom: 1px solid var(--line-soft);
+  display: grid; gap: var(--sp-5);
+}
+.verdict-hero[data-tone="riega"] { background: var(--warning-bg); }
+.verdict-hero[data-tone="no"] { background: var(--success-bg); }
+.verdict-hero[data-tone="espera"] { background: var(--info-bg); }
+.verdict-hero[data-tone="incompleta"] { background: var(--neutral-bg); }
+
+.verdict-top { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+.verdict-ico {
+  display: grid; place-items: center; width: calc(52px * var(--target-scale)); height: calc(52px * var(--target-scale));
+  flex-shrink: 0; border-radius: var(--r-md); background: rgba(255,255,255,.75);
+}
+.verdict-hero[data-tone="riega"] .verdict-ico { color: var(--warning-fg); }
+.verdict-hero[data-tone="no"] .verdict-ico { color: var(--success-fg); }
+.verdict-hero[data-tone="espera"] .verdict-ico { color: var(--info-fg); }
+.verdict-hero[data-tone="incompleta"] .verdict-ico { color: var(--neutral-fg); }
+
+.kicker {
+  font-size: var(--t-xs); font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-600);
+}
+.verdict-copy h2 { font-size: calc(var(--t-3xl) * var(--field-scale)); letter-spacing: -.04em; line-height: 1.08; font-weight: 700; margin-top: var(--sp-1); }
+.verdict-hero[data-tone="riega"] .verdict-copy h2 { color: var(--warning-fg); }
+.verdict-hero[data-tone="no"] .verdict-copy h2 { color: var(--success-fg); }
+.verdict-hero[data-tone="espera"] .verdict-copy h2 { color: var(--info-fg); }
+.verdict-hero[data-tone="incompleta"] .verdict-copy h2 { color: var(--neutral-fg); }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px;
+  border-radius: var(--r-full); font-size: var(--t-xs); font-weight: 600;
+  background: rgba(255,255,255,.8);
+}
+.pill i { width: 7px; height: 7px; border-radius: var(--r-full); background: currentColor; }
+.pill[data-tone="riega"] { color: var(--warning-fg); }
+.pill[data-tone="no"] { color: var(--success-fg); }
+.pill[data-tone="espera"] { color: var(--info-fg); }
+.pill[data-tone="incompleta"] { color: var(--neutral-fg); }
+.pill.sev { background: var(--danger-bg); color: var(--danger-fg); }
+
+/* Volumen recomendado */
+.volume {
+  display: flex; align-items: baseline; gap: var(--sp-3); flex-wrap: wrap;
+}
+.volume strong {
+  font-size: calc(var(--t-3xl) * var(--field-scale)); font-weight: 700; letter-spacing: -.04em;
+  font-variant-numeric: tabular-nums; color: var(--ink-900);
+}
+.volume small { font-size: calc(var(--t-lg) * var(--field-scale)); font-weight: 500; color: var(--ink-600); }
+.volume-label { font-size: calc(var(--t-sm) * var(--field-scale)); color: var(--ink-600); }
+
+/* ============================================================
+   Evidencias
+   ============================================================ */
+.evidence { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4); padding: var(--sp-6); }
+.ev-card {
+  display: grid; gap: var(--sp-3); padding: var(--sp-5);
+  border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface);
+}
+.ev-head { display: flex; align-items: center; gap: var(--sp-2); color: var(--ink-600); font-size: var(--t-xs); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+.ev-head svg { color: var(--primary-600); }
+.ev-value { font-size: calc(var(--t-xl) * var(--field-scale)); font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.ev-note { font-size: var(--t-xs); color: var(--ink-500); }
+
+/* Medidor de humedad */
+.meter { position: relative; height: 10px; border-radius: var(--r-full); background: var(--line); overflow: hidden; }
+.meter i { display: block; height: 100%; border-radius: inherit; }
+.meter[data-state="ok"] i { background: var(--primary-600); }
+.meter[data-state="low"] i { background: #b7791f; }
+.meter[data-state="crit"] i { background: var(--danger-fg); }
+.meter-mark { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink-900); }
+.meter-legend { display: flex; justify-content: space-between; gap: var(--sp-2); font-size: var(--t-xs); color: var(--ink-500); }
+.meter-legend span { background: var(--neutral-bg); padding: 3px 8px; border-radius: var(--r-full); }
+
+/* Barra de probabilidad de lluvia */
+.prob { display: grid; gap: var(--sp-2); }
+.prob-track { height: 8px; border-radius: var(--r-full); background: var(--line); overflow: hidden; }
+.prob-track i { display: block; height: 100%; background: var(--info-fg); border-radius: inherit; }
+
+/* ============================================================
+   Plan de riego (visible en "riega")
+   ============================================================ */
+.plan { border-top: 1px solid var(--line-soft); padding: var(--sp-6); display: grid; gap: var(--sp-4); }
+.plan-head { display: flex; align-items: center; gap: var(--sp-2); }
+.plan-head h3 { font-size: calc(var(--t-lg) * var(--field-scale)); font-weight: 650; }
+.plan-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-4); }
+.plan-cell { display: grid; gap: var(--sp-1); }
+.plan-cell span { font-size: var(--t-xs); color: var(--ink-500); display: flex; align-items: center; gap: 6px; }
+.plan-cell strong { font-size: calc(var(--t-lg) * var(--field-scale)); font-weight: 650; font-variant-numeric: tabular-nums; }
+.plan-note {
+  display: flex; gap: var(--sp-3); align-items: flex-start;
+  padding: var(--sp-4); border-radius: var(--r-md);
+  background: var(--warning-bg); color: var(--warning-fg);
+  font-size: calc(var(--t-xs) * var(--field-scale)); line-height: 1.6;
+}
+.plan-note svg { flex-shrink: 0; margin-top: 1px; }
+
+/* Acciones */
+.actions {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-6); border-top: 1px solid var(--line-soft); background: #fafcfb;
+}
+.actions .spacer { margin-left: auto; }
+
+/* ============================================================
+   Historial
+   ============================================================ */
+.history { display: grid; }
+.history-head { padding: var(--sp-5) var(--sp-6); border-bottom: 1px solid var(--line-soft); display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+.history-head h2 { font-size: calc(var(--t-base) * var(--field-scale)); font-weight: 650; }
+.history-head p { font-size: var(--t-xs); color: var(--ink-500); margin-top: 2px; }
+.history-list { display: grid; }
+.history-item {
+  display: grid; grid-template-columns: 128px 1fr auto; gap: var(--sp-4); align-items: center;
+  padding: var(--sp-4) var(--sp-6); border-bottom: 1px solid var(--line-soft);
+}
+.history-item:last-child { border-bottom: 0; }
+.history-item time { font-size: var(--t-xs); color: var(--ink-500); font-variant-numeric: tabular-nums; }
+.history-mid { min-width: 0; display: grid; gap: var(--sp-2); }
+.history-mid .pill { background: var(--surface); border: 1px solid var(--line); width: fit-content; }
+.history-mid p { font-size: var(--t-xs); color: var(--ink-600); }
+.history-liters { font-size: calc(var(--t-sm) * var(--field-scale)); font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ============================================================
+   Estados de carga / vacío
+   ============================================================ */
+.spinner { width: 18px; height: 18px; border: 2.5px solid var(--line); border-top-color: var(--primary-600); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-state { display: grid; place-items: center; gap: var(--sp-4); padding: var(--sp-10); color: var(--ink-600); font-size: var(--t-sm); }
+
+/* Preparación (sin evaluar aún) */
+.prepare { display: grid; gap: 0; }
+.prepare-body { padding: var(--sp-10) var(--sp-8); text-align: center; display: grid; justify-items: center; gap: var(--sp-4); }
+.prepare-emblem { display: grid; place-items: center; width: 68px; height: 68px; border-radius: var(--r-xl); background: var(--primary-50); color: var(--primary-600); }
+.prepare-body h2 { font-size: calc(var(--t-xl) * var(--field-scale)); font-weight: 650; letter-spacing: -.02em; }
+.prepare-body p { font-size: var(--t-sm); color: var(--ink-600); max-width: 44ch; line-height: 1.7; }
+.prepare-inputs { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line-soft); }
+.prepare-inputs > div { display: grid; justify-items: center; gap: var(--sp-2); padding: var(--sp-6) var(--sp-4); font-size: var(--t-xs); }
+.prepare-inputs > div + div { border-left: 1px solid var(--line-soft); }
+.prepare-inputs svg { color: var(--primary-600); }
+.prepare-inputs strong { font-size: calc(var(--t-sm) * var(--field-scale)); font-weight: 600; }
+.prepare-inputs span { color: var(--ink-500); }
+
+/* ============================================================
+   Utilidades de demo
+   ============================================================ */
+.hidden { display: none !important; }
+.rnote {
+  margin-top: var(--sp-6); padding: var(--sp-4) var(--sp-5);
+  border: 1px dashed var(--line); border-radius: var(--r-md);
+  font-size: var(--t-xs); color: var(--ink-500); text-align: center; background: var(--surface);
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 980px) {
+  .workspace { grid-template-columns: 1fr; }
+  .evidence { grid-template-columns: 1fr; }
+  .plan-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .app { padding: var(--sp-5) var(--sp-4) var(--sp-8); }
+  .page-head { flex-direction: column; align-items: stretch; }
+  .head-actions .btn { flex: 1; }
+  .verdict-hero { padding: var(--sp-6); }
+  .evidence, .plan, .actions, .history-head, .history-item, .plot-context { padding-inline: var(--sp-4); }
+  .history-item { grid-template-columns: 1fr; gap: var(--sp-2); }
+  .history-liters { justify-self: start; }
+  .plan-grid { grid-template-columns: 1fr 1fr; }
+  .prepare-inputs > div { padding: var(--sp-4) var(--sp-2); }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- Control de demo: rol, estado, modo campo -->
+<div class="demo-bar" role="region" aria-label="Controles de demostración">
+  <span class="demo-title">YakuAI · Evaluar riego — prototipo</span>
+  <div class="demo-group">
+    <span>Rol</span>
+    <div class="demo-seg" id="roleSeg">
+      <button aria-pressed="true" data-role="agricultor">Agricultor</button>
+      <button aria-pressed="false" data-role="tecnico">Técnico</button>
+    </div>
+  </div>
+  <div class="demo-group">
+    <span>Resultado</span>
+    <div class="demo-seg" id="stateSeg">
+      <button aria-pressed="true" data-state="riega">Riega</button>
+      <button aria-pressed="false" data-state="no">No</button>
+      <button aria-pressed="false" data-state="espera">Espera</button>
+      <button aria-pressed="false" data-state="incompleta">Incompleta</button>
+    </div>
+  </div>
+  <div class="demo-group">
+    <span>Modo campo</span>
+    <div class="demo-seg" id="fieldSeg">
+      <button aria-pressed="false" data-field="off">Off</button>
+      <button aria-pressed="false" data-field="on">On</button>
+    </div>
+  </div>
+</div>
+
+<main class="app">
+  <!-- Encabezado -->
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">Gestión del riego</p>
+      <h1>Evaluar riego</h1>
+      <p id="pageIntro">Una decisión clara, con los datos de tu parcela.</p>
+    </div>
+    <div class="head-actions">
+      <button class="btn btn-ghost" id="histToggle">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+        <span id="histToggleLabel">Historial</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <!-- ===== Selector de parcela ===== -->
+    <aside class="card" aria-label="Seleccionar parcela">
+      <div class="panel-head">
+        <span class="step-badge">01</span>
+        <div>
+          <h2>Elige tu parcela</h2>
+          <p id="plotHeadNote">El punto de partida de tu evaluación.</p>
+        </div>
+      </div>
+      <div class="plot-search">
+        <label class="search-box">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="search" placeholder="Buscar parcela o cultivo" aria-label="Buscar parcela o cultivo" />
+        </label>
+      </div>
+      <div class="plot-list" id="plotList">
+        <!-- Se rellena con JS según rol -->
+      </div>
+      <div class="plot-context">
+        <dl>
+          <div><dt>Sistema de riego</dt><dd>Goteo</dd></div>
+          <div><dt>Fecha de siembra</dt><dd>01/09/2026</dd></div>
+          <div><dt>Cultivo</dt><dd>Papa</dd></div>
+        </dl>
+        <button class="btn btn-primary btn-block btn-lg" id="evalBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>
+          Evaluar riego
+        </button>
+      </div>
+    </aside>
+
+    <!-- ===== Panel principal ===== -->
+    <section class="card" aria-live="polite" id="mainPanel">
+
+      <!-- Vista: listo para evaluar -->
+      <div class="prepare" id="viewPrepare">
+        <div class="panel-head">
+          <span class="step-badge">02</span>
+          <div>
+            <h2>Recomendación de riego</h2>
+            <p>La información necesaria para decidir.</p>
+          </div>
+        </div>
+        <div class="prepare-body">
+          <span class="prepare-emblem">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>
+          </span>
+          <h2>¿Necesita agua tu parcela?</h2>
+          <p>Al evaluar sabrás si conviene regar, esperar o mantener la humedad, y cuánta agua aplicar cuando corresponda.</p>
+          <button class="btn btn-primary btn-lg" id="evalBtn2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>
+            Evaluar riego
+          </button>
+        </div>
+        <div class="prepare-inputs">
+          <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg><strong>Suelo</strong><span>Humedad reciente</span></div>
+          <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h10"/><path d="M12 20V9"/><path d="M12 9a3 3 0 1 0-3-3 3 3 0 0 0 3 3z"/><path d="M12 9c3 0 5-2 5-5-3 0-5 2-5 5z"/></svg><strong>Cultivo</strong><span>Etapa y necesidades</span></div>
+          <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="M16 14v6"/><path d="M8 14v6"/></svg><strong>Clima</strong><span>Previsión de lluvia</span></div>
+        </div>
+      </div>
+
+      <!-- Vista: cargando -->
+      <div class="loading-state hidden" id="viewLoading">
+        <span class="spinner"></span>
+        <p>Analizando suelo, cultivo y clima…</p>
+      </div>
+
+      <!-- Vista: resultado -->
+      <section class="verdict hidden" id="viewResult">
+        <!-- Hero -->
+        <div class="verdict-hero" data-tone="riega" id="hero">
+          <div class="verdict-top">
+            <span class="verdict-ico" id="heroIco" aria-hidden="true"></span>
+            <span class="kicker" id="heroKicker">Informe de riego</span>
+            <span class="pill" data-tone="riega" id="heroPill"><i></i>Recomendación</span>
+            <span class="pill sev hidden" id="heroSev"><i></i>Prioridad alta</span>
+          </div>
+          <div class="verdict-copy">
+            <h2 id="heroTitle">Es momento de regar</h2>
+          </div>
+          <div class="volume" id="heroVolume">
+            <strong>1.400–1.800</strong>
+            <small>litros</small>
+            <span class="volume-label">Volumen para esta parcela</span>
+          </div>
+          <!-- Incompleta: ayuda por rol -->
+          <p class="ev-note hidden" id="heroHelp"></p>
+          <div id="heroLinks" class="hidden" style="display:flex; gap:12px; flex-wrap:wrap"></div>
+        </div>
+
+        <!-- Evidencias -->
+        <div class="evidence" id="evidence">
+          <!-- Humedad -->
+          <div class="ev-card">
+            <div class="ev-head">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>
+              Humedad del suelo
+            </div>
+            <div class="ev-value" id="humidityValue">18.0 %</div>
+            <div class="meter" data-state="crit" id="humMeter" role="progressbar" aria-valuenow="18" aria-valuemin="0" aria-valuemax="100" aria-label="Humedad 18 por ciento">
+              <i id="humFill" style="width:18%"></i>
+              <span class="meter-mark" id="humMark" style="left:24%"></span>
+            </div>
+            <div class="meter-legend"><span id="humPmp">PMP 15.0%</span><span id="humUmbral">Umbral 24.0%</span></div>
+          </div>
+          <!-- Lluvia -->
+          <div class="ev-card">
+            <div class="ev-head">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="M16 14v6"/><path d="M8 14v6"/></svg>
+              Lluvia · 6 h
+            </div>
+            <div class="ev-value" id="rainValue">2 mm</div>
+            <div class="prob">
+              <div class="prob-track"><i id="rainFill" style="width:20%"></i></div>
+            </div>
+            <div class="ev-note" id="rainNote">20% de probabilidad</div>
+          </div>
+          <!-- Próxima revisión -->
+          <div class="ev-card">
+            <div class="ev-head">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+              Próxima revisión
+            </div>
+            <div class="ev-value" id="nextValue">Mañana 06:00</div>
+            <div class="ev-note" id="nextNote">Confianza alta</div>
+          </div>
+        </div>
+
+        <!-- Plan de riego (visible solo en riega) -->
+        <div class="plan hidden" id="plan">
+          <div class="plan-head">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+            <h3>Plan de riego</h3>
+          </div>
+          <div class="plan-grid">
+            <div class="plan-cell"><span>Inicio</span><strong id="planStart">Mañana 05:30</strong></div>
+            <div class="plan-cell"><span>Fin</span><strong id="planEnd">06:00</strong></div>
+            <div class="plan-cell"><span>Duración</span><strong id="planMin">30 min</strong></div>
+            <div class="plan-cell"><span>Jornadas</span><strong id="planDays">1</strong></div>
+          </div>
+          <div class="plan-note" id="planNote">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>
+            <span>Riega temprano (05:30–07:00) para que el agua rinda más. Anota tu caudal para calcular minutos exactos.</span>
+          </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="actions" id="actions">
+          <button class="btn btn-quiet" id="changePlot">Cambiar parcela</button>
+          <span class="spacer"></span>
+          <button class="btn btn-ghost">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+            Compartir
+          </button>
+          <button class="btn btn-primary hidden" id="alreadyWatered">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            Ya regué
+          </button>
+        </div>
+      </section>
+
+      <!-- Vista: historial -->
+      <div class="history hidden" id="viewHistory">
+        <div class="history-head">
+          <div>
+            <h2>Evaluaciones anteriores</h2>
+            <p>El Molino · Últimos resultados</p>
+          </div>
+          <button class="btn btn-quiet" id="histBack">Volver</button>
+        </div>
+        <div class="history-list" id="historyList"></div>
+      </div>
+
+    </section>
+  </div>
+
+  <p class="rnote">Prototipo de referencia visual. Los datos son de ejemplo; el motor, el contrato API y la lógica de negocio no cambian.</p>
+</main>
+
+<script>
+/* ============================================================
+   Demo interactiva (solo prototipo)
+   ============================================================ */
+const ICONS = {
+  riega: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>',
+  no: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  espera: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="M16 14v6"/><path d="M8 14v6"/></svg>',
+  incompleta: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>'
+};
+
+const PLOTS = {
+  agricultor: [
+    { name: "El Molino", meta: "Papa · 1.500 m²", sel: true },
+    { name: "La Esperanza", meta: "Maíz choclo · 2.250 m²" }
+  ],
+  tecnico: [
+    { name: "El Molino", meta: "Papa · 1.500 m² · Juan Pérez", sel: true },
+    { name: "La Esperanza", meta: "Maíz choclo · 2.250 m² · Ana Rojas" },
+    { name: "Los Sauces", meta: "Haba seca · 3.000 m² · Luis Tica" }
+  ]
+};
+
+const STATES = {
+  riega: {
+    tone: "riega", title: "Es momento de regar", critical: true,
+    volume: "1.400–1.800", volNote: "Volumen para esta parcela",
+    hum: "18.0 %", humState: "crit", humW: 18, mark: 24, pmp: "PMP 15.0%", umbral: "Umbral 24.0%",
+    rain: "2 mm", rainW: 20, rainNote: "20% de probabilidad",
+    next: "Mañana 06:00", nextNote: "Confianza alta",
+    plan: true, already: true,
+    hist: [
+      { t: "Hoy 05:30", tone: "riega", label: "Bajo umbral", reason: "Humedad por debajo del umbral", liters: "1.400–1.800 L" },
+      { t: "Ayer 05:30", tone: "no", label: "Suficiente", reason: "La tierra conserva humedad", liters: "—" },
+      { t: "14/10 06:00", tone: "riega", label: "Bajo umbral", reason: "Humedad por debajo del umbral", liters: "1.200–1.600 L" }
+    ]
+  },
+  no: {
+    tone: "no", title: "No hace falta regar", critical: false,
+    volume: null,
+    hum: "27.5 %", humState: "ok", humW: 27.5, mark: 24, pmp: "PMP 15.0%", umbral: "Umbral 24.0%",
+    rain: "0 mm", rainW: 5, rainNote: "5% de probabilidad",
+    next: "En 12 horas", nextNote: "Confianza alta",
+    plan: false, already: false,
+    hist: [
+      { t: "Hoy 06:00", tone: "no", label: "Suficiente", reason: "La tierra conserva humedad", liters: "—" },
+      { t: "Ayer 05:30", tone: "riega", label: "Bajo umbral", reason: "Humedad por debajo del umbral", liters: "1.400–1.800 L" }
+    ]
+  },
+  espera: {
+    tone: "espera", title: "Espera, viene lluvia", critical: false,
+    volume: null,
+    hum: "22.0 %", humState: "low", humW: 22, mark: 24, pmp: "PMP 15.0%", umbral: "Umbral 24.0%",
+    rain: "18 mm", rainW: 85, rainNote: "85% de probabilidad",
+    next: "En 6 horas", nextNote: "Confianza media",
+    plan: false, already: false,
+    hist: [
+      { t: "Hoy 06:00", tone: "espera", label: "Viene lluvia", reason: "Lluvia prevista suficiente", liters: "—" },
+      { t: "Ayer 05:30", tone: "no", label: "Suficiente", reason: "La tierra conserva humedad", liters: "—" }
+    ]
+  },
+  incompleta: {
+    tone: "incompleta", title: "Revisar datos", critical: false,
+    volume: null,
+    hum: "Sin lectura", humState: "low", humW: 0, mark: 24, pmp: "PMP —", umbral: "Umbral —",
+    rain: "Sin datos", rainW: 0, rainNote: "Pronóstico vencido",
+    next: "Pendiente", nextNote: "Falta información",
+    plan: false, already: false,
+    help: {
+      agricultor: "Falta información del campo. Pide a tu técnico que revise el sensor.",
+      tecnico: "No hay lectura de humedad reciente. Registra una medición para poder decidir."
+    },
+    links: {
+      agricultor: [],
+      tecnico: [
+        { label: "Ir a sensores", href: "#sensores" },
+        { label: "Ir a clima", href: "#clima" }
+      ]
+    },
+    hist: [
+      { t: "Hoy 06:00", tone: "incompleta", label: "Falta humedad", reason: "Sin lectura válida", liters: "—" }
+    ]
+  }
+};
+
+const $ = (id) => document.getElementById(id);
+let role = "agricultor";
+let state = "riega";
+let view = "result"; // result | history
+
+function renderPlots() {
+  const list = $("plotList");
+  list.innerHTML = PLOTS[role].map((p) => `
+    <button class="plot-item" aria-pressed="${p.sel}" aria-label="Seleccionar ${p.name}">
+      <span class="plot-ico"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h10"/><path d="M12 20V9"/><path d="M12 9a3 3 0 1 0-3-3 3 3 0 0 0 3 3z"/><path d="M12 9c3 0 5-2 5-5-3 0-5 2-5 5z"/></svg></span>
+      <span class="plot-meta"><strong>${p.name}</strong><small>${p.meta}</small></span>
+      <span class="plot-check">${p.sel ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>' : ""}</span>
+    </button>`).join("");
+  $("plotHeadNote").textContent = role === "agricultor"
+    ? "El punto de partida de tu evaluación."
+    : "Parcelas de tu zona asignada.";
+}
+
+function show(view) {
+  view = view;
+  $("viewPrepare").classList.toggle("hidden", view !== "prepare");
+  $("viewLoading").classList.toggle("hidden", view !== "loading");
+  $("viewResult").classList.toggle("hidden", view !== "result");
+  $("viewHistory").classList.toggle("hidden", view !== "history");
+}
+
+function renderResult() {
+  const s = STATES[state];
+  const hero = $("hero");
+  hero.dataset.tone = s.tone;
+  $("heroIco").innerHTML = ICONS[s.tone];
+  $("heroTitle").textContent = s.title;
+  $("heroPill").dataset.tone = s.tone;
+  $("heroPill").innerHTML = `<i></i>${s.tone === "riega" ? "Riega" : s.tone === "no" ? "Sin riego" : s.tone === "espera" ? "Espera" : "Incompleta"}`;
+  $("heroSev").classList.toggle("hidden", !(s.tone === "riega" && s.critical));
+
+  // Volumen
+  const vol = $("heroVolume");
+  if (s.volume) { vol.classList.remove("hidden"); vol.querySelector("strong").textContent = s.volume; vol.querySelector(".volume-label").textContent = s.volNote; }
+  else vol.classList.add("hidden");
+
+  // Ayuda incompleta + links por rol
+  const help = $("heroHelp"), links = $("heroLinks");
+  if (state === "incompleta") {
+    help.classList.remove("hidden");
+    help.textContent = s.help[role];
+    const l = s.links[role] || [];
+    if (l.length) { links.classList.remove("hidden"); links.innerHTML = l.map(x => `<a class="btn btn-ghost" href="${x.href}">${x.label}<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></a>`).join(""); }
+    else links.classList.add("hidden");
+  } else { help.classList.add("hidden"); links.classList.add("hidden"); }
+
+  // Evidencias
+  $("humidityValue").textContent = s.hum;
+  const m = $("humMeter"); m.dataset.state = s.humState;
+  $("humFill").style.width = s.humW + "%";
+  $("humMark").style.left = s.mark + "%";
+  $("humPmp").textContent = s.pmp; $("humUmbral").textContent = s.umbral;
+  $("rainValue").textContent = s.rain; $("rainFill").style.width = s.rainW + "%"; $("rainNote").textContent = s.rainNote;
+  $("nextValue").textContent = s.next; $("nextNote").textContent = s.nextNote;
+
+  // Plan
+  $("plan").classList.toggle("hidden", !s.plan);
+  // Ya regué
+  $("alreadyWatered").classList.toggle("hidden", !s.already);
+
+  // Historial
+  $("historyList").innerHTML = s.hist.map((h) => `
+    <div class="history-item">
+      <time>${h.t}</time>
+      <div class="history-mid">
+        <span class="pill" data-tone="${h.tone}"><i></i>${h.label}</span>
+        <p>${h.reason}</p>
+      </div>
+      <span class="history-liters">${h.liters}</span>
+    </div>`).join("");
+}
+
+function setSeg(seg, attr, value) {
+  seg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset[attr] === value)));
+}
+
+// Eventos
+$("roleSeg").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  role = b.dataset.role; setSeg($("roleSeg"), "role", role);
+  $("pageIntro").textContent = role === "agricultor"
+    ? "Una decisión clara, con los datos de tu parcela."
+    : "Evalúa riego de las parcelas de tu zona, con trazabilidad.";
+  renderPlots(); renderResult();
+});
+$("stateSeg").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  state = b.dataset.state; setSeg($("stateSeg"), "state", state);
+  show("result"); renderResult();
+});
+$("fieldSeg").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  const on = b.dataset.field === "on";
+  setSeg($("fieldSeg"), "field", on ? "on" : "off");
+  document.documentElement.classList.toggle("field-mode", on);
+});
+$("evalBtn").addEventListener("click", () => { show("result"); renderResult(); });
+$("evalBtn2").addEventListener("click", () => { show("result"); renderResult(); });
+$("histToggle").addEventListener("click", () => {
+  view = view === "history" ? "result" : "history";
+  show(view);
+  $("histToggleLabel").textContent = view === "history" ? "Volver a evaluar" : "Historial";
+});
+$("histBack").addEventListener("click", () => { view = "result"; show("result"); $("histToggleLabel").textContent = "Historial"; });
+$("changePlot").addEventListener("click", () => show("prepare"));
+
+// Init
+setSeg($("roleSeg"), "role", role);
+setSeg($("stateSeg"), "state", state);
+setSeg($("fieldSeg"), "field", "off");
+renderPlots();
+renderResult();
+show("result");
+</script>
+</body>
+</html>

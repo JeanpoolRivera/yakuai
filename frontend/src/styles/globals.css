@@ -38,6 +38,7 @@
   --color-info-100: #dcebfd;
   --color-info-500: #326899;
   --color-info-600: #254e76;
+  --color-info-700: #1f4a75;
 
   --color-neutral-50:  #f8fafb;
   --color-neutral-100: #f4f6f8;
@@ -51,14 +52,15 @@
   --color-neutral-900: #0f1a20;
   --color-neutral-950: #081015;
 
-  --color-verdict-riega-bg:     #fff8ea;
-  --color-verdict-riega-text:   #99610b;
-  --color-verdict-no-bg:        #eff8f2;
-  --color-verdict-no-text:      #146852;
-  --color-verdict-espera-bg:    #eff6fc;
-  --color-verdict-espera-text:  #326899;
-  --color-verdict-incompleta-bg:#f5f6f7;
-  --color-verdict-incompleta-text:#526775;
+  /* Veredictos — pares AA (>= 4.5:1), espejo de design-system/tokens/colors.ts */
+  --color-verdict-riega-bg:     #fff4dc;
+  --color-verdict-riega-text:   #7a4a05;   /* 6.8:1 */
+  --color-verdict-no-bg:        #e8f5ec;
+  --color-verdict-no-text:      #0f5942;   /* 7.4:1 */
+  --color-verdict-espera-bg:    #e9f1fb;
+  --color-verdict-espera-text:  #1f4a75;   /* 8.0:1 */
+  --color-verdict-incompleta-bg:#f1f4f5;
+  --color-verdict-incompleta-text:#43545e; /* 7.1:1 */
 
   --color-dark-bg:       #092e2b;
   --color-dark-card:     #103e38;
@@ -85,6 +87,10 @@
   --text-4xl: 2.5rem;      --text-4xl--line-height: 1.15;
   --text-5xl: 3rem;        --text-5xl--line-height: 1.1;
   --text-6xl: 4rem;        --text-6xl--line-height: 1.05;
+
+  --text-d1: clamp(1.9rem, 1.3rem + 2.6vw, 2.75rem); --text-d1--line-height: 1.12;
+  --text-d2: clamp(1.5rem, 1.1rem + 1.8vw, 2rem);    --text-d2--line-height: 1.2;
+  --text-d3: clamp(1.25rem, 1rem + 1vw, 1.5rem);     --text-d3--line-height: 1.28;
 
   --font-weight-normal: 400;
   --font-weight-medium: 500;
@@ -188,6 +194,30 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@theme static {
+  /* === DESIGN SYSTEM (siempre emitido como CSS var) === */
+  --color-brand:         #146852;
+  --color-brand-hover:   #103e38;
+  --color-brand-soft:    #edf7f2;
+  --color-border:        #e2e9e6;
+  --color-border-strong: #5f7378;
+  --color-focus-ring:    rgb(20 104 82 / 0.35);
+
+  --color-success-bg: #e8f5ec;  --color-success-fg: #0f5942;
+  --color-warning-bg: #fff4dc;  --color-warning-fg: #7a4a05;
+  --color-info-bg:    #e9f1fb;  --color-info-fg:    #1f4a75;
+  --color-danger-bg:  #fdeceb;  --color-danger-fg:  #8f2530;
+  --color-neutral-bg: #f1f4f5;  --color-neutral-fg: #43545e;
+
+  --target:              2.75rem;
+  --target-comfortable:  3.25rem;
+  --target-field:        3.5rem;
+  --target-sm:           2.75rem;
+  --target-md:           3rem;
+  --target-lg:           3.5rem;
+  --target-icon:         2.75rem;
+}
+
 @layer base {
   * { box-sizing: border-box; }
   
@@ -197,6 +227,15 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+  }
+
+  html.field-mode {
+    font-size: 122%;
+    --target-sm: 52px;
+    --target-md: 57px;
+    --target-lg: 66px;
+    --target-icon: 52px;
+    --touch-target: 52px;
   }
   
   body {
@@ -254,4 +293,15 @@
   .shadow-card-hover { box-shadow: var(--shadow-md); }
   .shadow-modal { box-shadow: var(--shadow-lg); }
   .shadow-toast { box-shadow: var(--shadow-xl); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
