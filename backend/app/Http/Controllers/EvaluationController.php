@@ -65,6 +65,10 @@ class EvaluationController extends Controller
             ->where('evaluated_at', $slot)
             ->first();
 
+        if ($existing !== null) {
+            return response()->json(['data' => $existing->load('plot')]);
+        }
+
         $measurement = Measurement::where('plot_id', $plot->id)
             ->whereHas('sensor', fn ($q) => $q->where('type', 'humedad'))
             ->where('quality', 'ok')
@@ -82,50 +86,32 @@ class EvaluationController extends Controller
 
         $calc = $hydro->evaluate($plot, $measurement, $forecast, $now);
 
-        // Si el resultado no cambió respecto a la evaluación existente, devolverla.
-        if ($existing !== null
-            && $existing->result === $calc['result']
-            && $existing->reason === $calc['reason']
-            && $existing->is_critical === $calc['is_critical']
-        ) {
-            return response()->json(['data' => $existing->load('plot')]);
-        }
+        try {
+            $evaluation = Evaluation::create([
+                'plot_id' => $plot->id,
+                'evaluated_at' => $slot,
+                'stage' => $calc['stage'],
+                'inputs_snapshot' => $calc['snapshot'],
+                'result' => $calc['result'],
+                'min_liters' => $calc['min_liters'],
+                'max_liters' => $calc['max_liters'],
+                'confidence' => $calc['confidence'],
+                'reason' => $calc['reason'],
+                'next_at' => $calc['next_at'],
+                'is_critical' => $calc['is_critical'],
+            ]);
+        } catch (QueryException $e) {
+            if ($e->getCode() === '23000') {
+                $existing = Evaluation::where('plot_id', $plot->id)
+                    ->where('evaluated_at', $slot)
+                    ->first();
 
-        $payload = [
-            'stage' => $calc['stage'],
-            'inputs_snapshot' => $calc['snapshot'],
-            'result' => $calc['result'],
-            'min_liters' => $calc['min_liters'],
-            'max_liters' => $calc['max_liters'],
-            'confidence' => $calc['confidence'],
-            'reason' => $calc['reason'],
-            'next_at' => $calc['next_at'],
-            'is_critical' => $calc['is_critical'],
-        ];
-
-        if ($existing !== null) {
-            // Resultado cambió: actualizar la evaluación existente del slot.
-            $existing->update($payload);
-            $evaluation = $existing;
-        } else {
-            try {
-                $evaluation = Evaluation::create(array_merge([
-                    'plot_id' => $plot->id,
-                    'evaluated_at' => $slot,
-                ], $payload));
-            } catch (QueryException $e) {
-                if ($e->getCode() === '23000') {
-                    $existing = Evaluation::where('plot_id', $plot->id)
-                        ->where('evaluated_at', $slot)
-                        ->first();
-
-                    if ($existing !== null) {
-                        return response()->json(['data' => $existing->load('plot')]);
-                    }
+                if ($existing !== null) {
+                    return response()->json(['data' => $existing->load('plot')]);
                 }
-
-                throw $e;
             }
+
+            throw $e;
         }
 
         $status = $calc['result'] === 'incompleta' ? 422 : 201;
