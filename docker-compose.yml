@@ -11,9 +11,12 @@ x-backend: &backend
   env_file: .env
   environment:
     MAIL_MAILER: smtp
+    YAKUAI_ADMIN_EMAIL: ${YAKUAI_ADMIN_EMAIL}
+    YAKUAI_ADMIN_PASSWORD: ${YAKUAI_ADMIN_PASSWORD}
   working_dir: /var/www/html
   volumes:
     - ./backend:/var/www/html
+    - ./.env:/var/www/html/.env:ro
   restart: unless-stopped
   init: true
 
@@ -123,7 +126,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 90s
-
 volumes:
   mysql_data:
+    external: true
+    name: yakuai-nuevo_mysql_data
   redis_data:

@@ -1,5 +1,5 @@
 /* Parcelas: mapa con dibujo + lista + wizard de 3 pasos (crear/editar). */
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Check, LoaderCircle, Map as MapIcon, MapPin, Pencil, Plus, Sprout } from "lucide-react";
 import { ApiError, friendlyError } from "../api/client";
@@ -7,6 +7,7 @@ import { createPlot, listCrops, listFarmers, listPlots, listSoils, updatePlot } 
 import type { PlotInput } from "../api/endpoints";
 import type { Crop, Farmer, Plot, SoilTexture } from "../api/types";
 import type { DrawResult } from "../components/shadcn/plot-map";
+import { PlotMap } from "../components/shadcn/plot-map";
 import { PageHead } from "../components/shadcn/page-head";
 import { Stat } from "../components/shadcn/Stat";
 import { Badge } from "../components/shadcn/badge";
@@ -26,7 +27,6 @@ import { submitForm } from "../lib/dom";
 import { fmtDate, fmtNum, todayInput } from "../lib/format";
 import { toastError, toastOk } from "../lib/toast";
 
-const PlotMap = lazy(() => import("../components/shadcn/plot-map").then((m) => ({ default: m.PlotMap })));
 
 const SELECT_CLS =
   "h-12 w-full rounded-sm border border-neutral-400 bg-white px-3 text-sm text-neutral-800 transition-all hover:border-primary-600 focus-visible:border-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600/15 disabled:cursor-not-allowed disabled:opacity-50";
@@ -345,9 +345,11 @@ export function Plots(): React.JSX.Element {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-3">
-                  <Suspense fallback={<Loading text="Cargando mapa…" />}>
-                    <PlotMap plots={mapPoints} />
-                  </Suspense>
+                  <PlotMap
+                    plots={mapPoints}
+                    className="w-full min-w-0"
+                    mapHeightClassName="h-[240px] min-h-[240px]"
+                  />
                   <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-500">
                     <span className="inline-flex items-center gap-1.5">
                       <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-primary-600" />
@@ -467,14 +469,14 @@ export function Plots(): React.JSX.Element {
           if (!open && !saving) setModalOpen(false);
         }}
       >
-        <DialogContent className="sm:max-w-3xl">
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>{editing ? "Editar parcela" : "Nueva parcela"}</DialogTitle>
             <DialogDescription>
               {`Paso ${step} de 3 · ${step === 1 ? "Agricultor" : step === 2 ? "Ubicación" : "Cultivo y riego"}`}
             </DialogDescription>
           </DialogHeader>
-          <form id="plot-form" onSubmit={(e) => void onSubmit(e)} className="grid gap-5">
+          <form id="plot-form" onSubmit={(e) => void onSubmit(e)} className="grid min-h-0 flex-1 gap-5 overflow-y-auto pr-1">
             <Stepper steps={["Agricultor", "Ubicación", "Cultivo y riego"]} current={step} />
             {step === 1 ? (
               <>
@@ -516,11 +518,31 @@ export function Plots(): React.JSX.Element {
                   Ubicación y área
                 </h3>
                 <Banner kind="info">
-                  1) Toca el mapa para fijar el lugar. 2) Con Marcar esquinas agrega todas las esquinas que necesites y pulsa Usar contorno. También puedes escribir los valores.
-                  Acerca con + hasta ver bien tu terreno antes de marcar.
+                  1) Toca el mapa para fijar el lugar. 2) Pulsa “Marcar esquinas” para añadir las esquinas del terreno y después “Usar contorno”. También puedes escribir las coordenadas manualmente. Acerca con + para ver bien tu terreno antes de marcar.
                 </Banner>
+
+                {/* El mapa de dibujo debe permanecer dentro del paso 2 del formulario. */}
+                <div className="relative z-0 my-1 w-full min-w-0 overflow-hidden rounded-lg">
+                  <PlotMap
+                    key={`plot-form-map-${mapTick}`}
+                    plots={mapPoints}
+                    editable
+                    className="w-full min-w-0"
+                    mapHeightClassName="h-[280px] min-h-[280px]"
+                    onDraw={onDraw}
+                    zoom={18}
+                    focus={(() => {
+                      const lat = Number(draft.latitude);
+                      const lng = Number(draft.longitude);
+                      return Number.isFinite(lat) && Number.isFinite(lng)
+                        ? { lat, lng }
+                        : null;
+                    })()}
+                  />
+                </div>
+
                 <div>
-                  <Button variant="outline" size="sm" disabled={locating} onClick={useMyLocation}>
+                  <Button type="button" variant="outline" size="sm" disabled={locating} onClick={useMyLocation}>
                     {locating ? (
                       <LoaderCircle className="h-[15px] w-[15px] animate-spin" aria-hidden="true" />
                     ) : (
@@ -529,20 +551,6 @@ export function Plots(): React.JSX.Element {
                     Usar mi ubicación
                   </Button>
                 </div>
-                <Suspense fallback={<Loading text="Cargando mapa…" />}>
-                  <PlotMap
-                    key={mapTick}
-                    plots={mapPoints}
-                    editable
-                    onDraw={onDraw}
-                    zoom={18}
-                    focus={(() => {
-                      const lat = Number(draft.latitude);
-                      const lng = Number(draft.longitude);
-                      return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
-                    })()}
-                  />
-                </Suspense>
                 {drawInfo ? <Banner kind="info">{drawInfo}</Banner> : null}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <FormField
