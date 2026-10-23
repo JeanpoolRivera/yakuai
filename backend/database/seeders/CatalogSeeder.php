@@ -6,6 +6,7 @@ use App\Models\Crop;
 use App\Models\CropStage;
 use App\Models\SoilTexture;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Cache;
 
 class CatalogSeeder extends Seeder
 {
@@ -170,9 +171,13 @@ class CatalogSeeder extends Seeder
         ];
 
         foreach ($crops as $code => [$name, $scientific, $stages]) {
-            $crop = Crop::firstOrCreate(['code' => $code], [
+            // updateOrCreate: si cambias nombre/científico en este archivo y
+            // vuelves a sembrar, el cambio SÍ se aplica. is_active se fuerza a
+            // true para que el cultivo aparezca en el formulario de parcelas.
+            $crop = Crop::updateOrCreate(['code' => $code], [
                 'name' => $name,
                 'scientific_name' => $scientific,
+                'is_active' => true,
             ]);
 
             foreach ($stages as [$stage, $days, $kc, $zr, $p]) {
@@ -199,11 +204,17 @@ class CatalogSeeder extends Seeder
         ];
 
         foreach ($soils as [$code, $name, $cc, $pmp]) {
-            SoilTexture::firstOrCreate(['code' => $code], [
+            SoilTexture::updateOrCreate(['code' => $code], [
                 'name' => $name,
                 'field_capacity' => $cc,
                 'wilting_point' => $pmp,
             ]);
         }
+
+        // Los endpoints /crops y /soil-textures guardan su respuesta en caché
+        // (Redis). Sin esto, el formulario seguiría mostrando la lista vieja
+        // aunque el seeder ya haya insertado los datos nuevos.
+        Cache::forget('crops_active');
+        Cache::forget('soil_textures_all');
     }
 }

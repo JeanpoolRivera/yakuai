@@ -8,11 +8,20 @@ use Illuminate\Support\Facades\Cache;
 
 class SoilTextureController extends Controller
 {
+    public const CACHE_KEY = 'soil_textures_all';
+
     public function index(): JsonResponse
     {
-        $soils = Cache::remember('soil_textures_all', 3600, function () {
-            return SoilTexture::all();
-        });
+        // Arreglo simple en caché (ver nota en CropController).
+        $soils = Cache::get(self::CACHE_KEY);
+
+        if (! is_array($soils) || $soils === []) {
+            $soils = SoilTexture::orderBy('field_capacity')->get()->toArray();
+
+            if ($soils !== []) {
+                Cache::put(self::CACHE_KEY, $soils, 3600);
+            }
+        }
 
         return response()->json(['data' => $soils]);
     }

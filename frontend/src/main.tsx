@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import "./styles/globals.css";
 import { AuthProvider } from "./app/auth";
 import { App } from "./app/App";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
@@ -26,10 +27,12 @@ if ("serviceWorker" in navigator) {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   </StrictMode>,
 );

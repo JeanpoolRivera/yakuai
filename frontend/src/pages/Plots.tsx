@@ -57,7 +57,7 @@ const EMPTY_DRAFT: Draft = {
   boundary: null,
   crop_id: "",
   sowing_date: todayInput(),
-  soil_texture_code: "franco",
+  soil_texture_code: "",
   irrigation_system: "goteo",
   irrigation_efficiency: "0.9",
   flow_lpm: "",
@@ -124,14 +124,6 @@ export function Plots(): React.JSX.Element {
     setError(null);
     try {
       const [p, f, c, s] = await Promise.all([listPlots(), listFarmers(), listCrops(), listSoils()]);
-      console.log("[DEBUG CATÁLOGOS]", {
-        cultivosEsArray: Array.isArray(c),
-        cantidadCultivos: Array.isArray(c) ? c.length : null,
-        primerCultivo: Array.isArray(c) ? c[0] : c,
-        suelosEsArray: Array.isArray(s),
-        cantidadSuelos: Array.isArray(s) ? s.length : null,
-        primerSuelo: Array.isArray(s) ? s[0] : s,
-      });
       setPlots(p);
       setFarmers(f);
       setCrops(c);
@@ -243,6 +235,7 @@ export function Plots(): React.JSX.Element {
       return null;
     }
     if (!draft.crop_id) return "Elige el cultivo.";
+    if (!draft.soil_texture_code) return "Elige el tipo de suelo.";
     if (!draft.sowing_date) return "Indica la fecha de siembra.";
     if (new Date(draft.sowing_date) > new Date()) return "La siembra no puede ser futura.";
     const eff = Number(draft.irrigation_efficiency);
@@ -641,6 +634,13 @@ export function Plots(): React.JSX.Element {
                   <h3 className="text-base font-semibold text-neutral-800">Cultivo y condiciones de riego</h3>
                   <p className="mt-1 text-sm text-neutral-600">Estos datos se utilizan para calcular las recomendaciones de la parcela.</p>
                 </div>
+                {crops.length === 0 || soils.length === 0 ? (
+                  <p role="alert" className="rounded-sm border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    {crops.length === 0 ? "No hay cultivos cargados. " : ""}
+                    {soils.length === 0 ? "No hay tipos de suelo cargados. " : ""}
+                    Pide al administrador ejecutar el catálogo inicial (CatalogSeeder) y vuelve a abrir este formulario.
+                  </p>
+                ) : null}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <FormField label="Cultivo" required htmlFor="pl-crop" error={fe("crop_id")}>
                     <select id="pl-crop" className={SELECT_CLS} value={draft.crop_id} onChange={(e) => set("crop_id", e.target.value)}>
@@ -670,6 +670,7 @@ export function Plots(): React.JSX.Element {
                       value={draft.soil_texture_code}
                       onChange={(e) => set("soil_texture_code", e.target.value)}
                     >
+                      <option value="">Selecciona…</option>
                       {soils.map((s) => (
                         <option key={s.code} value={s.code}>
                           {s.name}

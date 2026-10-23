@@ -145,9 +145,9 @@ export function PlotMap({
 
       if (points.length > 0) {
         if (points.length === 1) {
-          map.setView(points[0], zoom ?? 18);
+          map.setView(points[0], zoom ?? 18, { animate: false });
         } else {
-          map.fitBounds(L.latLngBounds(points).pad(0.3));
+          map.fitBounds(L.latLngBounds(points).pad(0.3), { animate: false });
         }
       }
     }
