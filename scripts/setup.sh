@@ -2,6 +2,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# Crear el volumen MySQL solo si no existe en esta computadora.
+docker volume inspect yakuai-nuevo_mysql_data >/dev/null 2>&1 || docker volume create yakuai-nuevo_mysql_data >/dev/null
+
 if [ ! -f .env ]; then
   cp .env.example .env
   python3 -c "import secrets,base64;print('APP_KEY=base64:'+base64.b64encode(secrets.token_bytes(32)).decode())" > /tmp/yakuai_key
