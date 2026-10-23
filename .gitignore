@@ -1,7 +1,43 @@
+# Environment
 .env
 /backend/.env
+
+# Dependencies (generated)
 /backend/vendor/
-/backend/node_modules/
 /frontend/node_modules/
+
+# Build/output artifacts
 /frontend/dist/
+
+# Coverage reports (generated - never commit)
+/backend/coverage.xml
+/backend/_phpunit.result.cache
+/frontend/coverage/
+
+# IDE / OS
 .DS_Store
+
+# Laravel/bootstrap cache
+/backend/bootstrap/cache/
+
+# PHP/PHPUnit cache
+/backend/.phpunit.result.cache
+
+# Project-specific generated files (never commit)
+/backend/check_class.php
+/backend/check_metrics.php
+/coverage.xml
+/coverage_frontend.py
+/coverage_report.py
+/coverage_report2.py
+/fix_coverage_paths.py
+/check_coverage.py
+/phpunit-junit.xml
+/backend/phpunit-junit.xml
+/sonar-project.properties
+/sonar-scanner-cli-*.zip
+/docs/plan-historial-riego.md
+/docs/prototipos/*.html
+/frontend/coverage/
+/frontend/public/icon-192.svg
+/frontend/public/icon-512.svg

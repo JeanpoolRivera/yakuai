@@ -1,0 +1,1 @@
+export { CatalogsWorkspace } from './CatalogsWorkspace';
