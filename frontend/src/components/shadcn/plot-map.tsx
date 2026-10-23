@@ -48,6 +48,9 @@ export function PlotMap({
   const divRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const onDrawRef = useRef(onDraw);
+  // Conserva el punto seleccionado aunque el usuario cambie al modo de esquinas.
+  const selectedMarkerRef = useRef<L.CircleMarker | null>(null);
+  const selectedPointRef = useRef<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
     onDrawRef.current = onDraw;
@@ -79,9 +82,11 @@ export function PlotMap({
 
     const map = L.map(container).setView(initialCenter, initialZoom);
     mapRef.current = map;
+    selectedMarkerRef.current = null;
+    selectedPointRef.current = null;
 
     // Imágenes satelitales de Esri: se conserva el proveedor actual.
-    const satelliteLayer = L.tileLayer(
+    L.tileLayer(
       "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
       {
         attribution:
@@ -147,14 +152,40 @@ export function PlotMap({
       }
     }
 
-    // Herramientas para marcar la ubicación y dibujar el contorno.
+    // Herramientas para fijar la ubicación y dibujar el contorno.
     let bar: HTMLDivElement | null = null;
 
     if (editable) {
       let mode: "punto" | "esquinas" = "punto";
       const verts: Array<{ lat: number; lng: number }> = [];
       const sketch = L.layerGroup().addTo(map);
-      let point: L.Layer | null = null;
+
+      const setFixedPoint = (lat: number, lng: number): void => {
+        selectedPointRef.current = { lat, lng };
+        if (selectedMarkerRef.current) {
+          map.removeLayer(selectedMarkerRef.current);
+        }
+        selectedMarkerRef.current = L.circleMarker([lat, lng], {
+          radius: 9,
+          color: "#ffffff",
+          weight: 3,
+          opacity: 1,
+          fillColor: MARKER_EDGE,
+          fillOpacity: 1,
+          bubblingMouseEvents: false,
+        })
+          .bindTooltip("PUNTO FIJADO", {
+            permanent: true,
+            direction: "top",
+            offset: [0, -9],
+            opacity: 0.95,
+          })
+          .addTo(map);
+      };
+
+      // Dibuja el punto actual desde el inicio; también cubre "Usar mi ubicación"
+      // y coordenadas escritas manualmente.
+      if (focusOk) setFixedPoint(focusOk.lat, focusOk.lng);
 
       bar = document.createElement("div");
       bar.setAttribute(
@@ -201,6 +232,9 @@ export function PlotMap({
 
       bar.append(btnPunto, btnEsq, btnUndo, btnClear, btnOk, badge);
       map.getContainer().appendChild(bar);
+      // Evita que pulsar los botones de la barra añada vértices al mapa por accidente.
+      L.DomEvent.disableClickPropagation(bar);
+      L.DomEvent.disableScrollPropagation(bar);
 
       const refresh = (): void => {
         sketch.clearLayers();
@@ -251,10 +285,15 @@ export function PlotMap({
               ) / 100
             : 0;
 
+        const fixed = selectedPointRef.current;
         badge.textContent =
           mode === "punto"
-            ? "Toca el mapa para fijar el lugar"
-            : `Esquinas: ${verts.length} · Área ≈ ${area} m²`;
+            ? fixed
+              ? `Punto fijado · ${fixed.lat.toFixed(5)}, ${fixed.lng.toFixed(5)} · Toca para moverlo`
+              : "Toca el mapa para fijar el lugar"
+            : fixed
+              ? `Punto de referencia fijado · Esquinas: ${verts.length} · Área ≈ ${area} m²`
+              : "Primero fija un punto en el mapa";
       };
 
       btnPunto.onclick = (): void => {
@@ -263,7 +302,16 @@ export function PlotMap({
       };
 
       btnEsq.onclick = (): void => {
+        const fixed = selectedPointRef.current;
+        if (!fixed) {
+          mode = "punto";
+          refresh();
+          badge.textContent = "Primero toca el mapa para fijar el punto";
+          return;
+        }
         mode = "esquinas";
+        // Centra la vista en el punto fijado para usarlo como referencia visual.
+        map.panTo([fixed.lat, fixed.lng], { animate: false });
         refresh();
       };
 
@@ -272,14 +320,11 @@ export function PlotMap({
         refresh();
       };
 
+      btnClear.textContent = "🗑 Limpiar contorno";
       btnClear.onclick = (): void => {
+        // Limpia solo las esquinas; mantiene el punto como referencia para volver a dibujar.
         verts.length = 0;
-
-        if (point) {
-          map.removeLayer(point);
-          point = null;
-        }
-
+        mode = selectedPointRef.current ? "esquinas" : "punto";
         refresh();
       };
 
@@ -294,15 +339,22 @@ export function PlotMap({
         );
 
         const center = centroidOf(ring);
+        const fixed = selectedPointRef.current;
 
         onDrawRef.current?.({
           ring,
-          lat: center
-            ? Number(center.lat.toFixed(7))
-            : CHUPACA[0],
-          lng: center
-            ? Number(center.lng.toFixed(7))
-            : CHUPACA[1],
+          // La ubicación elegida por el usuario es la que se guarda; solo usamos
+          // el centroide como respaldo si no existiera un punto fijado.
+          lat: fixed
+            ? Number(fixed.lat.toFixed(7))
+            : center
+              ? Number(center.lat.toFixed(7))
+              : CHUPACA[0],
+          lng: fixed
+            ? Number(fixed.lng.toFixed(7))
+            : center
+              ? Number(center.lng.toFixed(7))
+              : CHUPACA[1],
           areaM2: Math.round(ringAreaM2(ring) * 100) / 100,
         });
 
@@ -316,30 +368,23 @@ export function PlotMap({
 
         if (mode === "punto") {
           verts.length = 0;
-
-          if (point) map.removeLayer(point);
-
-          point = L.circleMarker([lat, lng], {
-            radius: 7,
-            color: MARKER_EDGE,
-            fillColor: MARKER_FILL,
-            fillOpacity: 0.9,
-          }).addTo(map);
-
+          setFixedPoint(lat, lng);
           onDrawRef.current?.({
             ring: [],
             lat,
             lng,
             areaM2: 0,
           });
-
           refresh();
           return;
         }
 
-        if (point) {
-          map.removeLayer(point);
-          point = null;
+        // No se elimina el marcador fijado: queda visible mientras se dibuja.
+        if (!selectedPointRef.current) {
+          mode = "punto";
+          refresh();
+          badge.textContent = "Primero toca el mapa para fijar el punto";
+          return;
         }
 
         verts.push({ lat, lng });
@@ -397,6 +442,8 @@ export function PlotMap({
 
       if (mapRef.current === map) {
         mapRef.current = null;
+        selectedMarkerRef.current = null;
+        selectedPointRef.current = null;
       }
     };
   }, [editable, plots]);
@@ -417,6 +464,30 @@ export function PlotMap({
         zoom ?? 18,
         { animate: false },
       );
+
+      if (editable) {
+        selectedPointRef.current = { lat: focus.lat, lng: focus.lng };
+        if (selectedMarkerRef.current) {
+          selectedMarkerRef.current.setLatLng([focus.lat, focus.lng]);
+        } else {
+          selectedMarkerRef.current = L.circleMarker([focus.lat, focus.lng], {
+            radius: 9,
+            color: "#ffffff",
+            weight: 3,
+            opacity: 1,
+            fillColor: MARKER_EDGE,
+            fillOpacity: 1,
+            bubblingMouseEvents: false,
+          })
+            .bindTooltip("PUNTO FIJADO", {
+              permanent: true,
+              direction: "top",
+              offset: [0, -9],
+              opacity: 0.95,
+            })
+            .addTo(map);
+        }
+      }
     } else if (zoom !== undefined) {
       map.setZoom(zoom, { animate: false });
     }
@@ -428,16 +499,18 @@ export function PlotMap({
     });
 
     return () => cancelAnimationFrame(frame);
-  }, [focus?.lat, focus?.lng, zoom]);
+  }, [focus?.lat, focus?.lng, zoom, editable]);
 
   const instrId = useId();
 
   return (
     <div
+      data-plot-map="true"
       className={cn(
-        "relative overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-card",
+        "relative block w-full overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-card",
         className,
       )}
+      style={{ display: "block", width: "100%", minWidth: 0 }}
     >
       <p id={instrId} className="sr-only">
         Toca el mapa para fijar el lugar, o usa el botón Marcar
@@ -467,7 +540,15 @@ export function PlotMap({
         <div
           ref={divRef}
           className="absolute inset-0"
-          style={{ height: "100%", width: "100%" }}
+          style={{
+            display: "block",
+            position: "absolute",
+            inset: 0,
+            height: "100%",
+            minHeight: editable ? "280px" : "180px",
+            width: "100%",
+            overflow: "hidden",
+          }}
         />
       </div>
 

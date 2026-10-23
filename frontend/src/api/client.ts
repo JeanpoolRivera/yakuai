@@ -78,12 +78,30 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
     }
     throw new ApiError(message, response.status, fields, payload.data ?? null);
   }
-  // Laravel list endpoints return pagination beside data, not inside it.
-  // Keep that metadata so apiList can continue to subsequent pages.
-  if (Array.isArray(payload.data) && typeof payload.last_page === "number") {
+  // Acepta arreglos directos y respuestas envueltas en { data: ... }.
+  // Conserva los metadatos de paginación para que apiList recorra las páginas.
+  if (Array.isArray(payload)) {
     return payload as T;
   }
-  return payload.data as T;
+
+  if (
+    payload !== null &&
+    typeof payload === "object" &&
+    Array.isArray(payload.data) &&
+    typeof payload.last_page === "number"
+  ) {
+    return payload as T;
+  }
+
+  if (
+    payload !== null &&
+    typeof payload === "object" &&
+    "data" in payload
+  ) {
+    return payload.data as T;
+  }
+
+  return payload as T;
 }
 
 interface PageEnvelope<T> {

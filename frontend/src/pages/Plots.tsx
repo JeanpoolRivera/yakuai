@@ -124,6 +124,14 @@ export function Plots(): React.JSX.Element {
     setError(null);
     try {
       const [p, f, c, s] = await Promise.all([listPlots(), listFarmers(), listCrops(), listSoils()]);
+      console.log("[DEBUG CATÁLOGOS]", {
+        cultivosEsArray: Array.isArray(c),
+        cantidadCultivos: Array.isArray(c) ? c.length : null,
+        primerCultivo: Array.isArray(c) ? c[0] : c,
+        suelosEsArray: Array.isArray(s),
+        cantidadSuelos: Array.isArray(s) ? s.length : null,
+        primerSuelo: Array.isArray(s) ? s[0] : s,
+      });
       setPlots(p);
       setFarmers(f);
       setCrops(c);
@@ -518,11 +526,23 @@ export function Plots(): React.JSX.Element {
                   Ubicación y área
                 </h3>
                 <Banner kind="info">
-                  1) Toca el mapa para fijar el lugar. 2) Pulsa “Marcar esquinas” para añadir las esquinas del terreno y después “Usar contorno”. También puedes escribir las coordenadas manualmente. Acerca con + para ver bien tu terreno antes de marcar.
+                  1) Toca el mapa para fijar o mover el punto verde. 2) Pulsa “Marcar esquinas” y toca al menos 3 esquinas del terreno. El punto verde queda visible como referencia y no cuenta como esquina. Pulsa “Usar contorno” para guardar el área. También puedes escribir las coordenadas manualmente y acercar el mapa con +.
                 </Banner>
 
                 {/* El mapa de dibujo debe permanecer dentro del paso 2 del formulario. */}
-                <div className="relative z-0 my-1 w-full min-w-0 overflow-hidden rounded-lg">
+                <div
+                  data-plot-form-map="true"
+                  className="relative z-0 my-1 block w-full min-w-0 overflow-hidden rounded-lg"
+                  style={{
+                    display: "block",
+                    height: "320px",
+                    minHeight: "320px",
+                    width: "100%",
+                    flex: "0 0 320px",
+                    position: "relative",
+                    background: "#e8edf0",
+                  }}
+                >
                   <PlotMap
                     key={`plot-form-map-${mapTick}`}
                     plots={mapPoints}
