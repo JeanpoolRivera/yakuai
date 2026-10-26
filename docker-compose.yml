@@ -99,6 +99,7 @@ services:
       - "127.0.0.1:${FRONTEND_PORT:-8081}:5173"
     volumes:
       - ./frontend:/app
+      - /app/node_modules
     depends_on:
       nginx:
         condition: service_healthy

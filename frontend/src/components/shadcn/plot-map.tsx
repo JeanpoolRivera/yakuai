@@ -1,4 +1,4 @@
-/* Mapa de parcelas (Leaflet). Proveedor OSM intacto; chrome con tokens YakuAI. */
+/* Mapa de parcelas con Leaflet, imágenes satelitales de Esri y dibujo de contornos. */
 import { useEffect, useId, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -19,233 +19,394 @@ export interface PlotPoint {
   latitude: string;
   longitude: string;
   farmerName?: string;
+  boundary?: number[][][] | null;
 }
 
 const CHUPACA: [number, number] = [-12.0667, -75.2833];
 
-// Colores de marcador/dibujo (dominio mapa; inline styles de la barra propia).
 const MARKER_EDGE = "#285942";
 const MARKER_FILL = "#386c50";
-const SKETCH_EDGE = "#704C10";
-const SKETCH_FILL = "#D6B46A";
-
-export function MapLegend({ editable = false }: { editable?: boolean }): React.JSX.Element {
-  return (
-    <div role="group" aria-label="Leyenda del mapa" className="flex flex-wrap gap-x-5 gap-y-2 border-t border-neutral-200 px-3 py-3 text-xs text-neutral-700">
-      <span className="inline-flex items-center gap-2">
-        <span aria-hidden="true" className="h-3 w-3 rounded-full border-2 border-[#285942] bg-[#386c50]" />
-        Parcela registrada
-      </span>
-      {editable ? (
-        <span className="inline-flex items-center gap-2">
-          <span aria-hidden="true" className="h-3 w-3 rounded-sm border-2 border-[#704C10] bg-[#F3E2B8]" />
-          Contorno en edición
-        </span>
-      ) : null}
-    </div>
-  );
-}
+const SKETCH_EDGE = "#b3541e";
+const SKETCH_FILL = "#e07b39";
 
 export function PlotMap({
   plots,
   editable = false,
   onDraw,
+  onClearBoundary,
   focus,
   zoom,
   className,
+  mapHeightClassName = "h-[320px] min-h-[280px]",
 }: {
   plots: PlotPoint[];
   editable?: boolean;
   onDraw?: (d: DrawResult) => void;
+  onClearBoundary?: () => void;
   focus?: { lat: number; lng: number } | null;
   zoom?: number;
   className?: string;
+  mapHeightClassName?: string;
 }): React.JSX.Element {
   const divRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
   const onDrawRef = useRef(onDraw);
+  const onClearBoundaryRef = useRef(onClearBoundary);
+  // Conserva el punto seleccionado aunque el usuario cambie al modo de esquinas.
+  const selectedMarkerRef = useRef<L.CircleMarker | null>(null);
+  const selectedPointRef = useRef<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
     onDrawRef.current = onDraw;
   }, [onDraw]);
 
   useEffect(() => {
-    if (!divRef.current) return;
-    // Vista inicial: si hay foco (paso 2 del formulario) se centra ahí con zoom
-    // cercano 18, porque parcelas de 100-200 m² son invisibles en zoom 15.
-    const focusOk =
-      focus && Number.isFinite(focus.lat) && Number.isFinite(focus.lng) ? focus : null;
-    const map = L.map(divRef.current).setView(
-      focusOk ? [focusOk.lat, focusOk.lng] : CHUPACA,
-      zoom ?? (focusOk ? 18 : 15),
-    );
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap",
-      maxZoom: 19,
-    }).addTo(map);
+    onClearBoundaryRef.current = onClearBoundary;
+  }, [onClearBoundary]);
 
+  // Crear el mapa cuando se monta el componente.
+  useEffect(() => {
+    const container = divRef.current;
+    if (!container) return;
+
+    // Evitar reutilizar una instancia de Leaflet anterior.
+    if (mapRef.current) {
+      mapRef.current.remove();
+      mapRef.current = null;
+    }
+
+    const focusOk =
+      focus &&
+      Number.isFinite(focus.lat) &&
+      Number.isFinite(focus.lng)
+        ? focus
+        : null;
+
+    const initialCenter: L.LatLngExpression = focusOk
+      ? [focusOk.lat, focusOk.lng]
+      : CHUPACA;
+
+    const initialZoom = zoom ?? (focusOk ? 18 : 15);
+
+    const map = L.map(container).setView(initialCenter, initialZoom);
+    mapRef.current = map;
+    selectedMarkerRef.current = null;
+    selectedPointRef.current = null;
+
+    // Imágenes satelitales de Esri: se conserva el proveedor actual.
+    L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      {
+        attribution:
+          "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community",
+        maxZoom: 23,
+        maxNativeZoom: 17,
+      },
+    ).addTo(map);
+
+    // Mostrar las parcelas registradas: el polígono representa sus bordes y el
+    // marcador identifica el punto fijo guardado en la base de datos.
     const markers = L.featureGroup().addTo(map);
+    const boundsPoints: Array<[number, number]> = [];
+
     for (const p of plots) {
       const lat = Number(p.latitude);
       const lng = Number(p.longitude);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+
+      boundsPoints.push([lat, lng]);
       const popup = document.createElement("div");
       const title = document.createElement("strong");
       title.textContent = p.name;
       popup.append(title);
-      if (p.farmerName) popup.append(document.createElement("br"), document.createTextNode(p.farmerName));
-      L.circleMarker([lat, lng], { radius: 7, color: MARKER_EDGE, fillColor: MARKER_FILL, fillOpacity: 0.9 })
+      if (p.farmerName) {
+        popup.append(document.createElement("br"), document.createTextNode(p.farmerName));
+      }
+
+      // El backend guarda GeoJSON-like como [[[longitud, latitud], ...]].
+      // También aceptamos un anillo plano por compatibilidad con datos existentes.
+      const first = p.boundary?.[0] as unknown;
+      const candidate = Array.isArray(first) && Array.isArray(first[0])
+        ? first as number[][]
+        : (p.boundary as unknown as number[][] | null | undefined) ?? [];
+      const ring = candidate
+        .filter((point): point is number[] => Array.isArray(point) && point.length >= 2)
+        .map(([pointLng, pointLat]) => [Number(pointLng), Number(pointLat)] as [number, number])
+        .filter(([pointLng, pointLat]) =>
+          Number.isFinite(pointLng) && Number.isFinite(pointLat) &&
+          pointLng >= -180 && pointLng <= 180 && pointLat >= -90 && pointLat <= 90,
+        );
+
+      if (ring.length >= 3) {
+        const polygonPoints = ring.map(([pointLng, pointLat]): [number, number] => [pointLat, pointLng]);
+        boundsPoints.push(...polygonPoints);
+        L.polygon(polygonPoints, {
+          color: MARKER_EDGE,
+          weight: 2,
+          opacity: 0.95,
+          fillColor: MARKER_FILL,
+          fillOpacity: 0.22,
+        })
+          .bindPopup(popup.cloneNode(true) as HTMLElement)
+          .addTo(markers);
+      }
+
+      L.circleMarker([lat, lng], {
+        radius: 7,
+        color: MARKER_EDGE,
+        fillColor: MARKER_FILL,
+        fillOpacity: 0.95,
+      })
         .bindPopup(popup)
         .addTo(markers);
     }
-    if (plots.length > 0) {
-      const pts = plots
-        .map((p) => [Number(p.latitude), Number(p.longitude)] as [number, number])
-        .filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b));
-      if (pts.length > 0) map.fitBounds(L.latLngBounds(pts).pad(0.3));
+
+    // En el mapa general, encuadrar tanto los puntos como los bordes guardados.
+    // En el formulario, mantener el zoom en el punto fijo de la parcela actual.
+    if (!focusOk && boundsPoints.length > 0) {
+      if (boundsPoints.length === 1) {
+        map.setView(boundsPoints[0], zoom ?? 18, { animate: false });
+      } else {
+        map.fitBounds(L.latLngBounds(boundsPoints).pad(0.2), { animate: false, maxZoom: 18 });
+      }
     }
 
-    // Barra propia de dibujo (sin dependencias externas): sin límite de vértices.
-    // 1) Fijar punto con un toque. 2) Marcar esquinas una por una y confirmar.
+    // Herramientas para fijar la ubicación y dibujar el contorno.
     let bar: HTMLDivElement | null = null;
+
     if (editable) {
       let mode: "punto" | "esquinas" = "punto";
       const verts: Array<{ lat: number; lng: number }> = [];
       const sketch = L.layerGroup().addTo(map);
-      let point: L.Layer | null = null;
+
+      const setFixedPoint = (lat: number, lng: number): void => {
+        selectedPointRef.current = { lat, lng };
+        if (selectedMarkerRef.current) {
+          map.removeLayer(selectedMarkerRef.current);
+        }
+        selectedMarkerRef.current = L.circleMarker([lat, lng], {
+          radius: 9,
+          color: "#ffffff",
+          weight: 3,
+          opacity: 1,
+          fillColor: MARKER_EDGE,
+          fillOpacity: 1,
+          bubblingMouseEvents: false,
+        })
+          .bindTooltip("PUNTO FIJADO", {
+            permanent: true,
+            direction: "top",
+            offset: [0, -9],
+            opacity: 0.95,
+          })
+          .addTo(map);
+      };
+
+      // Dibuja el punto actual desde el inicio; también cubre "Usar mi ubicación"
+      // y coordenadas escritas manualmente.
+      if (focusOk) setFixedPoint(focusOk.lat, focusOk.lng);
 
       bar = document.createElement("div");
-      bar.setAttribute("role", "toolbar");
-      bar.setAttribute("aria-label", "Herramientas para marcar parcela");
-      bar.setAttribute("aria-orientation", "horizontal");
       bar.setAttribute(
         "style",
-        "position:absolute;top:10px;left:10px;z-index:500;display:flex;flex-wrap:wrap;align-items:center;gap:8px;max-width:calc(100% - 20px);padding:8px;background:#ffffff;border:1px solid #E4E8DF;border-radius:12px;box-shadow:0 4px 14px rgba(21,43,32,.12);box-sizing:border-box;",
+        "position:absolute;top:10px;left:10px;z-index:1000;" +
+          "display:flex;flex-wrap:wrap;gap:6px;max-width:92%;",
       );
-      const paint = (b: HTMLButtonElement, active: boolean, disabled = false, toggle = false): void => {
-        b.type = "button";
-        b.disabled = disabled;
-        if (toggle) b.setAttribute("aria-pressed", String(active));
-        b.setAttribute(
+
+      const paint = (
+        button: HTMLButtonElement,
+        active: boolean,
+      ): void => {
+        button.type = "button";
+        button.setAttribute(
           "style",
-          "min-height:44px;padding:8px 12px;background:" + (active ? "#35563D" : "#ffffff") +
-            ";color:" + (active ? "#ffffff" : "#202C24") +
-            ";border:1px solid #35563D;border-radius:8px;font-size:14px;font-weight:600;cursor:" +
-            (disabled ? "not-allowed" : "pointer") + ";opacity:" + (disabled ? ".55" : "1") + ";",
+          `background:${active ? "#285942" : "#ffffff"};` +
+            `color:${active ? "#ffffff" : "#111111"};` +
+            "border:1px solid #285942;border-radius:8px;" +
+            "padding:6px 10px;font-size:13px;cursor:pointer;",
         );
       };
+
       const btnPunto = document.createElement("button");
-      btnPunto.textContent = "Ubicar punto";
-      btnPunto.setAttribute("aria-label", "Modo: ubicar punto");
+      btnPunto.textContent = "📍 1) Fijar punto";
+
       const btnEsq = document.createElement("button");
-      btnEsq.textContent = "Dibujar contorno";
-      btnEsq.setAttribute("aria-label", "Modo: dibujar contorno");
+      btnEsq.textContent = "⬠ 2) Marcar esquinas";
+
       const btnUndo = document.createElement("button");
-      btnUndo.textContent = "Deshacer";
+      btnUndo.textContent = "↩ Quitar última";
+
       const btnClear = document.createElement("button");
-      btnClear.textContent = "Limpiar";
+      btnClear.textContent = "🗑 Limpiar";
+
       const btnOk = document.createElement("button");
-      btnOk.textContent = "Usar contorno";
+      btnOk.textContent = "✔ Usar contorno";
+
       const badge = document.createElement("div");
-      badge.setAttribute("role", "status");
-      badge.setAttribute("aria-live", "polite");
       badge.setAttribute(
         "style",
-        "display:flex;align-items:center;min-height:40px;padding:6px 10px;background:#F1F3ED;color:#303D33;border-radius:8px;font-size:12px;",
+        "background:#285942;color:#ffffff;border-radius:8px;" +
+          "padding:6px 10px;font-size:13px;",
       );
+
       bar.append(btnPunto, btnEsq, btnUndo, btnClear, btnOk, badge);
-      bar.addEventListener("keydown", (event: KeyboardEvent) => {
-        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-        const controls = Array.from(bar?.querySelectorAll<HTMLButtonElement>("button:not([disabled])") ?? []);
-        const current = controls.indexOf(document.activeElement as HTMLButtonElement);
-        if (current < 0 || controls.length === 0) return;
-        event.preventDefault();
-        const direction = event.key === "ArrowRight" ? 1 : -1;
-        controls[(current + direction + controls.length) % controls.length]?.focus();
-      });
       map.getContainer().appendChild(bar);
+      // Evita que pulsar los botones de la barra añada vértices al mapa por accidente.
+      L.DomEvent.disableClickPropagation(bar);
+      L.DomEvent.disableScrollPropagation(bar);
 
       const refresh = (): void => {
         sketch.clearLayers();
-        for (const v of verts) {
-          L.circleMarker([v.lat, v.lng], {
+
+        for (const vertex of verts) {
+          L.circleMarker([vertex.lat, vertex.lng], {
             radius: 5,
             color: SKETCH_EDGE,
             fillColor: SKETCH_FILL,
             fillOpacity: 1,
           }).addTo(sketch);
         }
+
         if (verts.length >= 2) {
-          const line: Array<[number, number]> = verts.map((v): [number, number] => [v.lat, v.lng]);
-          if (verts.length >= 3) line.push([verts[0].lat, verts[0].lng]);
+          const line: Array<[number, number]> = verts.map(
+            (vertex): [number, number] => [
+              vertex.lat,
+              vertex.lng,
+            ],
+          );
+
+          if (verts.length >= 3) {
+            line.push([verts[0].lat, verts[0].lng]);
+          }
+
           L.polyline(line, { color: SKETCH_EDGE }).addTo(sketch);
         }
-        paint(btnPunto, mode === "punto", false, true);
-        paint(btnEsq, mode === "esquinas", false, true);
-        paint(btnUndo, false, verts.length === 0);
-        paint(btnClear, false, verts.length === 0);
-        paint(btnOk, false, verts.length < 3);
+
+        paint(btnPunto, mode === "punto");
+        paint(btnEsq, mode === "esquinas");
+        paint(btnUndo, false);
+        paint(btnClear, false);
+        paint(btnOk, verts.length >= 3);
+
+        btnOk.style.opacity = verts.length >= 3 ? "1" : "0.5";
+
         const area =
           verts.length >= 3
-            ? Math.round(ringAreaM2(verts.map((v): [number, number] => [v.lng, v.lat])) * 100) / 100
+            ? Math.round(
+                ringAreaM2(
+                  verts.map(
+                    (vertex): [number, number] => [
+                      vertex.lng,
+                      vertex.lat,
+                    ],
+                  ),
+                ) * 100,
+              ) / 100
             : 0;
+
+        const fixed = selectedPointRef.current;
         badge.textContent =
           mode === "punto"
-            ? "Toca el mapa para fijar el lugar"
-            : `Esquinas: ${verts.length} · Área ≈ ${area} m²`;
+            ? fixed
+              ? `Punto fijado · ${fixed.lat.toFixed(5)}, ${fixed.lng.toFixed(5)} · Toca para moverlo`
+              : "Toca el mapa para fijar el lugar"
+            : fixed
+              ? `Punto de referencia fijado · Esquinas: ${verts.length} · Área ≈ ${area} m²`
+              : "Primero fija un punto en el mapa";
       };
 
       btnPunto.onclick = (): void => {
         mode = "punto";
         refresh();
       };
+
       btnEsq.onclick = (): void => {
+        const fixed = selectedPointRef.current;
+        if (!fixed) {
+          mode = "punto";
+          refresh();
+          badge.textContent = "Primero toca el mapa para fijar el punto";
+          return;
+        }
         mode = "esquinas";
+        // Centra la vista en el punto fijado para usarlo como referencia visual.
+        map.panTo([fixed.lat, fixed.lng], { animate: false });
         refresh();
       };
+
       btnUndo.onclick = (): void => {
         verts.pop();
         refresh();
       };
+
+      btnClear.textContent = "🗑 Limpiar contorno";
       btnClear.onclick = (): void => {
+        // Limpia el contorno dibujado; conserva el punto fijo para volver a trazarlo.
         verts.length = 0;
+        mode = selectedPointRef.current ? "esquinas" : "punto";
+        onClearBoundaryRef.current?.();
         refresh();
       };
+
       btnOk.onclick = (): void => {
         if (verts.length < 3) return;
-        const ring: Ring = verts.map((v): [number, number] => [v.lng, v.lat]);
-        const c = centroidOf(ring);
+
+        const ring: Ring = verts.map(
+          (vertex): [number, number] => [
+            vertex.lng,
+            vertex.lat,
+          ],
+        );
+
+        const center = centroidOf(ring);
+        const fixed = selectedPointRef.current;
+
         onDrawRef.current?.({
           ring,
-          lat: c ? Number(c.lat.toFixed(7)) : CHUPACA[0],
-          lng: c ? Number(c.lng.toFixed(7)) : CHUPACA[1],
+          // La ubicación elegida por el usuario es la que se guarda; solo usamos
+          // el centroide como respaldo si no existiera un punto fijado.
+          lat: fixed
+            ? Number(fixed.lat.toFixed(7))
+            : center
+              ? Number(center.lat.toFixed(7))
+              : CHUPACA[0],
+          lng: fixed
+            ? Number(fixed.lng.toFixed(7))
+            : center
+              ? Number(center.lng.toFixed(7))
+              : CHUPACA[1],
           areaM2: Math.round(ringAreaM2(ring) * 100) / 100,
         });
+
         mode = "punto";
         refresh();
       };
 
-      map.on("click", (e: unknown) => {
-        const ll = (e as { latlng?: L.LatLng }).latlng;
-        if (!ll) return;
-        const lat = Number(ll.lat.toFixed(7));
-        const lng = Number(ll.lng.toFixed(7));
+      map.on("click", (event: L.LeafletMouseEvent) => {
+        const lat = Number(event.latlng.lat.toFixed(7));
+        const lng = Number(event.latlng.lng.toFixed(7));
+
         if (mode === "punto") {
-          verts.length = 0;
-          if (point) map.removeLayer(point);
-          point = L.circleMarker([lat, lng], {
-            radius: 7,
-            color: MARKER_EDGE,
-            fillColor: MARKER_FILL,
-            fillOpacity: 0.9,
-          }).addTo(map);
-          onDrawRef.current?.({ ring: [], lat, lng, areaM2: 0 });
+          // Mover el punto fijo no destruye un contorno que ya estaba aceptado.
+          setFixedPoint(lat, lng);
+          onDrawRef.current?.({
+            ring: [],
+            lat,
+            lng,
+            areaM2: 0,
+          });
           refresh();
           return;
         }
-        if (point) {
-          map.removeLayer(point);
-          point = null;
+
+        // No se elimina el marcador fijado: queda visible mientras se dibuja.
+        if (!selectedPointRef.current) {
+          mode = "punto";
+          refresh();
+          badge.textContent = "Primero toca el mapa para fijar el punto";
+          return;
         }
+
         verts.push({ lat, lng });
         refresh();
       });
@@ -253,42 +414,173 @@ export function PlotMap({
       refresh();
     }
 
-    const raf = requestAnimationFrame(() => map.invalidateSize());
-    const ro =
-      typeof ResizeObserver !== "undefined" && divRef.current
-        ? new ResizeObserver(() => map.invalidateSize())
-        : null;
-    if (divRef.current && ro) ro.observe(divRef.current);
-    return () => {
-      cancelAnimationFrame(raf);
-      ro?.disconnect();
-      if (bar) bar.remove();
-      map.remove();
+    // Recalcular el tamaño cuando el diálogo ya es visible.
+    const invalidateMapSize = (): void => {
+      if (!container.isConnected) return;
+
+      const rect = container.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+
+      map.invalidateSize({ pan: false });
     };
-  }, [editable, plots.length === 0 ? "empty" : plots.map((p) => p.id).join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    let secondFrame: number | null = null;
+
+    const firstFrame = requestAnimationFrame(() => {
+      invalidateMapSize();
+
+      secondFrame = requestAnimationFrame(() => {
+        invalidateMapSize();
+      });
+    });
+
+    const resizeTimer = window.setTimeout(invalidateMapSize, 400);
+
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(invalidateMapSize)
+        : null;
+
+    resizeObserver?.observe(container);
+
+    map.on("load", invalidateMapSize);
+
+    return () => {
+      cancelAnimationFrame(firstFrame);
+
+      if (secondFrame !== null) {
+        cancelAnimationFrame(secondFrame);
+      }
+
+      window.clearTimeout(resizeTimer);
+      resizeObserver?.disconnect();
+      map.off("load", invalidateMapSize);
+
+      if (bar) bar.remove();
+
+      map.remove();
+
+      if (mapRef.current === map) {
+        mapRef.current = null;
+        selectedMarkerRef.current = null;
+        selectedPointRef.current = null;
+      }
+    };
+  }, [editable, plots]);
+
+  // Actualizar el centro sin destruir el mapa ni borrar los vértices dibujados.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const focusOk =
+      focus &&
+      Number.isFinite(focus.lat) &&
+      Number.isFinite(focus.lng);
+
+    if (focusOk && focus) {
+      map.setView(
+        [focus.lat, focus.lng],
+        zoom ?? 18,
+        { animate: false },
+      );
+
+      if (editable) {
+        selectedPointRef.current = { lat: focus.lat, lng: focus.lng };
+        if (selectedMarkerRef.current) {
+          selectedMarkerRef.current.setLatLng([focus.lat, focus.lng]);
+        } else {
+          selectedMarkerRef.current = L.circleMarker([focus.lat, focus.lng], {
+            radius: 9,
+            color: "#ffffff",
+            weight: 3,
+            opacity: 1,
+            fillColor: MARKER_EDGE,
+            fillOpacity: 1,
+            bubblingMouseEvents: false,
+          })
+            .bindTooltip("PUNTO FIJADO", {
+              permanent: true,
+              direction: "top",
+              offset: [0, -9],
+              opacity: 0.95,
+            })
+            .addTo(map);
+        }
+      }
+    } else if (zoom !== undefined) {
+      map.setZoom(zoom, { animate: false });
+    }
+
+    const frame = requestAnimationFrame(() => {
+      if (mapRef.current === map) {
+        map.invalidateSize({ pan: false });
+      }
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [focus?.lat, focus?.lng, zoom, editable]);
 
   const instrId = useId();
+
   return (
-    <div className={cn("overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-card", className)}>
+    <div
+      data-plot-map="true"
+      className={cn(
+        "relative block w-full overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-card",
+        className,
+      )}
+      style={{ display: "block", width: "100%", minWidth: 0 }}
+    >
       <p id={instrId} className="sr-only">
-        Toca el mapa para fijar el lugar, o usa el botón Marcar esquinas para agregar
-        todas las esquinas que necesites y luego Usar contorno. El dibujo autocompleta
-        el paso 2 del formulario.
+        Toca el mapa para fijar el lugar, o usa el botón Marcar
+        esquinas para agregar todas las esquinas que necesites y
+        luego Usar contorno. El dibujo autocompleta el paso 2
+        del formulario.
       </p>
+
       <div
         role="region"
         aria-label="Mapa de parcelas"
         aria-describedby={instrId}
         aria-live="polite"
-        className="h-[320px] min-h-[280px]"
+        className={cn(
+          "relative z-0 w-full overflow-hidden",
+          mapHeightClassName,
+        )}
+        style={{
+          display: "block",
+          width: "100%",
+          position: "relative",
+          backgroundColor: "#e8edf0",
+        }}
       >
-        <div ref={divRef} style={{ height: "100%", width: "100%" }} />
+        <div
+          ref={divRef}
+          className="absolute inset-0"
+          style={{
+            display: "block",
+            position: "absolute",
+            inset: 0,
+            height: "100%",
+            minHeight: editable ? "280px" : "180px",
+            width: "100%",
+            overflow: "hidden",
+          }}
+        />
       </div>
-      <MapLegend editable={editable} />
-      <p className="border-t border-neutral-200 px-3 py-2 text-xs text-neutral-600" aria-label="Parcelas en el mapa">
+
+      <p
+        className="border-t border-neutral-200 px-3 py-2 text-xs text-neutral-500"
+        aria-label="Parcelas en el mapa"
+      >
         {plots.length === 0
           ? "Sin parcelas en el mapa."
-          : `${plots.length} ${plots.length === 1 ? "parcela en el mapa" : "parcelas en el mapa"}: ${plots.map((p) => p.name).join(", ")}`}
+          : `${plots.length} ${
+              plots.length === 1
+                ? "parcela en el mapa"
+                : "parcelas en el mapa"
+            }: ${plots.map((plot) => plot.name).join(", ")}`}
       </p>
     </div>
   );
