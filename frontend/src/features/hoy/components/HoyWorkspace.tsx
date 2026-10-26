@@ -1,140 +1,34 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Clock, Droplet, Gauge, LoaderCircle, Map as MapIcon, Radio, RefreshCw, Search, Sprout } from "lucide-react";
-import { Badge, badgeVariantForTone } from "@/components/shadcn/badge";
-import { Banner, Empty, Loading } from "@/components/shadcn/feedback";
+import { ArrowRight, Droplets, Leaf, RefreshCw, Sprout } from "lucide-react";
+import { useHoy } from "../hooks/useHoy";
+import { filterEvaluations } from "../utils";
+import { HOY_COPY as C } from "../copy";
 import { Button } from "@/components/shadcn/button";
-import { FilterTabs } from "@/components/shadcn/filter-tabs";
+import { Card } from "@/components/shadcn/card";
 import { SearchInput } from "@/components/shadcn/search-input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/shadcn/select";
-import { SoilMeter } from "@/components/shadcn/soil-meter";
-import { ageLabel, badgeToneForResult, fmtDateTime, fmtNum, resultLabel } from "@/lib/format";
-
-import { cn } from "@/lib/utils";
-import { useHoy } from '../hooks/useHoy';
-import { HOY_COPY as C } from '../copy';
-import { cardBg, cardBarColor, filterEvaluations, sortEvaluations, countByResult } from '../utils';
-
-
-type Filter = "todas" | "riega" | "no" | "espera" | "incompleta";
-type Sort = "reciente" | "antiguo";
+import { PageHeading, Metric, StatusBadge, EmptyBlock, ErrorBlock, LoadingBlock } from "@/components/workspace/WorkspaceKit";
+import { fmtNum, fmtDateTime } from "@/lib/format";
 
 export function HoyWorkspace(): React.JSX.Element {
-  const { loading, error, plotCount, sensorsOk, sensorsTotal, latest, refreshing, load } = useHoy();
+  const state = useHoy();
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<Filter>("todas");
-  const [sort, setSort] = useState<Sort>("reciente");
+  const [filter, setFilter] = useState("todas");
+  const activePlots = useMemo(() => state.plots.filter((plot) => plot.status === "activa"), [state.plots]);
+  const evaluations = useMemo(() => filterEvaluations(state.latest.filter((item) => activePlots.some((plot) => plot.id === item.plot_id)), search, filter), [activePlots, filter, search, state.latest]);
+  const urgent = state.latest.filter((item) => item.result === "riega" && activePlots.some((plot) => plot.id === item.plot_id));
 
-  const counts = countByResult(latest);
-  const filtered = useMemo(() => sortEvaluations(filterEvaluations(latest, search, filter), sort), [latest, search, filter, sort]);
-
-  if (loading) return <Loading text={C.loading} />;
-  if (error) return <div className="grid gap-4"><Banner kind="bad">{error} <Button variant="link" size="sm" onClick={() => void load()}>{C.retry}</Button></Banner></div>;
-  if (plotCount === 0) return <Empty icon={<Sprout className="h-5 w-5" aria-hidden="true" />} title={C.noParcels} hint={C.noParcelsHint} />;
-
-  const urgentes = latest.filter((e) => e.result === "riega").length;
-  const alert = urgentes > 0;
-
-  return (
-    <div className="grid gap-4">
-      <header className={cn("flex flex-wrap items-center gap-4 rounded-lg border p-4 sm:p-5", alert ? "border-primary-800 bg-primary-900 text-white" : "border-success-100 bg-white")}>
-        <div className="min-w-0 flex-1">
-          <p className={cn("text-2xs font-semibold uppercase tracking-wider", alert ? "text-dark-accent" : "text-primary-700")}>{C.title}</p>
-          <h1 className={cn("mt-1 text-2xl font-semibold tracking-tight", alert ? "text-white" : "text-neutral-800")}>
-            {urgentes > 0 ? C.urgentTitle(urgentes) : C.calmTitle}
-          </h1>
-          <p className={cn("mt-1 text-sm", alert ? "text-dark-muted" : "text-neutral-600")}>
-            {urgentes > 0 ? C.urgentSub : C.calmSub}
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <Button size="lg" variant={alert ? "secondary" : "default"} asChild>
-              <Link to="/evaluar">{C.evaluateButton} <ArrowRight className="h-[17px] w-[17px]" aria-hidden="true" /></Link>
-            </Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => void load(true)} disabled={refreshing} className={alert ? "border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white" : undefined}>
-              {refreshing ? <><LoaderCircle className="h-[15px] w-[15px] animate-spin" aria-hidden="true" /> {C.updating}</> : <><RefreshCw className="h-[15px] w-[15px]" aria-hidden="true" /> {C.updateButton}</>}
-            </Button>
-          </div>
-        </div>
-        <div className={cn("flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm", alert ? "bg-white/10" : "bg-neutral-100")}>
-          <Clock className={cn("h-5 w-5", alert ? "text-dark-accent" : "text-primary-700")} aria-hidden="true" />
-          <div>
-            <span className={cn("block text-xs", alert ? "text-dark-muted" : "text-neutral-500")}>{C.irrigWindow}</span>
-            <strong className={cn("font-semibold tabular-nums", alert ? "text-white" : "text-neutral-800")}>{C.irrigWindowTime}</strong>
-          </div>
-        </div>
-      </header>
-
-      <div className="grid gap-2 sm:grid-cols-3" aria-label="Resumen de tu campo">
-        <div className="flex items-center gap-3 rounded-lg border border-neutral-200 bg-white p-3.5">
-          <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary-50 text-primary-700"><MapIcon className="h-5 w-5" /></span>
-          <div><strong className="block text-lg font-semibold tabular-nums text-neutral-800">{fmtNum(plotCount)}</strong><span className="text-xs text-neutral-500">{C.parcelsRegistered(plotCount)}</span></div>
-        </div>
-        <div className="flex items-center gap-3 rounded-lg border border-neutral-200 bg-white p-3.5">
-          <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary-50 text-primary-700"><Droplet className="h-5 w-5" /></span>
-          <div><strong className="block text-lg font-semibold tabular-nums text-neutral-800">{fmtNum(urgentes)}</strong><span className="text-xs text-neutral-500">{C.needWaterToday(urgentes)}</span></div>
-        </div>
-        <div className="flex items-center gap-3 rounded-lg border border-neutral-200 bg-white p-3.5">
-          <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary-50 text-primary-700"><Radio className="h-5 w-5" /></span>
-          <div><strong className="block text-lg font-semibold tabular-nums text-neutral-800">{fmtNum(sensorsOk)} de {fmtNum(sensorsTotal)}</strong><span className="text-xs text-neutral-500">{C.sensorsOperative}</span></div>
-        </div>
-      </div>
-
-      {latest.length === 0 ? (
-        <Empty icon={<Gauge className="h-5 w-5" aria-hidden="true" />} title={C.noEvals} hint={C.noEvalsHint} action={<Button variant="outline" size="sm" asChild><Link to="/evaluar">{C.goToEvaluate}</Link></Button>} />
-      ) : (
-        <section aria-label="Últimas recomendaciones" className="grid gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <FilterTabs<Filter> label={C.filterLabel} value={filter} onChange={(v) => setFilter(v)} options={[
-              { value: "todas", label: `Todas (${counts.todas})` },
-              { value: "riega", label: `Piden riego (${counts.riega})` },
-              { value: "no", label: `No riegan (${counts.no})` },
-              { value: "espera", label: `Esperan (${counts.espera})` },
-              { value: "incompleta", label: `Incompletas (${counts.incompleta})` },
-            ]} />
-            <SearchInput value={search} onChange={setSearch} placeholder={C.searchPlaceholder} label={C.searchLabel} className="min-w-[180px] flex-1" />
-            <Select value={sort} onValueChange={(v) => setSort(v as Sort)}>
-              <SelectTrigger aria-label="Ordenar" className="w-[160px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="reciente">{C.sortRecent}</SelectItem>
-                <SelectItem value="antiguo">{C.sortOldest}</SelectItem>
-              </SelectContent>
-            </Select>
-            <span className="text-xs text-neutral-500" aria-live="polite">{C.totalShown(filtered.length, latest.length)}</span>
-          </div>
-
-          {filtered.length === 0 ? (
-            <Empty icon={<Search className="h-5 w-5" aria-hidden="true" />} title={C.noResults} hint={C.noResultsHint} />
-          ) : (
-            <div className="grid gap-3">
-              {filtered.map((e) => {
-                const snap = e.inputs_snapshot ?? {};
-                const hum = typeof snap.humedad_pct === "number" ? snap.humedad_pct : null;
-                const umb = typeof snap.umbral === "number" ? snap.umbral * 100 : null;
-                const pmp = typeof snap.pmp === "number" ? snap.pmp * 100 : null;
-                const tone = badgeToneForResult(e.result, e.is_critical);
-                return (
-                  <article key={e.id} data-tone={tone} className={cn("rounded-lg border border-l-4 p-4 shadow-card", cardBg(tone))} style={{ borderLeftColor: cardBarColor(tone) }}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <strong className="block truncate text-[15px] font-semibold text-neutral-800">{e.plot?.name ?? `Parcela #${e.plot_id}`}</strong>
-                        <span className="mt-1 flex items-center gap-1 text-xs text-neutral-500"><Clock className="h-3.5 w-3.5" aria-hidden="true" />{fmtDateTime(e.evaluated_at)} · {ageLabel(e.evaluated_at)}</span>
-                      </div>
-                      <Badge variant={badgeVariantForTone(tone)}>{e.is_critical ? "Crítica" : resultLabel(e.result)}</Badge>
-                    </div>
-                    {e.result === "riega" && e.min_liters && e.max_liters ? (
-                      <p className="mt-3 text-xl font-semibold tabular-nums text-neutral-800">{C.waterRange(Number(e.min_liters), Number(e.max_liters))} <span className="text-sm font-medium text-neutral-500">L</span></p>
-                    ) : null}
-                    <div className="mt-3"><SoilMeter actual={hum} umbral={umb} critico={pmp} /></div>
-                    <Button variant="outline" size="sm" asChild className="mt-3 w-full">
-                      <Link to="/evaluar" state={{ plotId: e.plot_id }}>{C.viewWhatToDo} <ArrowRight className="h-[15px] w-[15px]" aria-hidden="true" /></Link>
-                    </Button>
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </section>
-      )}
-    </div>
-  );
+  return <div className="space-y-6">
+    <PageHeading eyebrow="Tu campo" title={C.title} description="Una vista sencilla para saber qué parcelas revisar y qué hacer después." action={<Button variant="outline" onClick={() => void state.load(true)} disabled={state.refreshing}><RefreshCw size={16} aria-hidden="true" />{state.refreshing ? C.updating : C.updateButton}</Button>} />
+    {state.error ? <ErrorBlock message={state.error} retry={() => void state.load()} /> : null}
+    {state.loading ? <LoadingBlock label={C.loading} /> : state.plots.length === 0 ? <EmptyBlock title={C.noParcels} description={C.noParcelsHint} /> : <>
+      {urgent.length > 0 ? <Card className="overflow-hidden rounded-xl border-warning-200 bg-warning-50/70 p-4 sm:p-5"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-warning-100 text-warning-800" aria-hidden="true"><Droplets size={19} /></span><div><p className="text-xs font-semibold uppercase tracking-wide text-warning-800">Recomendación de riego</p><h2 className="mt-1 text-lg font-semibold text-neutral-900">{C.urgentTitle(urgent.length)}</h2><p className="mt-1 text-sm leading-relaxed text-neutral-700">{C.urgentSub}</p></div></div><Button asChild className="w-full sm:w-auto"><Link to="/evaluar" state={{ plotId: urgent[0].plot_id }}>{C.evaluateButton}<ArrowRight size={16} aria-hidden="true" /></Link></Button></div></Card> : <Card className="rounded-xl border-primary-100 bg-primary-50/60 p-4 sm:p-5"><div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-primary-700" aria-hidden="true"><Leaf size={19} /></span><div><p className="text-xs font-semibold uppercase tracking-wide text-primary-700">Estado del campo</p><h2 className="mt-1 text-lg font-semibold text-neutral-900">{C.calmTitle}</h2><p className="mt-1 text-sm leading-relaxed text-neutral-700">{C.calmSub}</p></div></div></Card>}
+      <section aria-label="Indicadores de tus parcelas" className="grid grid-cols-2 gap-3 xl:grid-cols-3"><Metric label="Parcelas activas" value={activePlots.length} detail={C.parcelsRegistered(activePlots.length)} icon={<Sprout size={17} />} tone="brand" /><Metric label={C.needWaterToday(urgent.length)} value={urgent.length} detail={urgent.length ? "Revisa la recomendación antes de aplicar agua." : "No hay una recomendación urgente registrada."} icon={<Droplets size={17} />} tone={urgent.length ? "warning" : "default"} /><Metric label={C.sensorsOperative} value={`${state.sensorsOk}/${state.sensorsTotal}`} detail="Sensores activos con estado operativo." icon={<Leaf size={17} />} /></section>
+      <section className="space-y-3" aria-labelledby="latest-title"><div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-primary-700">Seguimiento</p><h2 id="latest-title" className="mt-1 text-lg font-semibold text-neutral-900">{C.latestRecs}</h2><p className="mt-1 text-sm text-neutral-600">Última evaluación disponible para cada parcela activa.</p></div><div className="flex flex-col gap-2 sm:flex-row"><SearchInput value={search} onChange={setSearch} placeholder={C.searchPlaceholder} label={C.searchLabel} /><label className="sr-only" htmlFor="hoy-filter">{C.filterLabel}</label><select id="hoy-filter" value={filter} onChange={(e) => setFilter(e.target.value)} className="min-h-12 rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"><option value="todas">Todos los estados</option><option value="riega">Regar</option><option value="no">No regar</option><option value="espera">Esperar</option><option value="incompleta">Incompleta</option></select></div></div>
+        {evaluations.length ? <div className="grid gap-3 lg:grid-cols-2">{evaluations.map((evaluation) => <Card key={evaluation.id} className="rounded-xl p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="truncate font-semibold text-neutral-900">{evaluation.plot?.name ?? activePlots.find((p) => p.id === evaluation.plot_id)?.name ?? "Parcela"}</h3><p className="mt-1 text-xs text-neutral-500">{fmtDateTime(evaluation.evaluated_at)}</p></div><StatusBadge value={evaluation.result} label={evaluation.result === "riega" && evaluation.is_critical ? "Prioritario" : undefined} /></div><p className="mt-4 text-sm leading-relaxed text-neutral-700">{evaluation.result === "riega" ? "El sistema recomienda regar." : evaluation.result === "no" ? "La humedad es suficiente por ahora." : evaluation.result === "espera" ? "Se espera lluvia suficiente; revisa de nuevo más tarde." : "Faltan datos recientes para decidir."}</p>{evaluation.min_liters !== null && evaluation.max_liters !== null ? <p className="mt-2 text-lg font-semibold tabular-nums text-neutral-900">{fmtNum(evaluation.min_liters)}–{fmtNum(evaluation.max_liters)} <span className="text-sm font-medium text-neutral-600">litros recomendados</span></p> : null}<div className="mt-4 flex flex-wrap gap-2"><Button asChild size="sm"><Link to="/evaluar" state={{ plotId: evaluation.plot_id }}>Ver recomendación<ArrowRight size={15} aria-hidden="true" /></Link></Button><Button asChild variant="outline" size="sm"><Link to="/riegos">Mis riegos</Link></Button></div></Card>)}</div> : state.latest.length === 0 ? <EmptyBlock title={C.noEvals} description={C.noEvalsHint} action={<Button asChild><Link to="/evaluar">{C.goToEvaluate}<ArrowRight size={15} aria-hidden="true" /></Link></Button>} /> : <EmptyBlock title={C.noResults} description={C.noResultsHint} />}
+      </section>
+      <p className="text-xs text-neutral-500">El sistema recomienda; tú decides. Consulta a tu técnico si falta algún dato.</p>
+    </>}
+  </div>;
 }
+

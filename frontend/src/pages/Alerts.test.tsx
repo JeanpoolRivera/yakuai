@@ -3,6 +3,8 @@ import {render,screen,fireEvent,cleanup} from "@testing-library/react";
 import {MemoryRouter,Route,Routes,useLocation} from "react-router-dom";
 import {Alerts} from "./Alerts";
 const api = vi.hoisted(()=>({listAlerts:vi.fn()}));
+const auth = vi.hoisted(()=>({role:"tecnico"}));
+vi.mock("../app/auth",()=>({useAuth:()=>auth}));
 vi.mock("../api/endpoints",()=>api);
 afterEach(()=>{cleanup();vi.clearAllMocks();});
 const alerts = [
@@ -22,10 +24,10 @@ describe("Alertas",()=>{
   api.listAlerts.mockResolvedValue(alerts);
   render(<MemoryRouter><Alerts/></MemoryRouter>);
   await screen.findByText(/humedad crítica, revisión prioritaria/);
-  expect(screen.getByText(/riega hoy mismo/)).toBeInTheDocument();
-  expect(screen.getByText(/conexión o registra/)).toBeInTheDocument();
-  expect(screen.getByText(/vuelve a evaluar/)).toBeInTheDocument();
-  expect(screen.getAllByRole("link",{name:/Ir a parcela/})).toHaveLength(4);
+  expect(screen.getByText(/Evalúa la parcela y riega hoy mismo/)).toBeInTheDocument();
+  expect(screen.getByText(/Revisa su conexión o registra una lectura manual/)).toBeInTheDocument();
+  expect(screen.getByText(/Complétalos y vuelve a evaluar/)).toBeInTheDocument();
+  expect(screen.getAllByRole("link",{name:/Evaluar parcela|Revisar sensores/})).toHaveLength(4);
  });
  it("filtra por prioridad y busca por mensaje",async()=>{
   api.listAlerts.mockResolvedValue(alerts);
@@ -43,7 +45,7 @@ describe("Alertas",()=>{
   api.listAlerts.mockResolvedValue(alerts);
   render(<MemoryRouter initialEntries={["/alertas"]}><Routes><Route path="/alertas" element={<Alerts/>}/><Route path="/evaluar" element={<StateProbe/>}/></Routes></MemoryRouter>);
   await screen.findByText(/humedad crítica, revisión prioritaria/);
-  fireEvent.click(screen.getAllByRole("link",{name:/Ir a parcela/})[0]);
+  fireEvent.click(screen.getAllByRole("link",{name:/Evaluar parcela|Revisar sensores/})[0]);
   expect(await screen.findByText("plot:1")).toBeInTheDocument();
  });
 });

@@ -36,10 +36,10 @@ export function Confirm({
           <DialogDescription>{body}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={onCancel} disabled={busy}>
+          <Button type="button" variant="outline" onClick={onCancel} disabled={busy}>
             Cancelar
           </Button>
-          <Button variant="destructive" onClick={onConfirm} disabled={busy}>
+          <Button type="button" variant="destructive" onClick={onConfirm} disabled={busy}>
             {busy ? "Procesando…" : confirmLabel}
           </Button>
         </DialogFooter>

@@ -18,6 +18,7 @@ export interface UseEvaluationResult {
   current: Evaluation | null;
   busy: boolean;
   sharing: boolean;
+  error: string | null;
   evaluate: (plotId: number) => Promise<void>;
   reset: () => void;
   share: () => Promise<void>;
@@ -27,11 +28,15 @@ export function useEvaluation(): UseEvaluationResult {
   const [current, setCurrent] = useState<Evaluation | null>(null);
   const [busy, setBusy] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const reset = useCallback(() => setCurrent(null), []);
+  const reset = useCallback(() => {
+    setCurrent(null);
+    setError(null);
+  }, []);
 
   const evaluate = useCallback(async (plotId: number) => {
-    setCurrent(null);
+    setError(null);
     setBusy(true);
     try {
       // 1 clic = actualiza clima OWM y evalúa con dato fresco.
@@ -45,10 +50,13 @@ export function useEvaluation(): UseEvaluationResult {
       announce(evaluation);
     } catch (err) {
       if (err instanceof ApiError && err.status === 422 && err.data) {
+        setError(null);
         setCurrent(err.data as Evaluation); // incompleta: el backend devuelve la evaluación creada
         toastInfo("Faltan datos para decidir. Revisa qué está pendiente.");
       } else {
-        toastError(err instanceof Error ? err.message : "No se pudo evaluar.");
+        const message = err instanceof Error ? err.message : "No se pudo evaluar.";
+        setError(message);
+        toastError(message);
       }
     } finally {
       setBusy(false);
@@ -71,5 +79,5 @@ export function useEvaluation(): UseEvaluationResult {
     }
   }, [current]);
 
-  return { current, busy, sharing, evaluate, reset, share };
+  return { current, busy, sharing, error, evaluate, reset, share };
 }

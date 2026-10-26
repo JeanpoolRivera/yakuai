@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getWeather, listPlots, refreshWeather } from "@/api/endpoints";
+import { useLocation } from "react-router-dom";
 import type { Forecast, Plot } from "@/api/types";
 import { ApiError, friendlyError } from "@/api/client";
 import { toastError, toastOk } from "@/lib/toast";
@@ -7,6 +8,8 @@ import { toastError, toastOk } from "@/lib/toast";
 const FRESH_MIN = 180;
 
 export function useWeather() {
+  const location = useLocation();
+  const requestedPlotId = (location.state as { plotId?: number } | null)?.plotId ?? null;
   
   
 
@@ -18,17 +21,23 @@ export function useWeather() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [forecastError, setForecastError] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const weatherRequest = useRef(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     listPlots()
       .then((p) => {
         setPlots(p);
-        if (p.length > 0) setPlotId(p[0].id);
+        if (p.length > 0) setPlotId(p.some((plot) => plot.id === requestedPlotId) ? requestedPlotId : p[0].id);
       })
       .catch((err: unknown) => setError(err instanceof Error ? err.message : "No se cargaron las parcelas."))
       .finally(() => setLoadingPlots(false));
-  }, []);
+  }, [requestedPlotId]);
 
   async function loadForecast(id: number): Promise<void> {
     const request = ++weatherRequest.current;
@@ -39,6 +48,7 @@ export function useWeather() {
       const fc = await getWeather(id);
       if (request !== weatherRequest.current) return;
       setForecast(fc);
+      setNow(Date.now());
     } catch (err) {
       if (request !== weatherRequest.current) return;
       if (!(err instanceof ApiError && err.status === 404)) {
@@ -60,6 +70,7 @@ export function useWeather() {
     try {
       const fc = await refreshWeather(plotId);
       setForecast(fc);
+      setNow(Date.now());
       toastOk(fc.origin === "owm" ? "Pronóstico actualizado (OWM en vivo)." : `Pronóstico guardado (${fc.origin}).`);
     } catch (err) {
       toastError(friendlyError(err, "No se pudo actualizar el clima."));
@@ -68,8 +79,7 @@ export function useWeather() {
     }
   }
 
-  const now = Date.now();
-  const age = forecast ? (Math.max(now, Date.now()) - Date.parse(forecast.fetched_at)) / 60000 : null;
+  const age = forecast ? (now - Date.parse(forecast.fetched_at)) / 60000 : null;
   const fresh = age !== null && age >= 0 && age <= FRESH_MIN;
 
   return {

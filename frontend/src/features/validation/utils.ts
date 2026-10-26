@@ -8,6 +8,8 @@ export function detailLabel(detalle: string): string {
 
 export function reasonLabel(code: string): string {
   const map: Record<string, string> = {
+    humedad_suficiente: "La tierra aún tiene agua suficiente.",
+    bajo_umbral: "La humedad bajó del umbral del cultivo.",
     ok: "Correcto",
     falta_dato: "Falta dato",
     sensor_vencido: "Sensor vencido",

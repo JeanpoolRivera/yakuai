@@ -1,103 +1,24 @@
-/* Parcelas: mapa con dibujo + lista + wizard de 3 pasos (crear/editar). */
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
-import type { FormEvent } from "react";
-import { Check, LoaderCircle, Map as MapIcon, MapPin, Pencil, Plus, Sprout } from "lucide-react";
-import { ApiError, friendlyError } from "@/api/client";
-import { createPlot, listCrops, listFarmers, listPlots, listSoils, updatePlot } from "@/api/endpoints";
+import { useEffect, useMemo, useState } from "react";
+import { MapPinned, Pencil, Plus, Sprout } from "lucide-react";
+import { Link } from "react-router-dom";
+import { listCrops, listFarmers, listPlots, listSoils, createPlot, updatePlot } from "@/api/endpoints";
 import type { PlotInput } from "@/api/endpoints";
 import type { Crop, Farmer, Plot, SoilTexture } from "@/api/types";
-import type { DrawResult } from "@/components/shadcn/plot-map";
-import { PageHead } from "@/components/shadcn/page-head";
-import { Stat } from "@/components/shadcn/Stat";
-import { Badge } from "@/components/shadcn/badge";
-import { Banner, Empty, Loading } from "@/components/shadcn/feedback";
+import { friendlyError } from "@/api/client";
+import { toastOk } from "@/lib/toast";
+import { PlotMap, type DrawResult, type PlotPoint } from "@/components/shadcn/plot-map";
+import { PageHeading, Metric, StatusBadge, EmptyBlock, ErrorBlock, LoadingBlock } from "@/components/workspace/WorkspaceKit";
 import { Button } from "@/components/shadcn/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/shadcn/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/shadcn/dialog";
+import { Card } from "@/components/shadcn/card";
 import { Input } from "@/components/shadcn/input";
-import { PaginationControls } from "@/components/shadcn/PaginationControls";
-import { Stepper } from "@/components/shadcn/Stepper";
 import { SearchInput } from "@/components/shadcn/search-input";
-import { PlotOutline } from "@/components/shadcn/plot-outline";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/shadcn/sheet";
-import { FormField } from "@/components/forms/FormField";
-import { useCollection } from "@/hooks/useCollection";
-import { submitForm } from "@/lib/dom";
-import { fmtDate, fmtNum, todayInput } from "@/lib/format";
-import { toastError, toastOk } from "@/lib/toast";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/shadcn/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/shadcn/table";
+import { fmtNum } from "@/lib/format";
 
-const PlotMap = lazy(() => import("@/components/shadcn/plot-map").then((m) => ({ default: m.PlotMap })));
-
-const SELECT_CLS =
-  "h-12 w-full rounded-sm border border-neutral-400 bg-white px-3 text-sm text-neutral-800 transition-all hover:border-primary-600 focus-visible:border-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600/15 disabled:cursor-not-allowed disabled:opacity-50";
-
-interface Draft {
-  farmer_id: string;
-  name: string;
-  latitude: string;
-  longitude: string;
-  area_m2: string;
-  area_origin: "dibujo" | "manual";
-  boundary: number[][][] | null;
-  crop_id: string;
-  sowing_date: string;
-  soil_texture_code: string;
-  irrigation_system: string;
-  irrigation_efficiency: string;
-  flow_lpm: string;
-}
-
-const EMPTY_DRAFT: Draft = {
-  farmer_id: "",
-  name: "",
-  latitude: "-12.0667",
-  longitude: "-75.2833",
-  area_m2: "",
-  area_origin: "manual",
-  boundary: null,
-  crop_id: "",
-  sowing_date: todayInput(),
-  soil_texture_code: "franco",
-  irrigation_system: "goteo",
-  irrigation_efficiency: "0.9",
-  flow_lpm: "",
-};
-
-function toDraft(p: Plot): Draft {
-  return {
-    farmer_id: String(p.farmer_id),
-    name: p.name,
-    latitude: String(p.latitude),
-    longitude: String(p.longitude),
-    area_m2: String(p.area_m2),
-    area_origin: p.area_origin,
-    boundary: p.boundary,
-    crop_id: String(p.crop_id),
-    sowing_date: p.sowing_date.slice(0, 10),
-    soil_texture_code: p.soil_texture_code,
-    irrigation_system: p.irrigation_system,
-    irrigation_efficiency: String(p.irrigation_efficiency),
-    flow_lpm: p.flow_lpm ?? "",
-  };
-}
-
-function draftToInput(d: Draft): PlotInput {
-  return {
-    farmer_id: Number(d.farmer_id),
-    name: d.name.trim(),
-    latitude: Number(d.latitude),
-    longitude: Number(d.longitude),
-    boundary: d.boundary,
-    area_m2: Number(d.area_m2),
-    area_origin: d.area_origin,
-    crop_id: Number(d.crop_id),
-    sowing_date: d.sowing_date,
-    soil_texture_code: d.soil_texture_code,
-    irrigation_system: d.irrigation_system,
-    irrigation_efficiency: Number(d.irrigation_efficiency),
-    flow_lpm: d.flow_lpm === "" ? null : Number(d.flow_lpm),
-  };
-}
+type FormValues = { farmer_id: string; name: string; latitude: string; longitude: string; boundary: number[][][] | null; area_m2: string; area_origin: "dibujo" | "manual"; crop_id: string; sowing_date: string; soil_texture_code: string; irrigation_system: "goteo" | "aspersion" | "gravedad"; irrigation_efficiency: string; flow_lpm: string; status: "activa" | "pausada" | "cerrada" };
+const blank = (): FormValues => ({ farmer_id: "", name: "", latitude: "-12.0667", longitude: "-75.2833", boundary: null, area_m2: "", area_origin: "manual", crop_id: "", sowing_date: "", soil_texture_code: "", irrigation_system: "goteo", irrigation_efficiency: "0.9", flow_lpm: "", status: "activa" });
+const STEP_LABELS = ["Parcela y ubicaci√≥n", "Cultivo y suelo", "Riego y revisi√≥n"];
 
 export function PlotsWorkspace(): React.JSX.Element {
   const [plots, setPlots] = useState<Plot[]>([]);
@@ -106,621 +27,83 @@ export function PlotsWorkspace(): React.JSX.Element {
   const [soils, setSoils] = useState<SoilTexture[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const [modalOpen, setModalOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("todas");
+  const [open, setOpen] = useState(false);
+  const [step, setStep] = useState(0);
   const [editing, setEditing] = useState<Plot | null>(null);
-  const [detail, setDetail] = useState<Plot | null>(null);
-  const [step, setStep] = useState(1);
-  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
-  const [drawInfo, setDrawInfo] = useState<string | null>(null);
-  const [locating, setLocating] = useState(false);
-  const [mapTick, setMapTick] = useState(0);
-  const [saving, setSaving] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
-  const step2TitleRef = useRef<HTMLHeadingElement>(null);
+  const [form, setForm] = useState<FormValues>(blank);
+  const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState("");
 
   async function load(): Promise<void> {
-    setLoading(true);
-    setError(null);
-    try {
-      const [p, f, c, s] = await Promise.all([listPlots(), listFarmers(), listCrops(), listSoils()]);
-      setPlots(p);
-      setFarmers(f);
-      setCrops(c);
-      setSoils(s);
-    } catch (err) {
-      setError(friendlyError(err, "No se pudieron cargar las parcelas."));
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true); setError(null);
+    try { const [p, f, c, s] = await Promise.all([listPlots(), listFarmers(), listCrops(), listSoils()]); setPlots(p); setFarmers(f); setCrops(c); setSoils(s); }
+    catch (err) { setError(friendlyError(err, "No se pudieron cargar las parcelas.")); }
+    finally { setLoading(false); }
   }
+  useEffect(() => { void load(); }, []);
+  const activeCount = plots.filter((p) => p.status === "activa").length;
+  const visible = useMemo(() => plots.filter((plot) => {
+    const farmer = farmers.find((f) => f.id === plot.farmer_id);
+    const text = `${plot.name} ${farmer?.name ?? ""} ${plot.crop?.name ?? ""}`.toLocaleLowerCase("es");
+    return text.includes(query.trim().toLocaleLowerCase("es")) && (statusFilter === "todas" || plot.status === statusFilter);
+  }), [farmers, plots, query, statusFilter]);
+  const mapPoints = useMemo<PlotPoint[]>(() => plots.map((plot) => ({ id: plot.id, name: plot.name, latitude: plot.latitude, longitude: plot.longitude, farmerName: farmers.find((farmer) => farmer.id === plot.farmer_id)?.name })), [farmers, plots]);
+  const mapFocus = useMemo(() => ({ lat: Number(form.latitude), lng: Number(form.longitude) }), [form.latitude, form.longitude]);
+  const missingReferenceData = [
+    ...(farmers.length ? [] : [{ label: "Registra al menos un agricultor", href: "/agricultores" }]),
+    ...(crops.length ? [] : [{ label: "Solicita cargar cultivos al administrador", href: "/catalogos" }]),
+    ...(soils.length ? [] : [{ label: "Solicita cargar tipos de suelo al administrador", href: "/catalogos" }]),
+  ];
 
-  useEffect(() => {
-    void load();
-  }, []);
-
-  useEffect(() => {
-    if (modalOpen && step === 2) step2TitleRef.current?.focus();
-  }, [modalOpen, step]);
-
-  const coll = useCollection(plots, {
-    perPage: 8,
-    search: (p, q) =>
-      `${p.name} ${p.farmer?.name ?? ""} ${p.crop?.name ?? ""}`.toLowerCase().includes(q),
-    sort: (a, b) => b.id - a.id,
-  });
-
-  function openCreate(): void {
-    setEditing(null);
-    setDraft(EMPTY_DRAFT);
-    setStep(1);
-    setFieldErrors({});
-    setDrawInfo(null);
-    setModalOpen(true);
+  function openCreate(): void { setEditing(null); setForm({ ...blank(), farmer_id: farmers[0] ? String(farmers[0].id) : "", crop_id: crops[0] ? String(crops[0].id) : "", soil_texture_code: soils[0]?.code ?? "" }); setStep(0); setFormError(""); setOpen(true); }
+  function openEdit(plot: Plot): void { setEditing(plot); setForm({ farmer_id: String(plot.farmer_id), name: plot.name, latitude: String(plot.latitude), longitude: String(plot.longitude), boundary: plot.boundary, area_m2: String(plot.area_m2), area_origin: plot.area_origin, crop_id: String(plot.crop_id), sowing_date: plot.sowing_date, soil_texture_code: plot.soil_texture_code, irrigation_system: plot.irrigation_system, irrigation_efficiency: String(plot.irrigation_efficiency), flow_lpm: plot.flow_lpm ? String(plot.flow_lpm) : "", status: plot.status }); setStep(0); setFormError(""); setOpen(true); }
+  function change<K extends keyof FormValues>(key: K, value: FormValues[K]): void { setForm((prev) => ({ ...prev, [key]: value })); setFormError(""); }
+  function onDraw(result: DrawResult): void {
+    setForm((prev) => ({ ...prev, latitude: String(result.lat), longitude: String(result.lng), boundary: result.ring.length >= 3 ? [result.ring] : null, area_m2: result.areaM2 > 0 ? String(Math.round(result.areaM2 * 100) / 100) : prev.area_m2, area_origin: result.areaM2 > 0 ? "dibujo" : "manual" }));
   }
-
-  function openEdit(p: Plot): void {
-    setEditing(p);
-    setDraft(toDraft(p));
-    setStep(1);
-    setFieldErrors({});
-    setDrawInfo(null);
-    setModalOpen(true);
-  }
-
-  function set<K extends keyof Draft>(k: K, v: Draft[K]): void {
-    setDraft((d) => ({ ...d, [k]: v }));
-  }
-
-  function onDraw(d: DrawResult): void {
-    if (d.ring.length === 0) {
-      // Clic o marcador: solo fija punto, conserva +Ìrea y contorno previo.
-      setDraft((prev) => ({
-        ...prev,
-        latitude: String(d.lat),
-        longitude: String(d.lng),
-      }));
-      setDrawInfo(`Punto fijado en ${d.lat}, ${d.lng}. Ahora dibuja el contorno para el +Ìrea o escr+°bela a mano.`);
-      return;
-    }
-    setDraft((prev) => ({
-      ...prev,
-      boundary: [d.ring],
-      latitude: String(d.lat),
-      longitude: String(d.lng),
-      area_m2: String(d.areaM2),
-      area_origin: "dibujo",
-    }));
-    setDrawInfo(`Contorno de ${fmtNum(d.areaM2)} m-¶. Revisa el paso 2 y confirma.`);
-    setStep(2);
-  }
-
-  function useMyLocation(): void {
-    const geo = navigator.geolocation;
-    if (!geo) {
-      toastError("Tu dispositivo no ofrece geolocalizaci+¶n. Escribe las coordenadas a mano.");
-      return;
-    }
-    setLocating(true);
-    geo.getCurrentPosition(
-      (pos) => {
-        const lat = Number(pos.coords.latitude.toFixed(7));
-        const lng = Number(pos.coords.longitude.toFixed(7));
-        setDraft((prev) => ({ ...prev, latitude: String(lat), longitude: String(lng) }));
-        setMapTick((t) => t + 1);
-        setDrawInfo(`Ubicaci+¶n fijada en ${lat}, ${lng}. Ajusta el punto o dibuja el contorno.`);
-        setLocating(false);
-      },
-      () => {
-        toastError("No se pudo obtener tu ubicaci+¶n. Revisa los permisos del navegador.");
-        setLocating(false);
-      },
-      { enableHighAccuracy: false, timeout: 10000 },
-    );
-  }
-
-  function stepValid(n: number): string | null {
-    if (n === 1) {
-      if (!draft.farmer_id) return "Elige el agricultor.";
-      if (draft.name.trim().length < 2) return "Ponle un nombre a la parcela.";
-      return null;
-    }
-    if (n === 2) {
-      const lat = Number(draft.latitude);
-      const lng = Number(draft.longitude);
-      if (!Number.isFinite(lat) || lat < -90 || lat > 90) return "Latitud inv+Ìlida (-90 a 90).";
-      if (!Number.isFinite(lng) || lng < -180 || lng > 180) return "Longitud inv+Ìlida.";
-      if (!Number.isFinite(Number(draft.area_m2)) || Number(draft.area_m2) < 1)
-        return "El +Ìrea debe ser mayor a 1 m-¶.";
-      return null;
-    }
-    if (!draft.crop_id) return "Elige el cultivo.";
-    if (!draft.sowing_date) return "Indica la fecha de siembra.";
-    if (new Date(draft.sowing_date) > new Date()) return "La siembra no puede ser futura.";
-    const eff = Number(draft.irrigation_efficiency);
-    if (!Number.isFinite(eff) || eff <= 0 || eff > 1) return "Eficiencia entre 0 y 1 (ej. 0.9).";
+  function validateStep(): string | null {
+    if (step === 0 && (!form.name.trim() || !form.farmer_id || !form.latitude || !form.longitude)) return "Completa el nombre, agricultor y ubicaci√≥n.";
+    if (step === 1 && (!form.crop_id || !form.sowing_date || !form.soil_texture_code)) return "Selecciona cultivo, fecha de siembra y tipo de suelo.";
+    if (step === 2 && (!form.area_m2 || Number(form.area_m2) < 1 || !form.irrigation_efficiency || Number(form.irrigation_efficiency) <= 0 || Number(form.irrigation_efficiency) > 1)) return "Revisa el √°rea y la eficiencia del riego (de 0 a 1).";
     return null;
   }
-
-  async function onSubmit(e: FormEvent): Promise<void> {
-    e.preventDefault();
-    if (step < 3) {
-      const msg = stepValid(step);
-      if (msg) toastError(msg);
-      else setStep(step + 1);
-      return;
-    }
-    const errStep3 = stepValid(3);
-    if (errStep3) {
-      toastError(errStep3);
-      return;
-    }
-    setSaving(true);
-    setFieldErrors({});
-    try {
-      if (editing) {
-        await updatePlot(editing.id, draftToInput(draft));
-        toastOk("Parcela actualizada.");
-      } else {
-        await createPlot(draftToInput(draft));
-        toastOk("Parcela registrada.");
-      }
-      setModalOpen(false);
-      await load();
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 422) {
-        setFieldErrors(err.fields);
-        toastError("Revisa los campos marcados.");
-      } else {
-        toastError(friendlyError(err, "No se pudo guardar la parcela."));
-      }
-    } finally {
-      setSaving(false);
-    }
+  async function submit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault(); setFormError("");
+    const issue = validateStep();
+    if (issue) { setFormError(issue); return; }
+    if (step < 2) { setStep((v) => v + 1); return; }
+    const payload: PlotInput = { farmer_id: Number(form.farmer_id), name: form.name.trim(), latitude: Number(form.latitude), longitude: Number(form.longitude), boundary: form.boundary, area_m2: Number(form.area_m2), area_origin: form.area_origin, crop_id: Number(form.crop_id), sowing_date: form.sowing_date, soil_texture_code: form.soil_texture_code, irrigation_system: form.irrigation_system, irrigation_efficiency: Number(form.irrigation_efficiency), flow_lpm: form.flow_lpm ? Number(form.flow_lpm) : null, status: form.status };
+    setBusy(true);
+    try { if (editing) { await updatePlot(editing.id, payload); toastOk("Parcela actualizada."); } else { await createPlot(payload); toastOk("Parcela registrada."); } setOpen(false); await load(); }
+    catch (err) { setFormError(friendlyError(err, "No se pudo guardar la parcela.")); }
+    finally { setBusy(false); }
   }
 
-  const fe = (k: string): string | undefined => fieldErrors[k]?.[0];
-  const mapPoints = useMemo(
-    () =>
-      plots.map((p) => ({
-        id: p.id,
-        name: p.name,
-        latitude: p.latitude,
-        longitude: p.longitude,
-        farmerName: p.farmer?.name,
-      })),
-    [plots],
-  );
+  return <div className="space-y-6">
+    <PageHeading eyebrow="Gesti√≥n del campo" title="Parcelas" description="Ubica cada parcela y conserva los datos necesarios para calcular sus recomendaciones." action={<Button onClick={openCreate} loading={loading} disabled={loading}><Plus size={16} aria-hidden="true" />Registrar parcela</Button>} />
+    {error ? <ErrorBlock message={error} retry={() => void load()} /> : null}
+    {!loading && !error && missingReferenceData.length ? <Card className="rounded-xl border-warning-200 bg-warning-50/60 p-4" role="status"><h2 className="font-semibold text-warning-900">Faltan datos para poder registrar parcelas</h2><p className="mt-1 text-sm text-warning-900/80">Los cat√°logos agron√≥micos son de solo lectura; el administrador debe cargar cultivos y suelos disponibles.</p><ul className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-sm">{missingReferenceData.map((item) => <li key={item.label}><Link className="font-medium text-primary-800 underline underline-offset-2" to={item.href}>{item.label}</Link></li>)}</ul></Card> : null}
+    {loading ? <LoadingBlock label="Cargando parcelas‚Ä¶" /> : <>
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3" aria-label="Resumen de parcelas"><Metric label="Parcelas registradas" value={plots.length} detail="En todas las comunidades" icon={<MapPinned size={17} />} tone="brand" /><Metric label="Activas" value={activeCount} detail="Incluidas en seguimiento" /><Metric label="Agricultores" value={new Set(plots.map((p) => p.farmer_id)).size} detail="Con parcela registrada" /></section>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(18rem,.75fr)]">
+        <Card className="overflow-hidden rounded-xl"><div className="border-b border-neutral-200 p-4 sm:p-5"><h2 className="font-semibold text-neutral-900">Mapa del campo</h2><p className="mt-1 text-sm text-neutral-600">Selecciona un marcador para identificar la parcela.</p></div><PlotMap plots={mapPoints} className="h-[320px] sm:h-[400px]" /><div className="border-t border-neutral-200 px-4 py-3 text-xs text-neutral-500">Ubicaciones aproximadas. El contorno se define al crear o editar una parcela.</div></Card>
+        <Card className="space-y-4 rounded-xl p-4 sm:p-5"><div><h2 className="font-semibold text-neutral-900">Directorio de parcelas</h2><p className="mt-1 text-sm text-neutral-600">Busca por nombre, cultivo o agricultor.</p></div><SearchInput value={query} onChange={setQuery} placeholder="Buscar parcela‚Ä¶" label="Buscar parcelas" /><label className="grid gap-1 text-xs font-medium text-neutral-700">Estado<select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="min-h-12 rounded-md border border-neutral-300 bg-white px-3 text-sm"><option value="todas">Todos los estados</option><option value="activa">Activas</option><option value="pausada">Pausadas</option><option value="cerrada">Cerradas</option></select></label><div className="border-t border-neutral-200 pt-3 text-xs text-neutral-500">{visible.length} de {plots.length} parcelas</div></Card>
+      </div>
+      {visible.length ? <Card className="overflow-hidden rounded-xl"><Table><caption className="sr-only">Parcelas, responsables, cultivo, √°rea y estado</caption><TableHeader className="bg-neutral-50"><TableRow><TableHead>Parcela</TableHead><TableHead>Agricultor</TableHead><TableHead>Cultivo</TableHead><TableHead>√Årea</TableHead><TableHead>Riego</TableHead><TableHead>Estado</TableHead><TableHead><span className="sr-only">Acciones</span></TableHead></TableRow></TableHeader><TableBody>{visible.map((plot) => <TableRow key={plot.id}><TableCell><p className="font-semibold text-neutral-900">{plot.name}</p><p className="text-xs text-neutral-500">{Number(plot.latitude).toFixed(4)}, {Number(plot.longitude).toFixed(4)}</p></TableCell><TableCell>{farmers.find((f) => f.id === plot.farmer_id)?.name ?? "‚Äî"}</TableCell><TableCell>{plot.crop?.name ?? crops.find((c) => c.id === plot.crop_id)?.name ?? "‚Äî"}</TableCell><TableCell className="tabular-nums">{fmtNum(plot.area_m2)} m¬≤</TableCell><TableCell className="capitalize">{plot.irrigation_system}</TableCell><TableCell><StatusBadge value={plot.status} label={plot.status === "activa" ? "Activa" : plot.status === "pausada" ? "Pausada" : "Cerrada"} /></TableCell><TableCell><Button variant="ghost" size="sm" aria-label={`Editar parcela ${plot.name}`} onClick={() => openEdit(plot)}><Pencil size={15} aria-hidden="true" />Editar</Button></TableCell></TableRow>)}</TableBody></Table></Card> : <EmptyBlock title={query || statusFilter !== "todas" ? "Sin coincidencias" : "A√∫n no hay parcelas"} description={query || statusFilter !== "todas" ? "Prueba con otro t√©rmino o estado." : "Registra una parcela para comenzar el seguimiento."} action={!query && statusFilter === "todas" && farmers.length ? <Button onClick={openCreate}>Registrar parcela</Button> : undefined} />}
+    </>}
 
-  return (
-    <div>
-      <PageHead
-        eyebrow="Territorio"
-        title="Parcelas y mapa"
-        desc="Organiza tu territorio agr+°cola: ubicaci+¶n, cultivos y condiciones de riego."
-        crumbs="YakuAI / Parcelas"
-        actions={
-          <Button onClick={openCreate}>
-            <Plus className="h-4 w-4" aria-hidden="true" /> Nueva parcela
-          </Button>
-        }
-      />
-
-      {loading ? (
-        <Loading text="Cargando parcelas‘«™" />
-      ) : error ? (
-        <Banner kind="bad">
-          {error}{" "}
-          <Button variant="link" size="sm" onClick={() => void load()}>
-            Reintentar
-          </Button>
-        </Banner>
-      ) : (
-        <>
-          <div className="grid gap-3 sm:grid-cols-3" aria-label="Resumen de parcelas">
-            <Stat
-              value={fmtNum(plots.length)}
-              label="Parcelas registradas"
-              icon={<MapIcon className="h-[18px] w-[18px]" aria-hidden="true" />}
-            />
-            <Stat
-              value={fmtNum(plots.filter((p) => p.status === "activa").length)}
-              label="Parcelas activas"
-              icon={<Check className="h-[18px] w-[18px]" aria-hidden="true" />}
-            />
-            <Stat
-              value={`${fmtNum(plots.reduce((total, p) => total + Number(p.area_m2), 0))} m-¶`}
-              label="Superficie registrada"
-              icon={<Sprout className="h-[18px] w-[18px]" aria-hidden="true" />}
-            />
-          </div>
-
-          <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-            <section aria-label="Mapa">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Territorio -¿ Chupaca</CardTitle>
-                  <CardDescription>
-                    Explora las parcelas registradas. El punto y el contorno se fijan en el mapa del paso 2 del formulario.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-3">
-                  <Suspense fallback={<Loading text="Cargando mapa‘«™" />}>
-                    <PlotMap plots={mapPoints} />
-                  </Suspense>
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-500">
-                    <span className="inline-flex items-center gap-1.5">
-                      <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-primary-600" />
-                      Parcela registrada
-                    </span>
-                    <span>{mapPoints.length === 0 ? "Sin puntos en el mapa" : `${mapPoints.length} en el mapa`}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </section>
-
-            <section aria-label="Lista de parcelas" className="grid content-start gap-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-2xs font-semibold uppercase tracking-wider text-primary-700">Registro territorial</p>
-                  <h2 className="mt-1 text-xl font-semibold tracking-tight text-neutral-800">Parcelas</h2>
-                  <p className="mt-1 text-sm text-neutral-600">Consulta y actualiza los datos de cada unidad de cultivo.</p>
-                </div>
-                <MapIcon className="h-6 w-6 shrink-0 text-neutral-400" aria-hidden="true" />
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <SearchInput
-                  value={coll.query}
-                  onChange={coll.setQuery}
-                  placeholder="Buscar por parcela, agricultor o cultivo‘«™"
-                  label="Buscar parcelas"
-                  className="min-w-[200px] flex-1"
-                />
-                <span className="text-xs text-neutral-500">
-                  {coll.query ? `${coll.total} de ${plots.length} parcelas` : `${coll.total} ${coll.total === 1 ? "parcela" : "parcelas"}`}
-                </span>
-              </div>
-              {coll.total === 0 ? (
-                <Empty
-                  icon={<MapIcon className="h-5 w-5" aria-hidden="true" />}
-                  title={coll.query ? "Sin coincidencias" : "A+¶n no hay parcelas"}
-                  hint={coll.query ? "Prueba con otro nombre." : "Registra la primera con el bot+¶n -ΩNueva parcela-+."}
-                  action={
-                    coll.query ? undefined : (
-                      <Button onClick={openCreate}>
-                        <Plus className="h-4 w-4" aria-hidden="true" /> Nueva parcela
-                      </Button>
-                    )
-                  }
-                />
-              ) : (
-                <>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {coll.items.map((p) => (
-                      <article key={p.id} className="plot-tile grid gap-3 rounded-lg border border-neutral-200 bg-white p-4 shadow-card">
-                        <PlotOutline boundary={p.boundary} />
-                        <div className="flex items-center justify-between gap-2">
-                          <span aria-hidden="true" className="grid h-10 w-10 place-items-center rounded-lg bg-primary-50 text-primary-700">
-                            <Sprout className="h-[22px] w-[22px]" />
-                          </span>
-                          <Badge variant={p.status === "activa" ? "success" : "secondary"}>{p.status}</Badge>
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-neutral-800">{p.name}</h3>
-                          <p className="text-sm text-neutral-500">{p.farmer?.name ?? "Sin agricultor"}</p>
-                        </div>
-                        <dl className="grid grid-cols-2 gap-2 text-sm">
-                          <div><dt className="text-xs text-neutral-500">Cultivo</dt><dd className="font-medium text-neutral-800">{p.crop?.name ?? "‘«ˆ"}</dd></div>
-                          <div><dt className="text-xs text-neutral-500">Superficie</dt><dd className="font-medium tabular-nums text-neutral-800">{fmtNum(p.area_m2)} m-¶</dd></div>
-                          <div><dt className="text-xs text-neutral-500">Siembra</dt><dd className="font-medium text-neutral-800">{fmtDate(p.sowing_date)}</dd></div>
-                          <div><dt className="text-xs text-neutral-500">Riego</dt><dd className="font-medium capitalize text-neutral-800">{p.irrigation_system ?? "‘«ˆ"}</dd></div>
-                        </dl>
-                        <div className="flex items-center justify-between gap-2 border-t border-neutral-200 pt-3">
-                          <Button variant="ghost" size="sm" onClick={() => setDetail(p)} aria-label={`Ver detalle de ${p.name}`}>Ver detalle</Button>
-                          <Button variant="outline" size="sm" onClick={() => openEdit(p)} aria-label={`Editar parcela ${p.name}`}>
-                            <Pencil className="h-4 w-4" aria-hidden="true" /> Editar
-                          </Button>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                  <PaginationControls
-                  page={coll.page}
-                  pages={coll.pages}
-                  onPageChange={coll.setPage}
-                  count={`${coll.total} en total`}
-                />
-                </>
-              )}
-            </section>
-          </div>
-        </>
-      )}
-
-      <Sheet open={detail !== null} onOpenChange={(open) => { if (!open) setDetail(null); }}>
-        <SheetContent className="yaku-workspace w-full overflow-y-auto sm:max-w-lg">
-          {detail ? <>
-            <SheetHeader className="mb-6 pr-5 text-left">
-              <SheetTitle className="text-2xl">{detail.name}</SheetTitle>
-              <SheetDescription>{detail.farmer?.name ?? "Sin agricultor"} -¿ {detail.crop?.name ?? "Sin cultivo"}</SheetDescription>
-            </SheetHeader>
-            <PlotOutline boundary={detail.boundary} />
-            <dl className="trace-ledger my-5 grid grid-cols-[auto_1fr] gap-x-4 text-sm">
-              <dt>Estado</dt><dd>{detail.status}</dd>
-              <dt>Superficie</dt><dd>{fmtNum(detail.area_m2)} m-¶</dd>
-              <dt>Origen del +Ìrea</dt><dd>{detail.area_origin === "dibujo" ? "Contorno dibujado" : "Medici+¶n manual"}</dd>
-              <dt>Siembra</dt><dd>{fmtDate(detail.sowing_date)}</dd>
-              <dt>Suelo</dt><dd>{soils.find((s) => s.code === detail.soil_texture_code)?.name ?? detail.soil_texture_code}</dd>
-              <dt>Sistema de riego</dt><dd>{detail.irrigation_system}</dd>
-              <dt>Eficiencia</dt><dd>{fmtNum(Number(detail.irrigation_efficiency) * 100)} %</dd>
-              <dt>Caudal</dt><dd>{detail.flow_lpm === null ? "Sin registrar" : `${fmtNum(detail.flow_lpm)} L/min`}</dd>
-              <dt>Coordenadas</dt><dd>{detail.latitude}, {detail.longitude}</dd>
-            </dl>
-            <Button className="w-full" onClick={() => { setDetail(null); openEdit(detail); }}><Pencil className="h-4 w-4" aria-hidden="true" />Editar datos de la parcela</Button>
-          </> : null}
-        </SheetContent>
-      </Sheet>
-
-      <Dialog
-        open={modalOpen}
-        onOpenChange={(open) => {
-          if (!open && !saving) setModalOpen(false);
-        }}
-      >
-        <DialogContent className="sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>{editing ? "Editar parcela" : "Nueva parcela"}</DialogTitle>
-            <DialogDescription>
-              {`Paso ${step} de 3 -¿ ${step === 1 ? "Agricultor" : step === 2 ? "Ubicaci+¶n" : "Cultivo y riego"}`}
-            </DialogDescription>
-          </DialogHeader>
-          <form id="plot-form" onSubmit={(e) => void onSubmit(e)} className="grid gap-5">
-            <Stepper steps={["Agricultor", "Ubicaci+¶n", "Cultivo y riego"]} current={step} />
-            {step === 1 ? (
-              <>
-                <div>
-                  <h3 className="text-base font-semibold text-neutral-800">Identifica la parcela</h3>
-                  <p className="mt-1 text-sm text-neutral-600">Asigna un agricultor y un nombre que facilite reconocerla.</p>
-                </div>
-                <FormField label="Agricultor" required htmlFor="pl-farmer" error={fe("farmer_id")}>
-                  <select
-                    id="pl-farmer"
-                    className={SELECT_CLS}
-                    value={draft.farmer_id}
-                    aria-invalid={Boolean(fe("farmer_id"))}
-                    onChange={(e) => set("farmer_id", e.target.value)}
-                  >
-                    <option value="">Selecciona‘«™</option>
-                    {farmers.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.name}
-                      </option>
-                    ))}
-                  </select>
-                </FormField>
-                <FormField label="Nombre de la parcela" required htmlFor="pl-name" error={fe("name")}>
-                  <Input
-                    id="pl-name"
-                    placeholder="Parcela alta"
-                    value={draft.name}
-                    aria-invalid={Boolean(fe("name"))}
-                    onChange={(e) => set("name", e.target.value)}
-                  />
-                </FormField>
-              </>
-            ) : null}
-
-            {step === 2 ? (
-              <>
-                <h3 id="pl-step2-title" ref={step2TitleRef} tabIndex={-1} className="text-base font-semibold text-neutral-800 focus:outline-none">
-                  Ubicaci+¶n y +Ìrea
-                </h3>
-                <Banner kind="info">
-                  1) Toca el mapa para fijar el lugar. 2) Con Marcar esquinas agrega todas las esquinas que necesites y pulsa Usar contorno. Tambi+Æn puedes escribir los valores.
-                  Acerca con + hasta ver bien tu terreno antes de marcar.
-                </Banner>
-                <div>
-                  <Button variant="outline" size="sm" disabled={locating} onClick={useMyLocation}>
-                    {locating ? (
-                      <LoaderCircle className="h-[15px] w-[15px] animate-spin" aria-hidden="true" />
-                    ) : (
-                      <MapPin className="h-[15px] w-[15px]" aria-hidden="true" />
-                    )}
-                    Usar mi ubicaci+¶n
-                  </Button>
-                </div>
-                <Suspense fallback={<Loading text="Cargando mapa‘«™" />}>
-                  <PlotMap
-                    key={mapTick}
-                    plots={mapPoints}
-                    editable
-                    onDraw={onDraw}
-                    zoom={18}
-                    focus={(() => {
-                      const lat = Number(draft.latitude);
-                      const lng = Number(draft.longitude);
-                      return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
-                    })()}
-                  />
-                </Suspense>
-                {drawInfo ? <Banner kind="info">{drawInfo}</Banner> : null}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField
-                    label="Latitud"
-                    hint="Decimal entre ‘Í∆90 y 90"
-                    required
-                    htmlFor="pl-lat"
-                    error={fe("latitude")}
-                  >
-                    <Input
-                      id="pl-lat"
-                      inputMode="decimal"
-                      value={draft.latitude}
-                      aria-invalid={Boolean(fe("latitude"))}
-                      onChange={(e) => set("latitude", e.target.value)}
-                    />
-                  </FormField>
-                  <FormField
-                    label="Longitud"
-                    hint="Decimal entre ‘Í∆180 y 180"
-                    required
-                    htmlFor="pl-lng"
-                    error={fe("longitude")}
-                  >
-                    <Input
-                      id="pl-lng"
-                      inputMode="decimal"
-                      value={draft.longitude}
-                      aria-invalid={Boolean(fe("longitude"))}
-                      onChange={(e) => set("longitude", e.target.value)}
-                    />
-                  </FormField>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField
-                    label="+¸rea (m-¶)"
-                    hint="En metros cuadrados, mayor a 1"
-                    required
-                    htmlFor="pl-area"
-                    error={fe("area_m2")}
-                  >
-                    <Input
-                      id="pl-area"
-                      inputMode="decimal"
-                      value={draft.area_m2}
-                      aria-invalid={Boolean(fe("area_m2"))}
-                      onChange={(e) => set("area_m2", e.target.value)}
-                    />
-                  </FormField>
-                  <FormField label="Origen del +Ìrea" htmlFor="pl-origin">
-                    <select
-                      id="pl-origin"
-                      className={SELECT_CLS}
-                      value={draft.area_origin}
-                      onChange={(e) => set("area_origin", e.target.value as Draft["area_origin"])}
-                    >
-                      <option value="dibujo">Del dibujo en el mapa</option>
-                      <option value="manual">Medici+¶n manual</option>
-                    </select>
-                  </FormField>
-                </div>
-              </>
-            ) : null}
-
-            {step === 3 ? (
-              <>
-                <div>
-                  <h3 className="text-base font-semibold text-neutral-800">Cultivo y condiciones de riego</h3>
-                  <p className="mt-1 text-sm text-neutral-600">Estos datos se utilizan para calcular las recomendaciones de la parcela.</p>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField label="Cultivo" required htmlFor="pl-crop" error={fe("crop_id")}>
-                    <select id="pl-crop" className={SELECT_CLS} value={draft.crop_id} onChange={(e) => set("crop_id", e.target.value)}>
-                      <option value="">Selecciona‘«™</option>
-                      {crops.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </FormField>
-                  <FormField label="Fecha de siembra" required htmlFor="pl-sow" error={fe("sowing_date")}>
-                    <Input
-                      id="pl-sow"
-                      type="date"
-                      max={todayInput()}
-                      value={draft.sowing_date}
-                      onChange={(e) => set("sowing_date", e.target.value)}
-                    />
-                  </FormField>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField label="Tipo de suelo" required htmlFor="pl-soil" error={fe("soil_texture_code")}>
-                    <select
-                      id="pl-soil"
-                      className={SELECT_CLS}
-                      value={draft.soil_texture_code}
-                      onChange={(e) => set("soil_texture_code", e.target.value)}
-                    >
-                      {soils.map((s) => (
-                        <option key={s.code} value={s.code}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
-                  </FormField>
-                  <FormField label="Sistema de riego" required htmlFor="pl-sys">
-                    <select
-                      id="pl-sys"
-                      className={SELECT_CLS}
-                      value={draft.irrigation_system}
-                      onChange={(e) => set("irrigation_system", e.target.value)}
-                    >
-                      <option value="goteo">Goteo</option>
-                      <option value="aspersion">Aspersi+¶n</option>
-                      <option value="gravedad">Gravedad</option>
-                    </select>
-                  </FormField>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField
-                    label="Eficiencia (0‘«Ù1)"
-                    hint="Goteo 0.9 -¿ Aspersi+¶n 0.75 -¿ Gravedad 0.6"
-                    required
-                    htmlFor="pl-eff"
-                    error={fe("irrigation_efficiency")}
-                  >
-                    <Input
-                      id="pl-eff"
-                      inputMode="decimal"
-                      value={draft.irrigation_efficiency}
-                      onChange={(e) => set("irrigation_efficiency", e.target.value)}
-                    />
-                  </FormField>
-                  <FormField label="Caudal (L/min, opcional)" htmlFor="pl-flow" error={fe("flow_lpm")}>
-                    <Input
-                      id="pl-flow"
-                      inputMode="decimal"
-                      placeholder="Ej. 20"
-                      value={draft.flow_lpm}
-                      onChange={(e) => set("flow_lpm", e.target.value)}
-                    />
-                  </FormField>
-                </div>
-              </>
-            ) : null}
-          </form>
-          <DialogFooter>
-            {step > 1 ? (
-              <Button variant="outline" onClick={() => setStep(step - 1)} disabled={saving}>
-                Atr+Ìs
-              </Button>
-            ) : null}
-            {step < 3 ? (
-              <Button
-                onClick={() => {
-                  const msg = stepValid(step);
-                  if (msg) toastError(msg);
-                  else setStep(step + 1);
-                }}
-              >
-                Continuar
-              </Button>
-            ) : (
-              <Button disabled={saving} onClick={() => submitForm("plot-form")}>
-                {saving ? (
-                  <>
-                    <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-                    {editing ? "Guardar cambios" : "Registrar parcela"}
-                  </>
-                ) : (
-                  <>{editing ? "Guardar cambios" : "Registrar parcela"}</>
-                )}
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+    <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-3xl"><DialogHeader><DialogTitle>{editing ? "Editar parcela" : "Registrar parcela"}</DialogTitle><DialogDescription>{missingReferenceData.length ? "Antes de continuar, completa los datos requeridos." : "Completa los datos por secciones. El √°rea puede calcularse desde el contorno del mapa."}</DialogDescription></DialogHeader>
+      {missingReferenceData.length ? <div className="space-y-4"><Card className="rounded-lg border-warning-200 bg-warning-50/60 p-4" role="alert"><h3 className="font-semibold text-warning-900">Faltan datos de referencia</h3><p className="mt-1 text-sm text-warning-900/80">Para registrar parcelas hacen falta datos de referencia:</p><ul className="mt-3 space-y-2 text-sm">{missingReferenceData.map((item) => <li key={item.label}><Link className="font-semibold text-primary-800 underline underline-offset-2" to={item.href} onClick={() => setOpen(false)}>{item.label} ‚Üí</Link></li>)}</ul></Card><DialogFooter><Button type="button" variant="outline" onClick={() => setOpen(false)}>Cerrar</Button></DialogFooter></div> : <>
+      <div className="grid grid-cols-3 gap-2" aria-label={`Paso ${step + 1} de 3`}>{STEP_LABELS.map((label, index) => <div key={label} className={`rounded-md border px-2 py-2 text-center text-xs ${step === index ? "border-primary-600 bg-primary-50 font-semibold text-primary-800" : index < step ? "border-success-200 bg-success-50 text-success-800" : "border-neutral-200 text-neutral-500"}`}><span className="hidden sm:inline">{index + 1}. </span>{label}</div>)}</div>
+      <form onSubmit={(e) => void submit(e)} className="space-y-4">
+        {step === 0 ? <div className="space-y-4"><div className="grid gap-3 sm:grid-cols-2"><label className="grid gap-1.5 text-sm font-medium">Nombre de la parcela<Input autoFocus required value={form.name} maxLength={120} onChange={(e) => change("name", e.target.value)} placeholder="Parcela Norte" /></label><label className="grid gap-1.5 text-sm font-medium">Agricultor<select required value={form.farmer_id} onChange={(e) => change("farmer_id", e.target.value)} className="min-h-12 rounded-md border border-neutral-300 bg-white px-3"><option value="" disabled>Selecciona responsable</option>{farmers.map((farmer) => <option key={farmer.id} value={farmer.id}>{farmer.name}</option>)}</select></label></div><div className="grid gap-3 sm:grid-cols-2"><label className="grid gap-1.5 text-sm font-medium">Latitud<Input type="number" required step="any" min="-90" max="90" value={form.latitude} onChange={(e) => change("latitude", e.target.value)} /></label><label className="grid gap-1.5 text-sm font-medium">Longitud<Input type="number" required step="any" min="-180" max="180" value={form.longitude} onChange={(e) => change("longitude", e.target.value)} /></label></div><div className="overflow-hidden rounded-lg border border-neutral-200"><PlotMap plots={mapPoints} editable focus={mapFocus} zoom={18} onDraw={onDraw} className="h-[320px]" /><p className="border-t border-neutral-200 bg-neutral-50 p-3 text-xs leading-relaxed text-neutral-600">Usa ‚ÄúUbicar punto‚Äù para elegir la ubicaci√≥n, o ‚ÄúDibujar contorno‚Äù para calcular el √°rea de la parcela.</p></div>{form.boundary?.length ? <p className="text-sm font-medium text-success-700">Contorno dibujado ¬∑ √°rea aproximada {fmtNum(form.area_m2)} m¬≤</p> : null}</div> : null}
+        {step === 1 ? <div className="grid gap-3 sm:grid-cols-2"><label className="grid gap-1.5 text-sm font-medium">Cultivo<select value={form.crop_id} onChange={(e) => change("crop_id", e.target.value)} className="min-h-12 rounded-md border border-neutral-300 bg-white px-3">{crops.map((crop) => <option key={crop.id} value={crop.id}>{crop.name}</option>)}</select></label><label className="grid gap-1.5 text-sm font-medium">Fecha de siembra<Input type="date" required max={new Date().toISOString().slice(0, 10)} value={form.sowing_date} onChange={(e) => change("sowing_date", e.target.value)} /></label><label className="grid gap-1.5 text-sm font-medium sm:col-span-2">Tipo de suelo<select value={form.soil_texture_code} onChange={(e) => change("soil_texture_code", e.target.value)} className="min-h-12 rounded-md border border-neutral-300 bg-white px-3">{soils.map((soil) => <option key={soil.code} value={soil.code}>{soil.name}</option>)}</select></label></div> : null}
+        {step === 2 ? <div className="space-y-4"><div className="grid gap-3 sm:grid-cols-2"><label className="grid gap-1.5 text-sm font-medium">√Årea (m¬≤)<Input type="number" required min="1" step="any" value={form.area_m2} onChange={(e) => { change("area_m2", e.target.value); if (form.area_origin === "dibujo") change("area_origin", "manual"); }} placeholder="100" /><span className="text-xs font-normal text-neutral-500">{form.area_origin === "dibujo" ? "Calculada desde el contorno" : "√Årea ingresada manualmente"}</span></label><label className="grid gap-1.5 text-sm font-medium">Origen del √°rea<select value={form.area_origin} onChange={(e) => change("area_origin", e.target.value as FormValues["area_origin"])} className="min-h-12 rounded-md border border-neutral-300 bg-white px-3"><option value="manual">Manual</option><option value="dibujo" disabled={!form.boundary?.length}>Contorno del mapa</option></select></label><label className="grid gap-1.5 text-sm font-medium">Sistema de riego<select value={form.irrigation_system} onChange={(e) => change("irrigation_system", e.target.value as FormValues["irrigation_system"])} className="min-h-12 rounded-md border border-neutral-300 bg-white px-3"><option value="goteo">Goteo</option><option value="aspersion">Aspersi√≥n</option><option value="gravedad">Gravedad</option></select></label><label className="grid gap-1.5 text-sm font-medium">Eficiencia (0 a 1)<Input type="number" required min="0.01" max="1" step="0.01" value={form.irrigation_efficiency} onChange={(e) => change("irrigation_efficiency", e.target.value)} /><span className="text-xs font-normal text-neutral-500">Ejemplo: 0.90 equivale a 90%.</span></label><label className="grid gap-1.5 text-sm font-medium">Caudal (L/min, opcional)<Input type="number" min="0.1" step="any" value={form.flow_lpm} onChange={(e) => change("flow_lpm", e.target.value)} placeholder="20" /></label><label className="grid gap-1.5 text-sm font-medium">Estado<select value={form.status} onChange={(e) => change("status", e.target.value as FormValues["status"])} className="min-h-12 rounded-md border border-neutral-300 bg-white px-3"><option value="activa">Activa</option><option value="pausada">Pausada</option><option value="cerrada">Cerrada</option></select></label></div><Card className="rounded-lg bg-neutral-50 p-4"><div className="flex items-center gap-2"><Sprout size={17} className="text-primary-700" aria-hidden="true" /><p className="font-medium text-neutral-900">{form.name || "Nueva parcela"}</p></div><p className="mt-2 text-sm text-neutral-600">{farmers.find((f) => String(f.id) === form.farmer_id)?.name} ¬∑ {crops.find((c) => String(c.id) === form.crop_id)?.name} ¬∑ {form.area_m2 || "‚Äî"} m¬≤</p></Card></div> : null}
+        {formError ? <p role="alert" className="rounded-md bg-danger-50 p-3 text-sm text-danger-700">{formError}</p> : null}
+        <DialogFooter className="flex-wrap sm:justify-between"><Button type="button" variant="outline" onClick={() => step > 0 ? setStep((v) => v - 1) : setOpen(false)}>{step > 0 ? "Volver" : "Cancelar"}</Button><Button type="submit" loading={busy}>{step < 2 ? "Continuar" : editing ? "Guardar cambios" : "Crear parcela"}</Button></DialogFooter>
+      </form></>}
+    </DialogContent></Dialog>
+  </div>;
 }

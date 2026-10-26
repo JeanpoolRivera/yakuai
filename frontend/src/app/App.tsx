@@ -9,14 +9,14 @@ import { TechShell } from "../components/layout/TechShell";
 import { Button } from "../components/shadcn/button";
 import { Empty, Loading } from "../components/shadcn/feedback";
 import { isFarmerRole, isStaffRole } from "../lib/permissions";
-import { Dashboard } from "../pages/Dashboard";
-import { Hoy } from "../pages/Hoy";
 import { Login } from "../pages/Login";
 import { RecoverPin } from "../pages/RecoverPin";
-import { Evaluate } from "../pages/Evaluate";
-import { Irrigations } from "../pages/Irrigations";
-import { Alerts } from "../pages/Alerts";
 
+const Dashboard = lazy(() => import("../pages/Dashboard").then((m) => ({ default: m.Dashboard })));
+const Hoy = lazy(() => import("../pages/Hoy").then((m) => ({ default: m.Hoy })));
+const Evaluate = lazy(() => import("../pages/Evaluate").then((m) => ({ default: m.Evaluate })));
+const Irrigations = lazy(() => import("../pages/Irrigations").then((m) => ({ default: m.Irrigations })));
+const Alerts = lazy(() => import("../pages/Alerts").then((m) => ({ default: m.Alerts })));
 const Plots = lazy(() => import("../pages/Plots").then((m) => ({ default: m.Plots })));
 const Farmers = lazy(() => import("../pages/Farmers").then((m) => ({ default: m.Farmers })));
 const Sensors = lazy(() => import("../pages/Sensors").then((m) => ({ default: m.Sensors })));
@@ -45,13 +45,15 @@ function ShellRoutes(): React.JSX.Element {
   if (isFarmerRole(role)) {
     return (
       <FarmerShell nombre={displayName} rol={role} onExit={exit}>
-        <Routes>
-          <Route path="/" element={<Hoy />} />
-          <Route path="/evaluar" element={<Evaluate />} />
-          <Route path="/riegos" element={<Irrigations />} />
-          <Route path="/alertas" element={<Alerts />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Suspense fallback={<Loading text="Cargando pantalla…" />}>
+          <Routes>
+            <Route path="/" element={<Hoy />} />
+            <Route path="/evaluar" element={<Evaluate />} />
+            <Route path="/riegos" element={<Irrigations />} />
+            <Route path="/alertas" element={<Alerts />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </FarmerShell>
     );
   }

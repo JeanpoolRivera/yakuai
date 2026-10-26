@@ -1,109 +1,54 @@
-import { PageHead } from "@/components/shadcn/page-head";
-import { Badge } from "@/components/shadcn/badge";
-import { Banner, Empty, Loading } from "@/components/shadcn/feedback";
+import { useMemo, useState } from "react";
+import { MessageCircle, Pencil, UserRoundPlus, Users } from "lucide-react";
+import { useFarmers, useFarmerForm } from "../hooks/useFarmers";
+import { FARMERS_COPY as C } from "../copy";
+import { PageHeading, Metric, StatusBadge, EmptyBlock, ErrorBlock, LoadingBlock } from "@/components/workspace/WorkspaceKit";
 import { Button } from "@/components/shadcn/button";
-import { Avatar, AvatarFallback } from "@/components/shadcn/avatar";
-import { DataTable } from "@/components/shadcn/data-table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/shadcn/dialog";
+import { Card } from "@/components/shadcn/card";
 import { Input } from "@/components/shadcn/input";
-import { PaginationControls } from "@/components/shadcn/PaginationControls";
 import { SearchInput } from "@/components/shadcn/search-input";
-import { FormField } from "@/components/forms/FormField";
-import { useCollection } from "@/hooks/useCollection";
-import { fmtNum } from '@/lib/format';
-import { submitForm } from '@/lib/dom';
-import { useFarmers, useFarmerForm } from '../hooks/useFarmers';
-import { FARMERS_COPY as C } from '../copy';
-import { twoInitials, waLink } from '../utils';
-const SELECT_CLS = "h-12 w-full rounded-sm border border-neutral-400 bg-white px-3 text-sm text-neutral-800 transition-all hover:border-primary-600 focus-visible:border-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600/15 disabled:cursor-not-allowed disabled:opacity-50";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/shadcn/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/shadcn/table";
+
 export function FarmersWorkspace(): React.JSX.Element {
   const { farmers, loading, error, load } = useFarmers();
   const form = useFarmerForm();
-  const { state, openCreate, openEdit, close, submit } = form;
-  const coll = useCollection(farmers, {
-    perPage: 8,
-    search: (f, q) => `${f.name} ${f.phone ?? ""}`.toLowerCase().includes(q),
-    sort: (a, b) => b.id - a.id,
-  });
-  return (
-    <div>
-      <PageHead eyebrow={C.eyebrow} title={C.title} desc={C.description} crumbs={C.crumbs} actions={
-        <Button onClick={openCreate}><span className="h-4 w-4" aria-hidden="true">+</span> {C.registerButton}</Button>
-      } />
-      {loading ? (
-        <Loading text={C.loading} />
-      ) : error ? (
-        <Banner kind="bad">{error} <Button variant="link" size="sm" onClick={() => void load()}>{C.retry}</Button></Banner>
-      ) : (
-        <section aria-label="Lista de agricultores" className="grid gap-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-2xs font-semibold uppercase tracking-wider text-primary-700">{C.directoryTitle}</p>
-              <h2 className="mt-1 text-xl font-semibold tracking-tight text-neutral-800">{C.directoryDesc}</h2>
-              <p className="mt-1 text-sm text-neutral-600">{C.directorySub}</p>
-            </div>
-            <p className="shrink-0 text-sm text-neutral-600">
-              <strong className="font-semibold tabular-nums text-neutral-800">{fmtNum(farmers.length)}</strong> {C.registered}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <SearchInput value={coll.query} onChange={coll.setQuery} placeholder={C.search} label={C.searchLabel} className="min-w-[200px] flex-1" />
-            <span className="text-xs text-neutral-500">{coll.total} {coll.total === 1 ? "agricultor" : "agricultores"}</span>
-          </div>
-          {coll.total === 0 ? (
-            <Empty icon={<span className="h-5 w-5" />} title={coll.query ? C.noMatch : C.noFarmers} hint={coll.query ? C.noMatchHint : C.noFarmersHint} action={coll.query ? undefined : <Button onClick={openCreate}><span className="h-4 w-4" aria-hidden="true">+</span> {C.registerButton}</Button>} />
-          ) : (
-            <>
-              <DataTable mobileCards label="Directorio de agricultores" rows={coll.items} rowKey={(f) => f.id} columns={[
-                { key: "name", label: C.nameLabel, render: (f) => (
-                  <span className="flex items-center gap-2.5">
-                    <Avatar className="h-9 w-9"><AvatarFallback className="bg-primary-100 text-xs font-semibold text-primary-800">{twoInitials(f.name)}</AvatarFallback></Avatar>
-                    <span><strong className="block font-semibold">{f.name}</strong><small className="block text-xs text-neutral-500">Registro #{f.id}</small></span>
-                  </span>
-                )},
-                { key: "phone", label: C.phoneLabel, render: (f) => <span className="text-neutral-500">{f.phone || C.noPhone}</span> },
-                { key: "plots", label: C.plotsLabel, numeric: true, render: (f) => <Badge variant="secondary" className="tabular-nums">{fmtNum(f.plots_count ?? 0)}</Badge> },
-                { key: "status", label: C.statusLabel, render: (f) => <Badge variant={f.is_active ? "success" : "secondary"}>{f.is_active ? C.activeLabel : C.inactiveLabel}</Badge> },
-                { key: "actions", label: C.actionsLabel, render: (f) => (
-                  <span className="flex flex-wrap gap-1.5">
-                    {f.phone ? <Button variant="ghost" size="sm" asChild><a href={waLink(f.phone)} target="_blank" rel="noreferrer" aria-label={C.waOpen(f.name)}>WhatsApp <span className="h-3.5 w-3.5" aria-hidden="true">↗</span></a></Button> : null}
-                    <Button variant="outline" size="sm" onClick={() => openEdit(f)} aria-label={C.editAria(f.name)}><span className="h-[15px] w-[15px]" aria-hidden="true">✎</span> {C.editLabel}</Button>
-                  </span>
-                )},
-              ]} />
-              <PaginationControls page={coll.page} pages={coll.pages} onPageChange={coll.setPage} count={`${coll.total} ${C.inTotal}`} />
-            </>
-          )}
-        </section>
-      )}
-      <Dialog open={state.open} onOpenChange={(o) => { if (!o && !state.saving) close(); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{state.editing ? C.editTitle : C.registerTitle}</DialogTitle>
-            <DialogDescription>{C.formDesc}</DialogDescription>
-          </DialogHeader>
-          <form id="farmer-form" onSubmit={(e) => { e.preventDefault(); void submit(load); }} className="grid gap-4">
-            <FormField label="Nombre completo" required htmlFor="fa-name" error={state.fieldErrors.name?.[0]}>
-              <Input id="fa-name" placeholder={C.namePlaceholder} value={state.name} aria-invalid={Boolean(state.fieldErrors.name)} onChange={(e) => form.setState((s) => ({ ...s, name: e.target.value }))} />
-            </FormField>
-            <FormField label="Teléfono (opcional)" hint={C.phoneHint} htmlFor="fa-phone" error={state.fieldErrors.phone?.[0]}>
-              <Input id="fa-phone" inputMode="tel" placeholder={C.phonePlaceholder} value={state.phone} aria-invalid={Boolean(state.fieldErrors.phone)} onChange={(e) => form.setState((s) => ({ ...s, phone: e.target.value }))} />
-            </FormField>
-            <FormField label={C.statusLabel} htmlFor="fa-active">
-              <select id="fa-active" className={SELECT_CLS} value={state.active ? "activo" : "inactivo"} onChange={(e) => form.setState((s) => ({ ...s, active: e.target.value === "activo" }))}>
-                <option value="activo">{C.activeLabel}</option>
-                <option value="inactivo">{C.inactiveLabel}</option>
-              </select>
-            </FormField>
-          </form>
-          <DialogFooter>
-            <Button variant="outline" onClick={close} disabled={state.saving}>{C.cancel}</Button>
-            <Button disabled={state.saving} onClick={() => submitForm("farmer-form")}>
-              {state.saving ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" /> {state.editing ? C.savingEdit : C.savingRegister}</> : <>{state.editing ? C.save : C.register}</>}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("todos");
+  const q = query.trim().toLocaleLowerCase("es");
+  const visible = useMemo(() => farmers.filter((farmer) => {
+    const matches = `${farmer.name} ${farmer.phone ?? ""}`.toLocaleLowerCase("es").includes(q);
+    return matches && (status === "todos" || farmer.is_active === (status === "activos"));
+  }), [farmers, q, status]);
+  const active = farmers.filter((farmer) => farmer.is_active).length;
+
+  function setField<K extends "name" | "phone" | "active">(key: K, value: typeof form.state[K]): void {
+    form.setState((previous) => ({ ...previous, [key]: value, fieldErrors: {} }));
+  }
+  const fieldError = (key: string): string | undefined => form.state.fieldErrors[key]?.[0];
+
+  return <div className="space-y-6">
+    <PageHeading eyebrow="Gestión de personas" title={C.title} description={C.description} action={<Button onClick={form.openCreate}><UserRoundPlus size={16} aria-hidden="true" />{C.registerButton}</Button>} />
+    {error ? <ErrorBlock message={error} retry={() => void load()} /> : null}
+    {loading ? <LoadingBlock label={C.loading} /> : <>
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3" aria-label="Resumen de agricultores"><Metric label="Personas registradas" value={farmers.length} detail="Directorio de la comunidad" icon={<Users size={17} />} tone="brand" /><Metric label="Activos" value={active} detail="Pueden usar el servicio" /><Metric label="Parcelas vinculadas" value={farmers.reduce((sum, farmer) => sum + (farmer.plots_count ?? farmer.plots?.length ?? 0), 0)} detail="En el directorio" /></section>
+      <Card className="space-y-4 rounded-xl p-4 sm:p-5"><div><h2 className="font-semibold text-neutral-900">{C.directoryTitle}</h2><p className="mt-1 text-sm text-neutral-600">{C.directorySub}</p></div><div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]"><SearchInput value={query} onChange={setQuery} placeholder={C.search} label={C.searchLabel} /><label className="grid gap-1 text-xs font-medium text-neutral-700">Estado<select value={status} onChange={(e) => setStatus(e.target.value)} className="min-h-12 rounded-md border border-neutral-300 bg-white px-3 text-sm"><option value="todos">Todos</option><option value="activos">Activos</option><option value="inactivos">Inactivos</option></select></label></div><p className="border-t border-neutral-200 pt-3 text-xs text-neutral-500">{visible.length} de {farmers.length} {C.registered}</p></Card>
+      {visible.length ? <>
+        <Card className="hidden overflow-hidden rounded-xl md:block"><Table><caption className="sr-only">Directorio de agricultores</caption><TableHeader className="bg-neutral-50"><TableRow><TableHead>{C.nameLabel}</TableHead><TableHead>{C.phoneLabel}</TableHead><TableHead>{C.plotsLabel}</TableHead><TableHead>{C.statusLabel}</TableHead><TableHead><span className="sr-only">{C.actionsLabel}</span></TableHead></TableRow></TableHeader><TableBody>{visible.map((farmer) => <TableRow key={farmer.id}><TableCell className="font-semibold text-neutral-900">{farmer.name}</TableCell><TableCell>{farmer.phone ?? C.noPhone}</TableCell><TableCell>{farmer.plots_count ?? farmer.plots?.length ?? 0}</TableCell><TableCell><StatusBadge value={farmer.is_active ? "activa" : "inactivo"} label={farmer.is_active ? C.activeLabel : C.inactiveLabel} /></TableCell><TableCell><div className="flex justify-end gap-1">{farmer.phone ? <Button asChild variant="ghost" size="icon" aria-label={`WhatsApp de ${farmer.name}, abre en otra pestaña`}><a href={`https://wa.me/${farmer.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer"><MessageCircle size={17} aria-hidden="true" /></a></Button> : null}<Button variant="ghost" size="icon" aria-label={`Editar a ${farmer.name}`} onClick={() => form.openEdit(farmer)}><Pencil size={16} aria-hidden="true" /></Button></div></TableCell></TableRow>)}</TableBody></Table></Card>
+        <div className="grid gap-3 md:hidden">{visible.map((farmer) => <Card key={farmer.id} className="rounded-xl p-4"><div className="flex items-start justify-between gap-3"><div><h3 className="font-semibold text-neutral-900">{farmer.name}</h3><p className="mt-1 text-sm text-neutral-600">{farmer.phone ?? C.noPhone}</p></div><StatusBadge value={farmer.is_active ? "activa" : "inactivo"} label={farmer.is_active ? C.activeLabel : C.inactiveLabel} /></div><div className="mt-4 flex items-center justify-between border-t border-neutral-200 pt-3"><span className="text-sm text-neutral-600">{farmer.plots_count ?? farmer.plots?.length ?? 0} parcelas</span><div className="flex gap-2">{farmer.phone ? <Button asChild variant="outline" size="sm"><a href={`https://wa.me/${farmer.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer"><MessageCircle size={15} aria-hidden="true" />WhatsApp</a></Button> : null}<Button variant="outline" size="sm" aria-label={`Editar a ${farmer.name}`} onClick={() => form.openEdit(farmer)}><Pencil size={15} aria-hidden="true" />Editar</Button></div></div></Card>)}</div>
+      </> : <EmptyBlock title={query || status !== "todos" ? C.noMatch : C.noFarmers} description={query || status !== "todos" ? C.noMatchHint : C.noFarmersHint} action={!query && status === "todos" ? <Button onClick={form.openCreate}>{C.registerButton}</Button> : <Button variant="outline" onClick={() => { setQuery(""); setStatus("todos"); }}>Limpiar filtros</Button>} />}
+    </>}
+    <Dialog open={form.state.open} onOpenChange={(open) => { if (!open) form.close(); }}>
+      <DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>{form.state.editing ? C.editTitle : C.registerTitle}</DialogTitle><DialogDescription>{C.formDesc}</DialogDescription></DialogHeader>
+        <div className="space-y-4">
+          <label className="grid gap-1.5 text-sm font-medium text-neutral-800">{C.nameLabel}<Input autoFocus value={form.state.name} maxLength={120} aria-invalid={Boolean(fieldError("name"))} onChange={(e) => setField("name", e.target.value)} placeholder={C.namePlaceholder} />{fieldError("name") ? <span className="text-xs text-danger-700">{fieldError("name")}</span> : null}</label>
+          <label className="grid gap-1.5 text-sm font-medium text-neutral-800">{C.phoneLabel}<Input type="tel" autoComplete="tel" value={form.state.phone} maxLength={30} aria-invalid={Boolean(fieldError("phone"))} onChange={(e) => setField("phone", e.target.value)} placeholder={C.phonePlaceholder} />{fieldError("phone") ? <span className="text-xs text-danger-700">{fieldError("phone")}</span> : <span className="text-xs font-normal text-neutral-500">{C.phoneHint}</span>}</label>
+          <label className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-neutral-200 px-3"><span><span className="block text-sm font-medium text-neutral-800">{C.statusLabel}</span><span className="text-xs text-neutral-500">{form.state.active ? C.activeLabel : C.inactiveLabel}</span></span><input type="checkbox" checked={form.state.active} onChange={(e) => setField("active", e.target.checked)} aria-label={C.statusLabel} className="h-5 w-5 accent-primary-700" /></label>
+        </div>
+        <DialogFooter><Button type="button" variant="outline" onClick={form.close}>{C.cancel}</Button><Button loading={form.state.saving} onClick={() => void form.submit(load)}>{form.state.editing ? C.save : C.register}</Button></DialogFooter>
+    </DialogContent>
+    </Dialog>
+  </div>;
 }
+
+

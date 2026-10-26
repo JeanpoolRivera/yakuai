@@ -1,169 +1,31 @@
 import { useMemo, useState } from "react";
-import { ChevronDown } from 'lucide-react';
-import { PageHead } from "@/components/shadcn/page-head";
-import { Badge } from "@/components/shadcn/badge";
-import { Banner, Empty, Loading } from "@/components/shadcn/feedback";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/shadcn/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/shadcn/table";
-import { SearchInput } from "@/components/shadcn/search-input";
-import { fmtNum, toNum } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { BookOpen, Sprout, Wheat } from "lucide-react";
 import { useCatalogs } from "../hooks/useCatalogs";
 import { CATALOGS_COPY as C } from "../copy";
-import { ETAPAS, filterCrops, filterSoils, kcMeterWidth } from "../utils";
+import { PageHeading, Metric, StatusBadge, EmptyBlock, ErrorBlock, LoadingBlock } from "@/components/workspace/WorkspaceKit";
+import { Card } from "@/components/shadcn/card";
+import { SearchInput } from "@/components/shadcn/search-input";
+import { fmtNum } from "@/lib/format";
 
+const STAGES: Record<string, string> = { ini: "Inicial", des: "Desarrollo", med: "Media", fin: "Final" };
 export function CatalogsWorkspace(): React.JSX.Element {
-  const { crops, soils, loading, error } = useCatalogs();
-  const [openCrop, setOpenCrop] = useState<number | null>(null);
+  const { crops, soils, loading, error, load } = useCatalogs();
   const [query, setQuery] = useState("");
-
-  const cropList = useMemo(() => filterCrops(crops, query), [crops, query]);
-  const soilList = useMemo(() => filterSoils(soils, query), [soils, query]);
-  const visibleOpen = cropList.some((c) => c.id === openCrop) ? openCrop : (cropList[0]?.id ?? null);
-
-  return (
-    <div>
-      <PageHead eyebrow={C.eyebrow} title={C.title} desc={C.description} crumbs={C.crumbs} />
-      {loading ? (
-        <Loading text={C.loading} />
-      ) : error ? (
-        <Banner kind="bad">{error}</Banner>
-      ) : (
-        <div className="grid gap-4">
-          <div className="flex items-start gap-3 rounded-lg border border-neutral-200 bg-white p-4 shadow-card">
-            <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-primary-50 text-primary-700">
-              <span className="text-xl">📚</span>
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-2xs font-semibold uppercase tracking-wider text-primary-700">{C.libraryTitle}</p>
-              <h2 className="mt-1 text-xl font-semibold tracking-tight text-neutral-800">{C.libraryDesc}</h2>
-              <p className="mt-1 text-sm text-neutral-600">{C.libraryNote}</p>
-            </div>
-            <Badge variant="secondary" className="shrink-0">{C.readOnly}</Badge>
-          </div>
-
-          <SearchInput value={query} onChange={setQuery} placeholder={C.search} label={C.searchLabel} />
-
-          <div className="grid items-start gap-4 xl:grid-cols-2">
-            <Card aria-label="Cultivos y etapas">
-              <CardHeader>
-                <CardTitle>{C.cropsTitle}</CardTitle>
-                <CardDescription>{C.cropsDesc}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {cropList.length === 0 ? (
-                  <Empty icon={<span className="h-5 w-5" />} title={query ? C.noMatch : C.noCrops} hint={query ? C.noMatchHint : C.noDataHint} />
-                ) : (
-                  <div className="grid gap-2">
-                    {cropList.map((c) => {
-                      const open = visibleOpen === c.id;
-                      const panelId = `crop-panel-${c.id}`;
-                      const maxKc = Math.max(...(c.stages ?? []).map((s) => Number(s.kc)), 1);
-                      return (
-                        <article key={c.id} className="rounded-md border border-neutral-200">
-                          <button type="button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpenCrop(open ? null : c.id)} className="flex w-full items-center justify-between gap-3 p-3 text-left transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600/25">
-                            <span className="min-w-0">
-                              <strong className="block truncate font-semibold text-neutral-800">{c.name}</strong>
-                              <span className="block truncate text-xs text-neutral-500">{c.scientific_name ?? c.code}</span>
-                            </span>
-                            <span className="flex shrink-0 items-center gap-2">
-                              <Badge variant="secondary">{C.stagesLabel(c.stages?.length ?? 0)}</Badge>
-                              <ChevronDown aria-hidden="true" className={cn("h-4 w-4 text-neutral-500 transition-transform", open && "rotate-180")} />
-                            </span>
-                          </button>
-                          {open ? (
-                            <div id={panelId} className="border-t border-neutral-200 p-3">
-                              <Table>
-                                <caption className="sr-only">Etapas del cultivo {c.name}</caption>
-                                <TableHeader>
-                                  <TableRow className="bg-neutral-50 hover:bg-neutral-50">
-                                    <TableHead>Etapa</TableHead>
-                                    <TableHead className="text-right tabular-nums">Días</TableHead>
-                                    <TableHead className="text-right tabular-nums">Kc</TableHead>
-                                    <TableHead className="text-right tabular-nums">Raíz (m)</TableHead>
-                                    <TableHead className="text-right tabular-nums">p</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {(c.stages ?? []).map((s) => (
-                                    <TableRow key={s.id}>
-                                      <TableCell title={ETAPAS[s.stage] ?? s.stage}>{ETAPAS[s.stage] ?? s.stage}</TableCell>
-                                      <TableCell className="text-right tabular-nums">{s.days}</TableCell>
-                                      <TableCell className="text-right tabular-nums">
-                                        {s.kc}
-                                        <div className="catalog-meter" aria-hidden="true">
-                                          <span style={{ width: kcMeterWidth(Number(s.kc), maxKc) }} />
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className="text-right tabular-nums">{s.root_depth_m}</TableCell>
-                                      <TableCell className="text-right tabular-nums">{s.depletion_fraction}</TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
-                            </div>
-                          ) : null}
-                        </article>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card aria-label="Texturas de suelo">
-              <CardHeader>
-                <CardTitle>{C.soilsTitle}</CardTitle>
-                <CardDescription>{C.soilsDesc}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {soilList.length === 0 ? (
-                  <Empty icon={<span className="h-5 w-5" />} title={query ? C.noMatch : C.noSoils} hint={query ? C.noMatchHint : C.noDataHint} />
-                ) : (
-                  <Table>
-                    <caption className="sr-only">Texturas de suelo con capacidad de campo y marchitez</caption>
-                    <TableHeader>
-                      <TableRow className="bg-neutral-50 hover:bg-neutral-50">
-                        <TableHead>Textura</TableHead>
-                        <TableHead className="text-right tabular-nums">CC</TableHead>
-                        <TableHead className="text-right tabular-nums">PMP</TableHead>
-                        <TableHead className="text-right tabular-nums">Agua útil</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {soilList.map((s) => {
-                        const cc = toNum(s.field_capacity) ?? 0;
-                        const pmp = toNum(s.wilting_point) ?? 0;
-                        return (
-                          <TableRow key={s.code}>
-                            <TableCell>
-                              <strong className="font-semibold">{s.name}</strong>
-                              <div className="font-mono text-xs text-neutral-500">{s.code}</div>
-                            </TableCell>
-                            <TableCell className="text-right tabular-nums">{fmtNum(cc, 3)}</TableCell>
-                            <TableCell className="text-right tabular-nums">{fmtNum(pmp, 3)}</TableCell>
-                            <TableCell className="text-right tabular-nums">{fmtNum(cc - pmp, 3)}</TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div aria-label="Significado de los parámetros" className="grid gap-x-8 gap-y-3 rounded-lg border border-neutral-200 bg-white p-4 shadow-card sm:grid-cols-2">
-            <div><dt className="font-mono text-sm font-semibold text-primary-700">{C.glossary.kc.label}</dt><dd className="mt-0.5 text-sm text-neutral-600">{C.glossary.kc.desc}</dd></div>
-            <div><dt className="font-mono text-sm font-semibold text-primary-700">{C.glossary.zr.label}</dt><dd className="mt-0.5 text-sm text-neutral-600">{C.glossary.zr.desc}</dd></div>
-            <div><dt className="font-mono text-sm font-semibold text-primary-700">{C.glossary.p.label}</dt><dd className="mt-0.5 text-sm text-neutral-600">{C.glossary.p.desc}</dd></div>
-            <div><dt className="font-mono text-sm font-semibold text-primary-700">{C.glossary.cc.label}</dt><dd className="mt-0.5 text-sm text-neutral-600">{C.glossary.cc.desc}</dd></div>
-            <div><dt className="font-mono text-sm font-semibold text-primary-700">{C.glossary.pmp.label}</dt><dd className="mt-0.5 text-sm text-neutral-600">{C.glossary.pmp.desc}</dd></div>
-            <div><dt className="font-mono text-sm font-semibold text-primary-700">{C.glossary.aw.label}</dt><dd className="mt-0.5 text-sm text-neutral-600">{C.glossary.aw.desc}</dd></div>
-          </div>
-          <p className="text-xs text-neutral-500">{C.footnote}</p>
-        </div>
-      )}
-    </div>
-  );
+  const q = query.trim().toLocaleLowerCase("es");
+  const filteredCrops = useMemo(() => crops.filter((crop) => `${crop.name} ${crop.scientific_name ?? ""} ${crop.code}`.toLocaleLowerCase("es").includes(q)), [crops, q]);
+  const filteredSoils = useMemo(() => soils.filter((soil) => `${soil.name} ${soil.code}`.toLocaleLowerCase("es").includes(q)), [soils, q]);
+  return <div className="space-y-6">
+    <PageHeading eyebrow="Referencia técnica" title={C.title} description="Parámetros de cultivo y suelo usados por el motor para estimar la necesidad de agua." action={<StatusBadge value="demo" label={C.readOnly} />} />
+    {error ? <ErrorBlock message={error} retry={() => void load()} /> : null}
+    {loading ? <LoadingBlock label="Cargando referencia agronómica…" /> : <>
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3" aria-label="Catálogo agronómico"><Metric label="Cultivos" value={crops.length} detail="Con etapas de crecimiento" icon={<Sprout size={17} />} tone="brand" /><Metric label="Etapas" value={crops.reduce((sum, crop) => sum + (crop.stages?.length ?? 0), 0)} detail="Parámetros por cultivo" icon={<Wheat size={17} />} /><Metric label="Texturas de suelo" value={soils.length} detail="Capacidad de retención" icon={<BookOpen size={17} />} /></section>
+      <Card className="space-y-4 rounded-xl p-4 sm:p-5"><div><h2 className="font-semibold text-neutral-900">{C.libraryTitle}</h2><p className="mt-1 text-sm text-neutral-600">{C.libraryDesc}. {C.libraryNote}</p></div><SearchInput value={query} onChange={setQuery} placeholder={C.search} label={C.searchLabel} /></Card>
+      <section className="space-y-3" aria-labelledby="crop-title"><div><h2 id="crop-title" className="text-lg font-semibold text-neutral-900">{C.cropsTitle}</h2><p className="mt-1 text-sm text-neutral-600">{C.cropsDesc}</p></div>{filteredCrops.length ? <div className="grid gap-3 xl:grid-cols-2">{filteredCrops.map((crop) => <Card key={crop.id} className="overflow-hidden rounded-xl"><div className="flex items-start justify-between gap-3 border-b border-neutral-200 bg-neutral-50/70 p-4 sm:px-5"><div><h3 className="font-semibold text-neutral-900">{crop.name}</h3><p className="mt-1 text-xs italic text-neutral-600">{crop.scientific_name ?? crop.code}</p></div><StatusBadge value={crop.is_active ? "activa" : "inactivo"} label={`${crop.stages?.length ?? 0} etapas`} /></div><div className="divide-y divide-neutral-100">{(crop.stages ?? []).map((stage) => <div key={stage.id} className="grid grid-cols-[minmax(0,1fr)_repeat(3,minmax(3rem,.5fr))] items-center gap-2 px-4 py-3 text-sm sm:px-5"><div><p className="font-medium text-neutral-900">{STAGES[stage.stage] ?? stage.stage}</p><p className="text-xs text-neutral-500">{stage.days} días</p></div><div><p className="text-[10px] uppercase text-neutral-500">Kc</p><p className="font-semibold tabular-nums">{fmtNum(stage.kc)}</p></div><div><p className="text-[10px] uppercase text-neutral-500">Raíz</p><p className="font-semibold tabular-nums">{fmtNum(stage.root_depth_m)} m</p></div><div><p className="text-[10px] uppercase text-neutral-500">Agot.</p><p className="font-semibold tabular-nums">{fmtNum(Number(stage.depletion_fraction) * 100)}%</p></div></div>)}</div></Card>)}</div> : <EmptyBlock title="No hay cultivos coincidentes" description={query ? "Prueba con otro nombre o limpia la búsqueda." : C.noDataHint} />}</section>
+      <section className="space-y-3" aria-labelledby="soils-title"><div><h2 id="soils-title" className="text-lg font-semibold text-neutral-900">{C.soilsTitle}</h2><p className="mt-1 text-sm text-neutral-600">{C.soilsDesc}</p></div>{filteredSoils.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{filteredSoils.map((soil) => { const cc = Number(soil.field_capacity); const pmp = Number(soil.wilting_point); return <Card key={soil.id} className="rounded-xl p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><div><h3 className="font-semibold text-neutral-900">{soil.name}</h3><p className="mt-1 text-xs text-neutral-500">Código: {soil.code.replaceAll("_", " ")}</p></div><span className="grid h-9 w-9 place-items-center rounded-lg bg-warning-50 text-warning-700"><BookOpen size={17} aria-hidden="true" /></span></div><div className="mt-5 grid grid-cols-3 gap-2 border-t border-neutral-200 pt-4 text-sm"><div><p className="text-xs text-neutral-500">CC</p><p className="mt-1 font-semibold tabular-nums">{fmtNum(cc * 100)}%</p></div><div><p className="text-xs text-neutral-500">PMP</p><p className="mt-1 font-semibold tabular-nums">{fmtNum(pmp * 100)}%</p></div><div><p className="text-xs text-neutral-500">Agua útil</p><p className="mt-1 font-semibold tabular-nums text-primary-700">{fmtNum((cc - pmp) * 100)}%</p></div></div></Card>; })}</div> : <EmptyBlock title="No hay suelos coincidentes" description={query ? "Prueba con otro nombre o limpia la búsqueda." : C.noDataHint} />}</section>
+      <p className="text-xs leading-relaxed text-neutral-500">Los valores son de consulta y deben validarse en campo. No se editan desde esta pantalla.</p>
+    </>}
+  </div>;
 }
+
+
+

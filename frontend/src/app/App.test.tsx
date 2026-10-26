@@ -14,32 +14,32 @@ describe("Navegación por rol",()=>{
   render(<MemoryRouter initialEntries={["/"]}><App/></MemoryRouter>);
   expect(screen.getByRole("heading",{name:"Ingreso de prueba"})).toBeInTheDocument();
  });
-  it("incluye el dashboard dentro de la navegación del equipo",()=>{
+  it("incluye el dashboard dentro de la navegación del equipo",async()=>{
    auth.role="admin";auth.session={user:{role:"admin"}};
    render(<MemoryRouter initialEntries={["/"]}><App/></MemoryRouter>);
-   expect(screen.getByRole("heading",{name:"Dashboard de prueba"})).toBeInTheDocument();
+   expect(await screen.findByRole("heading",{name:"Dashboard de prueba"})).toBeInTheDocument();
    expect(screen.getByRole("link",{name:"Resumen"})).toHaveAttribute("aria-current","page");
    expect(screen.getByRole("navigation",{name:"Secciones"})).toBeInTheDocument();
-   expect(screen.getByText("Administrador")).toBeInTheDocument();
+   expect(screen.getAllByText("Administrador")[0]).toBeInTheDocument();
   });
-  it("muestra la etiqueta del rol técnico en el equipo",()=>{
+  it("muestra la etiqueta del rol técnico en el equipo",async()=>{
    auth.role="tecnico";auth.session={user:{role:"tecnico"}};
    render(<MemoryRouter initialEntries={["/"]}><App/></MemoryRouter>);
-   expect(screen.getByRole("heading",{name:"Dashboard de prueba"})).toBeInTheDocument();
-   expect(screen.getByText("Técnico")).toBeInTheDocument();
+   expect(await screen.findByRole("heading",{name:"Dashboard de prueba"})).toBeInTheDocument();
+   expect(screen.getAllByText("Técnico")[0]).toBeInTheDocument();
   });
- it("mantiene la vista y navegación específicas del agricultor",()=>{
+ it("mantiene la vista y navegación específicas del agricultor",async()=>{
   auth.role="agricultor";auth.session={user:{role:"agricultor"}};
   render(<MemoryRouter initialEntries={["/"]}><App/></MemoryRouter>);
-   expect(screen.getByRole("heading",{name:"Mi campo de prueba"})).toBeInTheDocument();
-   expect(screen.getByRole("navigation",{name:"Navegación agricultor"})).toBeInTheDocument();
-   expect(screen.getByText("Agricultor · Mi campo")).toBeInTheDocument();
+   expect(await screen.findByRole("heading",{name:"Mi campo de prueba"})).toBeInTheDocument();
+   expect(screen.getAllByRole("navigation",{name:"Navegación agricultor"})[0]).toBeInTheDocument();
+   expect(screen.getAllByText(/Agricultor/)[0]).toBeInTheDocument();
    expect(screen.queryByRole("link",{name:"Cultivos y suelos"})).not.toBeInTheDocument();
  });
-  it("impide acceder a páginas del equipo desde el rol agricultor",()=>{
+  it("impide acceder a páginas del equipo desde el rol agricultor",async()=>{
    auth.role="agricultor";auth.session={user:{role:"agricultor"}};
    render(<MemoryRouter initialEntries={["/sensores"]}><App/></MemoryRouter>);
-   expect(screen.getByRole("heading",{name:"Mi campo de prueba"})).toBeInTheDocument();
+   expect(await screen.findByRole("heading",{name:"Mi campo de prueba"})).toBeInTheDocument();
   });
   it("muestra vista restringida para un rol desconocido",()=>{
    auth.role="soporte";auth.session={user:{role:"soporte"}};

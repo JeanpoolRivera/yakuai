@@ -14,7 +14,8 @@ export function useAlerts() {
     try {
       setAlerts(await listAlerts());
     } catch (err) {
-      setError(friendlyError(err, "No se pudieron cargar las alertas."));
+      const message = friendlyError(err, "No se pudieron cargar las alertas.");
+      setError(message.includes("SQLSTATE[") ? "No se pudieron cargar las alertas. Inténtalo de nuevo en unos minutos." : message);
     } finally {
       setLoading(false);
     }

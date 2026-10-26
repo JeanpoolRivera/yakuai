@@ -23,14 +23,21 @@ async function evaluateRiega():Promise<void> {
  render(<MemoryRouter><Evaluate/></MemoryRouter>);
  await screen.findByRole("button",{name:"Seleccionar El Molino"});
  fireEvent.click(screen.getByRole("button",{name:"Seleccionar El Molino"}));
- fireEvent.click(screen.getByRole("button",{name:"Evaluar esta parcela"}));
+ fireEvent.click(screen.getByRole("button",{name:/Obtener recomendación/}));
  await screen.findByRole("button",{name:"Ya regué"});
 }
+async function submitAppliedWater():Promise<void> {
+  fireEvent.click(screen.getByRole("button",{name:"Ya regué"}));
+  await screen.findByRole("dialog",{name:"Registrar riego aplicado"});
+  fireEvent.change(screen.getByLabelText(/Cantidad que aplicaste/),{target:{value:"1600"}});
+  fireEvent.click(screen.getByRole("button",{name:"Registrar cantidad"}));
+}
+
 describe("Confirmar riego",()=>{
  it("bloquea cuando hay un riego activo en las últimas 24 horas",async()=>{
   api.listIrrigations.mockResolvedValue(irrigations);
   await evaluateRiega();
-  fireEvent.click(screen.getByRole("button",{name:"Ya regué"}));
+  await submitAppliedWater();
   await waitFor(()=>expect(api.listIrrigations).toHaveBeenCalledWith(1));
   expect(api.createIrrigation).not.toHaveBeenCalled();
  });
@@ -38,7 +45,7 @@ describe("Confirmar riego",()=>{
   api.listIrrigations.mockResolvedValue([]);
   api.createIrrigation.mockResolvedValue({id:2});
   await evaluateRiega();
-  fireEvent.click(screen.getByRole("button",{name:"Ya regué"}));
+  await submitAppliedWater();
   await waitFor(()=>expect(api.createIrrigation).toHaveBeenCalledTimes(1));
   expect(api.createIrrigation).toHaveBeenCalledWith(expect.objectContaining({plot_id:1,applied_liters:1600}));
  });
@@ -63,7 +70,7 @@ describe("Confirmar riego",()=>{
   api.listEvaluations.mockResolvedValue([]);
   api.evaluatePlot.mockRejectedValue(new ApiError("Faltan datos.",422,{},{...incompleteBase,result:"incompleta",reason:"sin_humedad_valida"}));
   await renderAndSelect();
-  fireEvent.click(screen.getByRole("button",{name:"Evaluar esta parcela"}));
+  fireEvent.click(screen.getByRole("button",{name:/Obtener recomendación/}));
   const link = await screen.findByRole("link",{name:/Ir a sensores/});
   expect(link).toHaveAttribute("href","/sensores");
   expect(screen.getByText(/ahora mismo/)).toBeInTheDocument();
@@ -73,7 +80,7 @@ describe("Confirmar riego",()=>{
   api.listEvaluations.mockResolvedValue([]);
   api.evaluatePlot.mockRejectedValue(new ApiError("Faltan datos.",422,{},{...incompleteBase,result:"incompleta",reason:"sin_clima_valido"}));
   await renderAndSelect();
-  fireEvent.click(screen.getByRole("button",{name:"Evaluar esta parcela"}));
+  fireEvent.click(screen.getByRole("button",{name:/Obtener recomendación/}));
   const link = await screen.findByRole("link",{name:/Ir a clima/});
   expect(link).toHaveAttribute("href","/clima");
  });
@@ -84,7 +91,7 @@ describe("Cambio de parcela",()=>{
   await evaluateRiega();
   fireEvent.click(screen.getByRole("button",{name:"Seleccionar La Esperanza"}));
   expect(screen.queryByRole("button",{name:"Ya regué"})).not.toBeInTheDocument();
-  expect(screen.getByRole("button",{name:"Evaluar esta parcela"})).not.toBeDisabled();
+  expect(screen.getByRole("button",{name:/Obtener recomendación/})).not.toBeDisabled();
   expect(screen.queryByRole("heading",{name:"Evaluaciones anteriores"})).not.toBeInTheDocument();
  });
 });
@@ -112,7 +119,7 @@ describe("Permisos en orientación de evaluación",()=>{
   api.evaluatePlot.mockRejectedValue(new ApiError("Faltan datos",422,{}, {...evaluations[0],result:"incompleta",reason:"sin_humedad_valida"}));
   render(<MemoryRouter><Evaluate/></MemoryRouter>);
   fireEvent.click(await screen.findByRole("button",{name:"Seleccionar El Molino"}));
-  fireEvent.click(screen.getByRole("button",{name:"Evaluar esta parcela"}));
+  fireEvent.click(screen.getByRole("button",{name:/Obtener recomendación/}));
   expect(await screen.findByText(/Contacta a tu técnico/)).toBeInTheDocument();
   expect(screen.queryByRole("link",{name:/Ir a sensores/})).not.toBeInTheDocument();
   auth.role="tecnico";
@@ -126,7 +133,7 @@ describe("Cálculo del técnico",()=>{
   api.evaluatePlot.mockResolvedValue(evaluations[0]);
   render(<MemoryRouter><Evaluate/></MemoryRouter>);
   fireEvent.click(await screen.findByRole("button",{name:"Seleccionar El Molino"}));
-  fireEvent.click(screen.getByRole("button",{name:"Evaluar esta parcela"}));
+  fireEvent.click(screen.getByRole("button",{name:/Obtener recomendación/}));
   await screen.findByRole("button",{name:"Ya regué"});
   expect(screen.getByText("Consultar el cálculo y los datos utilizados")).toBeInTheDocument();
   expect(screen.getByText("ET₀")).toBeInTheDocument();
@@ -138,7 +145,7 @@ describe("Cálculo del técnico",()=>{
   api.evaluatePlot.mockResolvedValue(evaluations[0]);
   render(<MemoryRouter><Evaluate/></MemoryRouter>);
   fireEvent.click(await screen.findByRole("button",{name:"Seleccionar El Molino"}));
-  fireEvent.click(screen.getByRole("button",{name:"Evaluar esta parcela"}));
+  fireEvent.click(screen.getByRole("button",{name:/Obtener recomendación/}));
   await screen.findByRole("button",{name:"Ya regué"});
   expect(screen.queryByText("Consultar el cálculo y los datos utilizados")).not.toBeInTheDocument();
   auth.role="tecnico";

@@ -1,12 +1,2 @@
-/**
- * YakuAI Design System — Radios.
- */
-
-export const radius = {
-  sm: "0.375rem",
-  md: "0.625rem",
-  lg: "1rem",
-  xl: "1.375rem",
-  "2xl": "1.625rem",
-  full: "9999px",
-} as const;
+/** Radio moderado para controles y superficies de trabajo. */
+export const radius = { sm: ".375rem", md: ".5rem", lg: ".75rem", xl: "1rem", "2xl": "1.125rem", full: "9999px" } as const;

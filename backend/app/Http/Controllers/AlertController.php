@@ -37,7 +37,7 @@ class AlertController extends Controller
 
         $incompletas = Evaluation::query()->with('plot')
             ->when($request->user()->role === 'agricultor', function ($q) use ($request): void {
-                $q->where('plot_id', function ($sq) use ($request): void {
+                $q->whereIn('plot_id', function ($sq) use ($request): void {
                     $sq->select('id')->from('plots')->where('farmer_id', $request->user()->farmer_id);
                 });
             })
@@ -55,7 +55,7 @@ class AlertController extends Controller
 
         $criticos = Evaluation::query()->with('plot')
             ->when($request->user()->role === 'agricultor', function ($q) use ($request): void {
-                $q->where('plot_id', function ($sq) use ($request): void {
+                $q->whereIn('plot_id', function ($sq) use ($request): void {
                     $sq->select('id')->from('plots')->where('farmer_id', $request->user()->farmer_id);
                 });
             })

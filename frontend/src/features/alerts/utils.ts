@@ -36,6 +36,13 @@ export function toneColor(tone: AlertTone): string {
   }
 }
 
+export function alertSeverityRank(alert: AlertItem): number {
+  if (alert.tipo.includes("critica")) return 0;
+  if (alert.tipo.startsWith("sensor")) return 1;
+  if (alert.tipo === "evaluacion_incompleta") return 2;
+  return 3;
+}
+
 export function alertTypeLabel(tipo: string): string {
-  return tipo.replace(/_/g, " ");
+  return ALERT_LABELS[tipo] ?? tipo.replace(/_/g, " ");
 }

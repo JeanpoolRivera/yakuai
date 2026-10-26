@@ -68,10 +68,7 @@ it("renderiza tabla con encabezados y filas", () => {
     const item = make({ id: 7 });
     render(<IrrigationLedger days={groupByDay([item], now)} onOpen={onOpen} irrigations={[item]} />);
 
-    const table = screen.getByRole("table");
-    const rows = within(table).getAllByRole("row");
-    // First row is header, second is data row
-    fireEvent.click(rows[1]);
+    fireEvent.click(screen.getByRole("button", { name: /Ver detalle del riego/ }));
     expect(onOpen).toHaveBeenCalledWith(item);
   });
 
@@ -117,7 +114,7 @@ describe("IrrigationLedger (escritorio - matchMedia)", () => {
     mockViewport(true);
     const items = [
       make({ id: 1, applied_liters: "320", recommended_liters: "300" }),
-      make({ recommended_liters: null, applied_liters: "400" }),
+      make({ id: 2, recommended_liters: null, applied_liters: "400" }),
     ];
     render(<IrrigationLedger days={groupByDay(items, now)} onOpen={vi.fn()} irrigations={items} />);
 

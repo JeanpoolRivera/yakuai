@@ -1,6 +1,5 @@
 // Incrementar al publicar cambios de la interfaz para renovar sus recursos.
-const CACHE_NAME = 'yakuai-ui-20261001';
-const API_CACHE = 'yakuai-api-v1';
+const CACHE_NAME = 'yakuai-ui-v20261025';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -21,7 +20,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => name.startsWith('yakuai-') && name !== CACHE_NAME && name !== API_CACHE)
+          .filter((name) => name.startsWith('yakuai-') && name !== CACHE_NAME)
           .map((name) => caches.delete(name))
       );
     })
@@ -36,10 +35,8 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(networkFirst(request));
-    return;
-  }
+  // Los datos de API pueden ser privados y no se guardan en Cache Storage.
+  if (url.pathname.startsWith('/api/')) return;
 
   // HTML and development modules must discover the current interface online.
   if (request.mode === 'navigate' || url.pathname.startsWith('/src/') || url.pathname.startsWith('/@')) {
@@ -84,20 +81,7 @@ async function cacheFirst(request) {
   }
 }
 
-async function networkFirst(request) {
-  try {
-    const response = await fetch(request);
-    if (response.ok) {
-      const cache = await caches.open(API_CACHE);
-      cache.put(request, response.clone());
-    }
-    return response;
-  } catch (error) {
-    const cached = await caches.match(request);
-    if (cached) return cached;
-    throw error;
-  }
-}
+
 
 self.addEventListener('push', (event) => {
   if (!event.data) return;

@@ -1,299 +1,118 @@
-/* Sensores: registro con calibraci+¦n + lectura manual/demo + estados. */
-import "@/styles/sensors.css";
-import { SensorOverview, sensorValue } from "@/components/sensors/SensorOverview";
-import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
-import { ArrowRight, Cloud, Droplet, LoaderCircle, Plus, Radio, Search, Thermometer } from "lucide-react";
-import { ApiError, friendlyError } from "@/api/client";
-import {
-  createMeasurement,
-  createSensor,
-  listPlots,
-  listSensors,
-  simulateSensor,
-} from "@/api/endpoints";
-import type { Plot, Sensor } from "@/api/types";
-import { Action, FieldBlank, FieldDialogContent as DialogContent, FieldError, FieldLoading, FieldPage, Status } from "@/components/field/FieldUI";
-
-import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "@/components/shadcn/dialog";
+import { useMemo, useState } from "react";
+import { Activity, CloudRain, Droplets, Plus, Radio, Thermometer } from "lucide-react";
+import { useSensors } from "../hooks/useSensors";
+import { TIPOS, rangeMessage, stateLabel } from "../utils";
+import { SENSORS_COPY as C } from "../copy";
+import { createMeasurement, createSensor, simulateSensor } from "@/api/endpoints";
+import type { Sensor, SensorType } from "@/api/types";
+import { friendlyError } from "@/api/client";
+import { toastError, toastOk } from "@/lib/toast";
+import { PageHeading, Metric, StatusBadge, EmptyBlock, ErrorBlock, LoadingBlock } from "@/components/workspace/WorkspaceKit";
+import { Button } from "@/components/shadcn/button";
+import { Card } from "@/components/shadcn/card";
 import { Input } from "@/components/shadcn/input";
+import { SearchInput } from "@/components/shadcn/search-input";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/shadcn/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/shadcn/table";
+import { fmtDateTime, fmtNum } from "@/lib/format";
 
-import { PaginationControls } from "@/components/shadcn/PaginationControls";
-
-import { FormField } from "@/components/forms/FormField";
-import { useCollection } from "@/hooks/useCollection";
-
-import { ageLabel, fmtNum, localInputToIso, nowLocalInput } from "@/lib/format";
-import { toastError, toastInfo, toastOk } from "@/lib/toast";
-
-
-const TIPOS = [
-  { value: "humedad", label: "Humedad de suelo", model: "YL-69" },
-  { value: "aire_temp", label: "Temperatura del aire", model: "DHT11" },
-  { value: "aire_hr", label: "Humedad del aire", model: "DHT11" },
-  { value: "lluvia", label: "Lluvia (s+¡/no)", model: "FC-37" },
-  { value: "caudal", label: "Caudal", model: "YF-S201" },
-];
-
-const STATUS_LABEL: Record<string, string> = {
-  ok: "Operativo",
-  anomalo: "En revisi+¦n",
-  sin_datos: "Sin datos",
-};
-
-/* Rangos v+ílidos por tipo (r+®plica de SensorNormalizer del backend, autoridad final). */
-function rangeMessage(type: string, raw: number): string | null {
-  if (!Number.isFinite(raw)) return "Escribe un valor num+®rico.";
-  switch (type) {
-    case "humedad":
-      return raw < 0 || raw > 1023 ? "YL-69 entrega 0ÔÇô1023 en crudo. Revisa el valor." : null;
-    case "aire_temp":
-      return raw < -10 || raw > 60 ? "DHT11 mide de -10 a 60 -¦C. Revisa el valor." : null;
-    case "aire_hr":
-      return raw < 0 || raw > 100 ? "DHT11 mide humedad relativa de 0 a 100. Revisa el valor." : null;
-    case "lluvia":
-      return raw !== 0 && raw !== 1 ? "FC-37 solo avisa lluvia s+¡/no (valores 0 o 1). Revisa el valor." : null;
-    case "caudal":
-      return raw < 0 || raw > 60 ? "Caudal YF-S201: rango v+ílido 0ÔÇô60. Revisa el valor." : null;
-    default:
-      return null;
-  }
-}
-
-type Tab = "todos" | "ok" | "rev";
-
-function deviceIcon(type: string): React.JSX.Element {
-  const cls = "h-[23px] w-[23px]";
-  if (type === "humedad" || type === "caudal") return <Droplet className={cls} aria-hidden="true" />;
-  if (type === "lluvia") return <Cloud className={cls} aria-hidden="true" />;
-  if (type === "aire_temp") return <Thermometer className={cls} aria-hidden="true" />;
-  return <Radio className={cls} aria-hidden="true" />;
-}
+type Mode = "new-sensor" | "reading" | "detail" | null;
+const TYPE_LABEL: Record<string, string> = Object.fromEntries(TIPOS.map((item) => [item.value, item.label]));
+function sensorIcon(type: string): React.JSX.Element { const Icon = type === "humedad" || type === "caudal" ? Droplets : type === "lluvia" ? CloudRain : type === "aire_temp" ? Thermometer : Radio; return <Icon size={17} aria-hidden="true" />; }
+function readingUnit(type: string): string { return type === "humedad" || type === "aire_hr" ? "%" : type === "aire_temp" ? "Â°C" : type === "caudal" ? "L/min" : ""; }
+function sensorReading(sensor: Sensor): string { const value = sensor.latest_measurement?.norm_value ?? sensor.latest_measurement?.raw_value; return value === null || value === undefined ? "â€”" : `${fmtNum(value)}${readingUnit(sensor.type) ? ` ${readingUnit(sensor.type)}` : ""}`; }
 
 export function SensorsWorkspace(): React.JSX.Element {
+  const { sensors, plots, loading, error, load } = useSensors();
+  const [mode, setMode] = useState<Mode>(null);
+  const [selected, setSelected] = useState<Sensor | null>(null);
+  const [query, setQuery] = useState("");
+  const [plotFilter, setPlotFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("todos");
+  const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [plotId, setPlotId] = useState("");
+  const [type, setType] = useState<SensorType>("humedad");
+  const [model, setModel] = useState("YL-69");
+  const [pin, setPin] = useState("");
+  const [dryRef, setDryRef] = useState("1020");
+  const [wetRef, setWetRef] = useState("320");
+  const [readingSensorId, setReadingSensorId] = useState("");
+  const [rawValue, setRawValue] = useState("");
+  const [measuredAt, setMeasuredAt] = useState("");
 
-  const [activePlot, setActivePlot] = useState("");
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 60000); return () => clearInterval(timer); }, []);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const active = sensors.filter((s) => s.is_active);
+  const okCount = active.filter((s) => s.status === "ok").length;
+  const filtered = useMemo(() => sensors.filter((sensor) => {
+    const plot = plots.find((p) => p.id === sensor.plot_id);
+    const text = `${sensor.type} ${sensor.model} ${plot?.name ?? ""} ${sensor.id}`.toLocaleLowerCase("es");
+    const statusMatch = statusFilter === "todos" || (statusFilter === "ok" ? sensor.status === "ok" && sensor.is_active : sensor.status !== "ok" && sensor.is_active);
+    return text.includes(query.trim().toLocaleLowerCase("es")) && (!plotFilter || sensor.plot_id === Number(plotFilter)) && statusMatch;
+  }), [plots, plotFilter, query, sensors, statusFilter]);
 
-  const [readingOpen, setReadingOpen] = useState(false);
-  const [sensors, setSensors] = useState<Sensor[]>([]);
-  const [plots, setPlots] = useState<Plot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [parcelFilter, setParcelFilter] = useState("");
-  const [tab, setTab] = useState<Tab>("todos");
+  function resetSensorForm(): void { setPlotId(plots[0] ? String(plots[0].id) : ""); setType("humedad"); setModel("YL-69"); setPin(""); setDryRef("1020"); setWetRef("320"); setFormError(""); }
+  function openReading(sensor?: Sensor): void { setReadingSensorId(sensor ? String(sensor.id) : active[0] ? String(active[0].id) : ""); setRawValue(""); setMeasuredAt(""); setFormError(""); setMode("reading"); }
 
-  const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [sPlot, setSPlot] = useState("");
-  const [sType, setSType] = useState("humedad");
-  const [sModel, setSModel] = useState("YL-69");
-  const [sPin, setSPin] = useState("A0");
-  const [sDry, setSDry] = useState("1020");
-  const [sWet, setSWet] = useState("320");
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
-
-  const [mSensor, setMSensor] = useState("");
-  const [mRaw, setMRaw] = useState("");
-  const [mAt, setMAt] = useState("");
-  const [sending, setSending] = useState(false);
-  const [simulating, setSimulating] = useState(false);
-
-  async function load(): Promise<void> {
-    setLoading(true);
-    setError(null);
+  async function saveSensor(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault(); setFormError("");
+    if (type === "humedad" && dryRef === wetRef) { setFormError("Las referencias seco y mojado deben ser distintas."); return; }
+    setBusy(true);
     try {
-      const [s, p] = await Promise.all([listSensors(), listPlots()]);
-      setSensors(s);
-      setPlots(p);
-    } catch (err) {
-      setError(friendlyError(err, "No se pudieron cargar los sensores."));
-    } finally {
-      setLoading(false);
-    }
+      await createSensor({ plot_id: Number(plotId), type, model, pin: pin || null, dry_ref: type === "humedad" ? Number(dryRef) : null, wet_ref: type === "humedad" ? Number(wetRef) : null, is_active: true });
+      toastOk(C.sensorRegistered); setMode(null); await load();
+    } catch (err) { setFormError(friendlyError(err, C.sensorError)); }
+    finally { setBusy(false); }
   }
-
-  useEffect(() => {
-    void load();
-  }, []);
-
-  const coll = useCollection(sensors, {
-    perPage: 8,
-    search: (s, q) =>
-      `${TIPOS.find((t) => t.value === s.type)?.label ?? s.type} ${s.model} ${s.plot?.name ?? ""} #${s.id}`.toLowerCase().includes(q),
-    filter: (s) => (!parcelFilter || s.plot_id === Number(parcelFilter)) && (tab === "todos" ? true : tab === "ok" ? s.status === "ok" && s.is_active : s.status !== "ok" || !s.is_active),
-    sort: (a, b) => b.id - a.id,
-  });
-
-  const operativos = sensors.filter((s) => s.status === "ok" && s.is_active).length;
-  const enRevision = sensors.filter((s) => s.status !== "ok" || !s.is_active).length;
-
-  function onTypeChange(v: string): void {
-    setSType(v);
-    const t = TIPOS.find((x) => x.value === v);
-    if (t) setSModel(t.model);
-  }
-
-  async function onCreateSensor(e: FormEvent): Promise<void> {
-    e.preventDefault();
-    if (!sPlot) {
-      toastError("Elige la parcela del sensor.");
-      return;
-    }
-    setSaving(true);
-    setFieldErrors({});
+  async function saveReading(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault(); const sensor = sensors.find((item) => item.id === Number(readingSensorId));
+    if (!sensor) return;
+    const validation = rangeMessage(sensor.type, Number(rawValue));
+    if (validation) { setFormError(validation); return; }
+    setBusy(true); setFormError("");
     try {
-      await createSensor({
-        plot_id: Number(sPlot),
-        type: sType,
-        model: sModel.trim() || undefined,
-        pin: sPin.trim() || null,
-        dry_ref: sType === "humedad" ? Number(sDry) : null,
-        wet_ref: sType === "humedad" ? Number(sWet) : null,
-      });
-      toastOk("Sensor registrado.");
-      setOpen(false);
-      await load();
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 422) {
-        setFieldErrors(err.fields);
-        toastError("Revisa los campos marcados.");
-      } else {
-        toastError(friendlyError(err, "No se pudo registrar el sensor."));
-      }
-    } finally {
-      setSaving(false);
-    }
+      await createMeasurement({ sensor_id: sensor.id, measured_at: measuredAt ? new Date(measuredAt).toISOString().slice(0, 19) : new Date().toISOString().slice(0, 19), raw_value: Number(rawValue), origin: "manual" });
+      toastOk(C.readingSaved); setMode(null); await load();
+    } catch (err) { setFormError(friendlyError(err, C.readingError)); }
+    finally { setBusy(false); }
   }
-
-  async function onSimulate(): Promise<void> {
-    const target = parcelSensors.find((s) => s.type === "humedad" && s.is_active)
-      ?? sensors.find((s) => s.type === "humedad" && s.is_active);
-    if (!target) {
-      toastError("No hay sensor de humedad activo para simular.");
-      return;
-    }
-    setSimulating(true);
-    try {
-      await simulateSensor(target.id);
-      toastOk(`Dato simulado en sensor #${target.id} (${target.plot?.name ?? ""}).`);
-      await load();
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 409) toastInfo("Ya hay un dato en este minuto, espera un poco.");
-      else toastError(friendlyError(err, "No se pudo simular el dato."));
-    } finally {
-      setSimulating(false);
-    }
+  async function simulate(sensor: Sensor): Promise<void> {
+    setBusy(true);
+    try { await simulateSensor(sensor.id); toastOk(`Dato simulado en sensor #${sensor.id}.`); await load(); }
+    catch (err) { toastError(friendlyError(err, C.simError)); }
+    finally { setBusy(false); }
   }
+  function close(): void { setMode(null); setFormError(""); }
 
-  async function onSendReading(e: FormEvent): Promise<void> {
-    e.preventDefault();
-    if (!mSensor || mRaw.trim() === "") {
-      toastError("Elige el sensor y escribe el valor crudo.");
-      return;
-    }
-    const sensor = sensors.find((s) => s.id === Number(mSensor));
-    const rangeError = sensor ? rangeMessage(sensor.type, Number(mRaw)) : null;
-    if (rangeError) {
-      toastError(rangeError);
-      return;
-    }
-    setSending(true);
-    try {
-      const m = await createMeasurement({
-        sensor_id: Number(mSensor),
-        raw_value: Number(mRaw),
-        measured_at: mAt ? localInputToIso(mAt) : new Date().toISOString().slice(0, 19),
-        origin: "manual",
-      });
-      if (m.quality === "ok") toastOk("Lectura guardada correctamente.");
-      else toastInfo("Valor imposible: fue a cuarentena para revisi+¦n.");
-      setMRaw("");
-      setReadingOpen(false);
-      await load();
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 409) toastInfo("Medici+¦n duplicada: ya exist+¡a ese dato.");
-      else toastError(friendlyError(err, "No se pudo guardar la lectura."));
-    } finally {
-      setSending(false);
-    }
-  }
-
-  const selected = sensors.find((s) => s.id === selectedId) ?? null;
-  const reading = selected?.latest_measurement;
-  const stateLabel = (s: Sensor): string => !s.is_active ? "Inactivo" : STATUS_LABEL[s.status] ?? s.status;
-  const stateTone = (s: Sensor): "neutral" | "good" | "warn" => !s.is_active ? "neutral" : s.status === "ok" ? "good" : s.status === "anomalo" ? "warn" : "neutral";
-  function openReading(id?: number): void { setMSensor(id ? String(id) : ""); setMRaw(""); setMAt(""); setReadingOpen(true); }
-
-  const availablePlots = plots.length ? plots : Array.from(new Map(sensors.filter(s=>s.plot).map(s=>[s.plot_id,s.plot!])).values());
-  const active = availablePlots.find(p=>String(p.id)===activePlot) ?? availablePlots[0];
-  const parcelSensors = sensors.filter(s=>s.plot_id===active?.id);
-  function configure(type: string): void {
-    setSPlot(active ? String(active.id) : "");
-    onTypeChange(type); setFieldErrors({}); setOpen(true);
-  }
-
-  return <div className="sensor-module"><FieldPage title="Sensores" intro="Conoce el suelo, la lluvia y el ambiente de cada parcela." actions={<>
-    <Action tone="line" disabled={loading || simulating || !sensors.length || !!error} onClick={() => void onSimulate()}>{simulating ? "SimulandoÔÇª" : "Simular datos"}</Action>
-    <Action tone="line" disabled={loading || !sensors.length || !!error} onClick={() => openReading()}>Registrar lectura</Action>
-    <Action disabled={loading || !!error} onClick={() => {setSPlot(active ? String(active.id) : "");setFieldErrors({});setOpen(true);}}><Plus size={16} aria-hidden="true" />Registrar sensor</Action>
-  </>}>
-    {loading ? <FieldLoading>Cargando sensoresÔÇª</FieldLoading> : error ? <FieldError retry={() => void load()}>{error}</FieldError> : <>
-      {active && <>
-        <section className="sensor-parcel-context" aria-label="Parcela de monitoreo"><div><label htmlFor="sensor-active-plot">Parcela</label><select id="sensor-active-plot" value={active.id} onChange={e=>setActivePlot(e.target.value)}>{availablePlots.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></div><div className="sensor-parcel-meta"><strong>{active.crop?.name ?? "Sin cultivo"} -À {fmtNum(active.area_m2)} m-¦</strong><span>{active.farmer?.name ?? "Monitoreo de campo"}</span></div><span className="sensor-context-note">+Ültima lectura de cada medici+¦n</span></section>
-        <SensorOverview sensors={parcelSensors} now={now} onRead={openReading} onDetail={setSelectedId} onRegister={configure}/>
-      </>}
-      {!sensors.length && <FieldBlank title="A+¦n no hay sensores" icon={<Radio size={24}/>}>Configura los sensores de tu parcela para comenzar el monitoreo.</FieldBlank>}
-      <details className="sensor-management"><summary>Administrar registros y equipos opcionales<span>Configuraci+¦n e inventario completo</span></summary>
-      <section className="field-panel device-inventory" aria-label="Registros de sensores">
-        <header className="sensor-inventory-heading"><h2>Dispositivos</h2><p>Consulta su estado, revisa una lectura o registra una nueva medici+¦n.</p></header>
-        <div className="sensor-inventory-controls">
-          <div className="sensor-state-tabs" aria-label="Filtrar por estado">{([{id:"todos",name:"Todos",count:sensors.length},{id:"ok",name:"Operativos",count:operativos},{id:"rev",name:"Por revisar",count:enRevision}] as const).map((item) => <button key={item.id} type="button" aria-label={`${item.name} (${item.count})`} aria-pressed={tab === item.id} onClick={() => { setTab(item.id); coll.setPage(1); }}>{item.name}<span>{item.count}</span></button>)}</div>
-          <div className="sensor-inventory-filters"><select className="field-select" aria-label="Filtrar por parcela" value={parcelFilter} onChange={(e) => {setParcelFilter(e.target.value);coll.setPage(1);}}><option value="">Todas las parcelas</option>{plots.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select><label className="field-search"><Search size={16} aria-hidden="true" /><input type="search" placeholder="Buscar por tipo, modelo o parcela" aria-label="Buscar sensores" value={coll.query} onChange={(e) => coll.setQuery(e.target.value)} /></label>{(coll.query || parcelFilter || tab !== "todos") && <Action tone="quiet" onClick={() => {coll.setQuery("");setParcelFilter("");setTab("todos");}}>Restablecer</Action>}</div>
-        </div>
-        {!coll.total ? <FieldBlank title={sensors.length ? "Sin coincidencias" : "Sin registros"} icon={<Radio size={24} />} action={sensors.length ? <Action tone="line" onClick={() => {coll.setQuery("");setTab("todos");setParcelFilter("");}}>Limpiar filtros</Action> : <Action onClick={() => {setSPlot(active ? String(active.id) : "");setFieldErrors({});setOpen(true);}}>Registrar sensor</Action>}>{sensors.length ? "Prueba con otra b+¦squeda, parcela o estado." : "A+¦ade un dispositivo y as+¡gnalo a su parcela."}</FieldBlank> : <>
-          <div className="device-table-wrap"><table className="device-table"><caption className="sr-only">Sensores y +¦ltimas mediciones</caption><thead><tr><th scope="col">Dispositivo</th><th scope="col">Parcela</th><th scope="col">Estado</th><th scope="col">Medici+¦n reciente</th><th scope="col"><span className="sr-only">Acciones</span></th></tr></thead><tbody>{coll.items.map((s) => {
-            const m=s.latest_measurement;
-            return <tr key={s.id}><td><div className="device-name"><span className="device-icon">{deviceIcon(s.type)}</span><div><strong>{TIPOS.find((t) => t.value === s.type)?.label ?? s.type}</strong><small>#{s.id} -À {s.model || "Sin modelo"}</small></div></div></td><td data-label="Parcela">{s.plot?.name ?? `Parcela #${s.plot_id}`}</td><td data-label="Estado"><Status tone={stateTone(s)}>{stateLabel(s)}</Status></td><td data-label="Medici+¦n reciente"><strong className="device-reading">{sensorValue(s)}</strong><small>{m ? ageLabel(m.measured_at) : "Pendiente de registro"}{m?.quality==="anomalo" ? " -À En revisi+¦n" : ""}</small></td><td><Action tone="quiet" aria-label={`Ver sensor ${s.id}`} onClick={() => setSelectedId(s.id)}>Ver detalle<ArrowRight size={14} /></Action></td></tr>;
-          })}</tbody></table></div><div className="device-pagination"><PaginationControls page={coll.page} pages={coll.pages} onPageChange={coll.setPage} count={`${coll.total} dispositivos`} /></div>
-        </>}
-      </section>
-      </details>
-      <p className="field-footnote">La evaluaci+¦n de riego requiere humedad de los +¦ltimos 30 minutos. El estado del sensor no garantiza la vigencia de su lectura.</p>
+  return <div className="space-y-6">
+    <PageHeading eyebrow="Monitoreo" title={C.title} description={C.intro} action={<><Button variant="outline" onClick={() => openReading()} disabled={!active.length}><Activity size={16} aria-hidden="true" />{C.newReading}</Button><Button onClick={() => { resetSensorForm(); setMode("new-sensor"); }} disabled={!plots.length}><Plus size={16} aria-hidden="true" />{C.registerSensor}</Button></>} />
+    {error ? <ErrorBlock message={error} retry={() => void load()} /> : null}
+    {loading ? <LoadingBlock label={C.loading} /> : <>
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3" aria-label="Estado de sensores"><Metric label="Dispositivos activos" value={active.length} detail="Asignados a parcelas" icon={<Radio size={17} />} tone="brand" /><Metric label="Operativos" value={okCount} detail="Estado reportado por el dispositivo" icon={<Activity size={17} />} /><Metric label="Por revisar" value={active.length - okCount} detail="AnomalÃ­a o sin datos" icon={<CloudRain size={17} />} tone={active.length > okCount ? "warning" : "default"} /></section>
+      <Card className="space-y-4 rounded-xl p-4 sm:p-5"><div><h2 className="font-semibold text-neutral-900">{C.deviceTable}</h2><p className="mt-1 text-sm text-neutral-600">{C.deviceTableDesc}</p></div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_12rem_12rem]"><SearchInput value={query} onChange={setQuery} placeholder={C.searchPlaceholder} label={C.searchLabel} /><label className="grid gap-1 text-xs font-medium text-neutral-700">{C.parcelFilter}<select value={plotFilter} onChange={(e) => setPlotFilter(e.target.value)} className="min-h-12 rounded-md border border-neutral-300 bg-white px-3 text-sm"><option value="">Todas las parcelas</option>{plots.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label><label className="grid gap-1 text-xs font-medium text-neutral-700">Estado<select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="min-h-12 rounded-md border border-neutral-300 bg-white px-3 text-sm"><option value="todos">Todos los sensores</option><option value="ok">Operativos</option><option value="rev">Por revisar</option></select></label></div><p className="border-t border-neutral-200 pt-3 text-xs text-neutral-500">{filtered.length} dispositivos</p></Card>
+      {filtered.length ? <>
+        <Card className="hidden overflow-hidden rounded-xl md:block"><Table><caption className="sr-only">Dispositivos, parcelas, estado y lectura mÃ¡s reciente</caption><TableHeader className="bg-neutral-50"><TableRow><TableHead>Dispositivo</TableHead><TableHead>Parcela</TableHead><TableHead>Estado</TableHead><TableHead>MediciÃ³n reciente</TableHead><TableHead><span className="sr-only">Acciones</span></TableHead></TableRow></TableHeader><TableBody>{filtered.map((sensor) => <TableRow key={sensor.id}><TableCell><div className="flex items-center gap-2.5"><span className="grid h-8 w-8 place-items-center rounded-lg bg-primary-50 text-primary-700">{sensorIcon(sensor.type)}</span><div><p className="font-medium text-neutral-900">{TYPE_LABEL[sensor.type]}</p><p className="text-xs text-neutral-500">{sensor.model} Â· #{sensor.id}</p></div></div></TableCell><TableCell>{plots.find((p) => p.id === sensor.plot_id)?.name ?? `Parcela #${sensor.plot_id}`}</TableCell><TableCell><StatusBadge value={sensor.is_active ? sensor.status : "inactivo"} label={stateLabel(sensor)} /></TableCell><TableCell><p className="font-medium tabular-nums text-neutral-900">{sensorReading(sensor)}</p><p className="text-xs text-neutral-500">{sensor.latest_measurement ? fmtDateTime(sensor.latest_measurement.measured_at) : C.pendingReading}</p></TableCell><TableCell><div className="flex justify-end gap-1"><Button variant="ghost" size="sm" onClick={() => openReading(sensor)} disabled={!sensor.is_active}>Lectura</Button>{sensor.type === "humedad" && sensor.dry_ref !== null && sensor.wet_ref !== null ? <Button variant="ghost" size="sm" onClick={() => void simulate(sensor)} disabled={busy}>Simular</Button> : null}<Button variant="outline" size="sm" onClick={() => { setSelected(sensor); setMode("detail"); }}>Detalle</Button></div></TableCell></TableRow>)}</TableBody></Table></Card>
+        <div className="grid gap-3 md:hidden">{filtered.map((sensor) => <Card key={sensor.id} className="rounded-xl p-4"><div className="flex items-start justify-between gap-3"><div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-lg bg-primary-50 text-primary-700">{sensorIcon(sensor.type)}</span><div><h3 className="font-semibold text-neutral-900">{TYPE_LABEL[sensor.type]}</h3><p className="text-xs text-neutral-500">{sensor.model} Â· #{sensor.id}</p></div></div><StatusBadge value={sensor.is_active ? sensor.status : "inactivo"} label={stateLabel(sensor)} /></div><div className="mt-4 rounded-lg bg-neutral-50 p-3"><p className="text-xs text-neutral-500">Parcela Â· {plots.find((p) => p.id === sensor.plot_id)?.name ?? `#${sensor.plot_id}`}</p><p className="mt-1 text-lg font-semibold tabular-nums">{sensorReading(sensor)}</p><p className="text-xs text-neutral-500">{sensor.latest_measurement ? fmtDateTime(sensor.latest_measurement.measured_at) : C.pendingReading}</p></div><div className="mt-3 flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => openReading(sensor)} disabled={!sensor.is_active}>Registrar lectura</Button>{sensor.type === "humedad" && sensor.dry_ref !== null && sensor.wet_ref !== null ? <Button variant="outline" size="sm" onClick={() => void simulate(sensor)} disabled={busy}>Simular dato</Button> : null}<Button variant="ghost" size="sm" onClick={() => { setSelected(sensor); setMode("detail"); }}>Ver detalle</Button></div></Card>)}</div>
+      </> : <EmptyBlock title={query || plotFilter || statusFilter !== "todos" ? C.noMatch : C.noDevices} description={query || plotFilter || statusFilter !== "todos" ? C.noMatchHint : C.noDevicesHint} action={plots.length ? <Button onClick={() => { resetSensorForm(); setMode("new-sensor"); }}>{C.registerSensor}</Button> : undefined} />}
+      <p className="text-xs leading-relaxed text-neutral-500">{C.footnote}</p>
     </>}
-    <Dialog open={selected !== null} onOpenChange={(value) => {if(!value) setSelectedId(null);}}>
-      <DialogContent>{selected && <>
-        <DialogHeader><p className="field-eyebrow">SENSOR #{selected.id}</p><DialogTitle>{TIPOS.find((t) => t.value === selected.type)?.label ?? selected.type}</DialogTitle><DialogDescription>{selected.plot?.name ?? `Parcela #${selected.plot_id}`} -À {selected.model || "Modelo no especificado"}</DialogDescription></DialogHeader>
-        <Status tone={stateTone(selected)}>{stateLabel(selected)}</Status>
-        <div className="sensor-value-stage"><p>+Ültima lectura</p><strong className="reading-number">{sensorValue(selected)}</strong><p>{reading ? `Registrada ${ageLabel(reading.measured_at)}` : "Todav+¡a no hay una medici+¦n registrada"}</p>{reading?.quality === "anomalo" && <Status tone="warn">Lectura en revisi+¦n</Status>}</div>
-        <dl className="field-facts"><div><dt>Conexi+¦n</dt><dd>{selected.pin ?? "ÔÇö"}</dd></div><div><dt>Origen de lectura</dt><dd>{reading?.origin ?? "ÔÇö"}</dd></div>{selected.type === "humedad" && <><div><dt>Referencia en seco</dt><dd>{selected.dry_ref ?? "ÔÇö"}</dd></div><div><dt>Referencia en mojado</dt><dd>{selected.wet_ref ?? "ÔÇö"}</dd></div></>}</dl>
-        <Action onClick={() => {openReading(selected.id);setSelectedId(null);}} aria-label={`Registrar lectura del sensor ${selected.id}`}><Plus size={15} />Nueva lectura</Action>
-      </>}</DialogContent>
-    </Dialog>
-    <Dialog open={readingOpen} onOpenChange={(value) => { if (!sending) setReadingOpen(value); }}>
-      <DialogContent className="field-dialog sm:max-w-lg">
-        <DialogHeader><p className="field-eyebrow">Datos de campo</p><DialogTitle>Nueva lectura</DialogTitle><DialogDescription>Registra el valor que muestra tu dispositivo.</DialogDescription></DialogHeader>
-        <form onSubmit={(e) => void onSendReading(e)} className="field-form">
-          <FormField label="Sensor" required htmlFor="m-sensor"><select className="field-select w-full" id="m-sensor" required value={mSensor} onChange={(e) => setMSensor(e.target.value)}><option value="">Selecciona un dispositivo</option>{sensors.map((s) => <option key={s.id} value={s.id}>#{s.id} -À {TIPOS.find((t) => t.value === s.type)?.label ?? s.type} -À {s.plot?.name ?? `Parcela #${s.plot_id}`}</option>)}</select></FormField>
-          <FormField label="Valor crudo" required htmlFor="m-raw" hint="Ingresa la lectura original, antes de su normalizaci+¦n."><Input id="m-raw" required inputMode="decimal" value={mRaw} onChange={(e) => setMRaw(e.target.value)} /></FormField>
-          <details className="field-disclosure"><summary>-+La medici+¦n se tom+¦ antes?</summary><div className="mt-4"><FormField label="Fecha y hora" htmlFor="m-at" hint="Si lo dejas vac+¡o, se registrar+í el momento actual."><Input id="m-at" type="datetime-local" max={nowLocalInput()} value={mAt} onChange={(e) => setMAt(e.target.value)} /></FormField></div></details>
-          <div className="field-form-footer"><Action tone="quiet" disabled={sending} onClick={() => setReadingOpen(false)}>Cancelar</Action><Action type="submit" disabled={sending}>{sending && <LoaderCircle size={16} className="animate-spin" />}{sending ? "GuardandoÔÇª" : "Guardar lectura"}</Action></div>
-        </form>
-      </DialogContent>
-    </Dialog>
-    <Dialog open={open} onOpenChange={(value) => { if (!saving) setOpen(value); }}>
-      <DialogContent className="field-dialog sm:max-w-xl">
-        <DialogHeader><p className="field-eyebrow">Conecta tu campo</p><DialogTitle>Registrar sensor</DialogTitle><DialogDescription>Indica la parcela y la medici+¦n. El DHT11 utiliza un registro para temperatura y otro para humedad del aire.</DialogDescription></DialogHeader>
-        <form onSubmit={(e) => void onCreateSensor(e)} className="field-form">
-          <FormField label="Parcela" required htmlFor="s-plot" error={fieldErrors.plot_id?.[0]}><select id="s-plot" required className="field-select w-full" value={sPlot} onChange={(e) => setSPlot(e.target.value)}><option value="">Selecciona una parcela</option>{plots.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></FormField>
-          <FormField label="Tipo de sensor" required htmlFor="s-type" error={fieldErrors.type?.[0]}><select id="s-type" className="field-select w-full" value={sType} onChange={(e) => onTypeChange(e.target.value)}><optgroup label="Sensores principales">{TIPOS.filter(t=>t.value!=="caudal").map((t) => <option key={t.value} value={t.value}>{t.model} -À {t.label}</option>)}</optgroup><optgroup label="Equipo opcional"><option value="caudal">YF-S201 -À Caudal</option></optgroup></select></FormField>
-          <div className="field-form-pair"><FormField label="Modelo" htmlFor="s-model" error={fieldErrors.model?.[0]}><Input id="s-model" value={sModel} onChange={(e) => setSModel(e.target.value)} /></FormField><FormField label="Pin de conexi+¦n" htmlFor="s-pin" error={fieldErrors.pin?.[0]}><Input id="s-pin" value={sPin} onChange={(e) => setSPin(e.target.value)} /></FormField></div>
-          {sType === "humedad" ? <fieldset className="field-calibration"><legend>Calibraci+¦n en 2 puntos (seco / mojado)</legend><p>YL-69 entrega valores de 0 a 1023. Usa las referencias de tu dispositivo.</p><div className="field-form-pair"><FormField label="Seco ref (0ÔÇô1023)" required htmlFor="s-dry" error={fieldErrors.dry_ref?.[0]}><Input id="s-dry" type="number" min={0} max={1023} required value={sDry} onChange={(e) => setSDry(e.target.value)} /></FormField><FormField label="Mojado ref (0ÔÇô1023)" required htmlFor="s-wet" error={fieldErrors.wet_ref?.[0]}><Input id="s-wet" type="number" min={0} max={1023} required value={sWet} onChange={(e) => setSWet(e.target.value)} /></FormField></div></fieldset> : <p className="field-form-note">{sType === "lluvia" ? "FC-37 solo avisa lluvia s+¡/no (0 o 1). No necesita calibraci+¦n." : sType === "caudal" ? "YF-S201: rango de caudal de 0 a 60 L/min." : "DHT11: temperatura de ÔêÆ10 a 60 -¦C y humedad relativa de 0 a 100%."}</p>}
-          <div className="field-form-footer"><Action tone="quiet" disabled={saving} onClick={() => setOpen(false)}>Cancelar</Action><Action type="submit" disabled={saving}>{saving && <LoaderCircle size={16} className="animate-spin" />}{saving ? "RegistrandoÔÇª" : "Registrar"}</Action></div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  </FieldPage></div>;
+    <Dialog open={mode !== null} onOpenChange={(open) => { if (!open) close(); }}><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
+      {mode === "new-sensor" ? <><DialogHeader><DialogTitle>{C.registerTitle}</DialogTitle><DialogDescription>{C.registerDesc}</DialogDescription></DialogHeader><form className="space-y-4" onSubmit={(e) => void saveSensor(e)}>
+        <label className="grid gap-1.5 text-sm font-medium">Parcela<select required value={plotId} onChange={(e) => setPlotId(e.target.value)} className="min-h-12 rounded-md border border-neutral-300 bg-white px-3"><option value="" disabled>Selecciona una parcela</option>{plots.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+        <label className="grid gap-1.5 text-sm font-medium">Tipo de sensor<select value={type} onChange={(e) => { const t = e.target.value as SensorType; setType(t); setModel(TIPOS.find((x) => x.value === t)?.model ?? ""); }} className="min-h-12 rounded-md border border-neutral-300 bg-white px-3">{TIPOS.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
+        <div className="grid gap-3 sm:grid-cols-2"><label className="grid gap-1.5 text-sm font-medium">Modelo<Input value={model} onChange={(e) => setModel(e.target.value)} required maxLength={60} /></label><label className="grid gap-1.5 text-sm font-medium">Pin de conexiÃ³n<Input value={pin} onChange={(e) => setPin(e.target.value)} maxLength={10} placeholder="A0" /></label></div>
+        {type === "humedad" ? <fieldset className="grid gap-3 rounded-lg border border-neutral-200 p-3"><legend className="px-1 text-sm font-semibold">CalibraciÃ³n en dos puntos</legend><p className="text-xs text-neutral-600">Usa la lectura cruda en seco y con el suelo mojado. Los valores deben ser distintos.</p><div className="grid grid-cols-2 gap-3"><label className="grid gap-1 text-xs font-medium">Seco ref (0â€“1023)<Input type="number" min="0" max="1023" required value={dryRef} onChange={(e) => setDryRef(e.target.value)} /></label><label className="grid gap-1 text-xs font-medium">Mojado ref (0â€“1023)<Input type="number" min="0" max="1023" required value={wetRef} onChange={(e) => setWetRef(e.target.value)} /></label></div></fieldset> : null}
+        {formError ? <p className="text-sm text-danger-700" role="alert">{formError}</p> : null}<DialogFooter><Button type="button" variant="outline" onClick={close}>Cancelar</Button><Button type="submit" loading={busy}>Registrar sensor</Button></DialogFooter>
+      </form></> : null}
+      {mode === "reading" ? <><DialogHeader><DialogTitle>{C.newReadingTitle}</DialogTitle><DialogDescription>{C.newReadingDesc} La evaluaciÃ³n de riego solo utiliza humedad de suelo.</DialogDescription></DialogHeader><form className="space-y-4" onSubmit={(e) => void saveReading(e)}>
+        <label className="grid gap-1.5 text-sm font-medium">Sensor<select required value={readingSensorId} onChange={(e) => setReadingSensorId(e.target.value)} className="min-h-12 rounded-md border border-neutral-300 bg-white px-3">{active.map((sensor) => <option value={sensor.id} key={sensor.id}>{TYPE_LABEL[sensor.type]} Â· {plots.find((p) => p.id === sensor.plot_id)?.name} Â· #{sensor.id}</option>)}</select></label>
+        {sensors.find((s) => s.id === Number(readingSensorId))?.type === "humedad" ? <p className="text-xs text-neutral-600">YL-69: valor crudo entre 0 y 1023; se convertirÃ¡ a humedad usando la calibraciÃ³n guardada.</p> : null}
+        <label className="grid gap-1.5 text-sm font-medium">Valor crudo<Input type="number" required step="any" value={rawValue} onChange={(e) => setRawValue(e.target.value)} aria-invalid={Boolean(formError)} />{formError ? <span className="text-xs font-normal text-danger-700" role="alert">{formError}</span> : null}</label>
+        <label className="grid gap-1.5 text-sm font-medium">Fecha y hora (opcional)<Input type="datetime-local" value={measuredAt} onChange={(e) => setMeasuredAt(e.target.value)} /><span className="text-xs font-normal text-neutral-500">Si se deja vacÃ­o, se usa el momento actual.</span></label>
+        <DialogFooter><Button type="button" variant="outline" onClick={close}>Cancelar</Button><Button type="submit" loading={busy}>Guardar lectura</Button></DialogFooter>
+      </form></> : null}
+      {mode === "detail" && selected ? <><DialogHeader><DialogTitle>Sensor #{selected.id}</DialogTitle><DialogDescription>{TYPE_LABEL[selected.type]} Â· {selected.model} Â· {plots.find((p) => p.id === selected.plot_id)?.name}</DialogDescription></DialogHeader><div className="grid grid-cols-2 gap-3 rounded-lg bg-neutral-50 p-4 text-sm"><div><p className="text-xs text-neutral-500">Estado</p><div className="mt-1"><StatusBadge value={selected.is_active ? selected.status : "inactivo"} label={stateLabel(selected)} /></div></div><div><p className="text-xs text-neutral-500">Ãšltima lectura</p><p className="mt-1 font-medium">{sensorReading(selected)}</p></div>{selected.type === "humedad" ? <><div><p className="text-xs text-neutral-500">Referencia seco</p><p className="mt-1">{selected.dry_ref ?? "â€”"}</p></div><div><p className="text-xs text-neutral-500">Referencia mojado</p><p className="mt-1">{selected.wet_ref ?? "â€”"}</p></div></> : null}{selected.latest_measurement ? <div className="col-span-2 border-t border-neutral-200 pt-3"><p className="text-xs text-neutral-500">Medido el {fmtDateTime(selected.latest_measurement.measured_at)}</p><p className="mt-1 text-xs text-neutral-600">Valor original: {fmtNum(selected.latest_measurement.raw_value)} Â· Calidad: {selected.latest_measurement.quality}</p></div> : null}</div><DialogFooter><Button variant="outline" onClick={close}>Cerrar</Button><Button onClick={() => openReading(selected)} disabled={!selected.is_active}>Registrar lectura</Button></DialogFooter></> : null}
+    </DialogContent></Dialog>
+  </div>;
 }
+
+

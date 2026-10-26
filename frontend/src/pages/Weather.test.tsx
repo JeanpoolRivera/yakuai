@@ -18,7 +18,7 @@ const live = {
 async function selectPlot():Promise<void> {
  render(<MemoryRouter><Weather/></MemoryRouter>);
  await screen.findByRole("option",{name:/El Molino/});
- fireEvent.change(screen.getByLabelText("Parcela"),{target:{value:"1"}});
+ fireEvent.change(screen.getByLabelText("Pronóstico para"),{target:{value:"1"}});
 }
 describe("Clima",()=>{
  it("muestra vigencia OWM y actualiza en vivo con un clic",async()=>{
@@ -27,9 +27,9 @@ describe("Clima",()=>{
   api.refreshWeather.mockResolvedValue({...live,id:2});
   await selectPlot();
   expect(await screen.findByText(/Vigente/)).toBeInTheDocument();
-  expect(screen.getByText(/Fuente: OpenWeather/)).toBeInTheDocument();
+  expect(screen.getByText(/OpenWeather/)).toBeInTheDocument();
   expect(screen.getByText(/10\.0/)).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button",{name:"Actualizar pronóstico"}));
+  fireEvent.click(screen.getByRole("button",{name:/Actualizar/}));
   expect(api.refreshWeather).toHaveBeenCalledWith(1);
   expect(await screen.findByText(/OpenWeather/)).toBeInTheDocument();
  });
@@ -59,7 +59,7 @@ describe("Contexto de navegación",()=>{
   api.getWeather.mockResolvedValue({...live,plot_id:2});
   render(<MemoryRouter initialEntries={[{pathname:"/clima",state:{plotId:2}}]}><Weather/></MemoryRouter>);
   await screen.findByText("Vigente");
-  expect(screen.getByLabelText("Parcela")).toHaveValue("2");
+  expect(screen.getByLabelText("Pronóstico para")).toHaveValue("2");
   expect(api.getWeather).toHaveBeenCalledWith(2);
  });
 });

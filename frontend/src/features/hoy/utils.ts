@@ -12,21 +12,21 @@ export function latestPerPlot(all: Evaluation[]): Evaluation[] {
 export function cardBg(tone: string): string {
   const map: Record<string, string> = {
     critica: "border-danger-100 bg-danger-50",
-    riega: "border-warning-100 bg-white",
-    no: "border-success-100 bg-white",
-    espera: "border-info-100 bg-white",
-    incompleta: "border-neutral-200 bg-white",
+    riega: "border-success-100 bg-success-50",
+    no: "border-neutral-200 bg-white",
+    espera: "border-warning-100 bg-warning-50",
+    incompleta: "border-neutral-200 bg-neutral-50",
   };
   return map[tone] ?? map.incompleta;
 }
 
 export function cardBarColor(tone: string): string {
   const map: Record<string, string> = {
-    critica: "#dc2626",
-    riega: "#d97706",
-    no: "#16a34a",
-    espera: "#2563eb",
-    incompleta: "#a3a3a3",
+    critica: "#C0392B",
+    riega: "#1F7A4D",
+    no: "#3D5A6C",
+    espera: "#B86E00",
+    incompleta: "#5A6A75",
   };
   return map[tone] ?? map.incompleta;
 }

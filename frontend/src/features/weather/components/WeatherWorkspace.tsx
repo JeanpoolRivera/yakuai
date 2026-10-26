@@ -1,57 +1,29 @@
-import { useWeather } from '../hooks/useWeather';
-
-import { Action, FieldBlank, FieldError, FieldLink, FieldLoading, FieldPage, Status } from "@/components/field/FieldUI";
-import { ageLabel, fmtDateTime, fmtNum } from "@/lib/format";
-
-import { CloudRain, CloudSun, MapPin, RefreshCw, Clock, ArrowUp, ArrowDown } from "lucide-react";
-
+import { CloudRain, MapPin, RefreshCw, Sun, Thermometer, Wind } from "lucide-react";
+import { useWeather } from "../hooks/useWeather";
+import { PageHeading, Metric, StatusBadge, EmptyBlock, ErrorBlock, LoadingBlock } from "@/components/workspace/WorkspaceKit";
+import { Button } from "@/components/shadcn/button";
+import { Card } from "@/components/shadcn/card";
+import { fmtDateTime, fmtNum } from "@/lib/format";
 
 export function WeatherWorkspace(): React.JSX.Element {
-  const { plots, plotId, forecast, loadingPlots, loadingFc, refreshing, error, forecastError, setPlotId, loadForecast, onRefreshLive, fresh } = useWeather();
-
-  const probability = forecast ? Math.max(0, Math.min(100, Math.round(Number(forecast.rain_prob) * 100))) : 0;
-  const plot = plots.find((p) => p.id === plotId);
-
-  return (
-    <FieldPage title="Clima" intro="Consulta la lluvia prevista y la temperatura de cada parcela." actions={
-      <Action tone="line" disabled={plotId === null || loadingFc || refreshing} onClick={() => void onRefreshLive()}><RefreshCw size={16} aria-hidden="true" />{refreshing ? "Actualizando…" : "Actualizar pronóstico"}</Action>
-    }>
-      {loadingPlots ? <FieldLoading>Cargando parcelas…</FieldLoading> : error ? <FieldError>{error}</FieldError> : !plots.length ? <FieldBlank title="Sin parcelas" icon={<MapPin size={25} />}>Registra una parcela para consultar su clima.</FieldBlank> : (
-        <>
-          <section className="climate-context" aria-label="Parcela del pronóstico">
-            <div className="climate-context-picker"><span className="device-icon"><MapPin size={19} /></span><div><label htmlFor="w-plot">Parcela</label><select id="w-plot" className="field-select" value={plotId ?? ""} disabled={refreshing} onChange={(e) => { const id = Number(e.target.value); if (id !== plotId) { setPlotId(id); } }}>{plots.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div></div>
-            <div className="climate-location-meta"><span>{plot?.crop?.name ?? "Cultivo sin especificar"} · {fmtNum(plot?.area_m2)} m²</span><small>{plot?.farmer?.name ?? "Pronóstico por parcela"}</small></div>
-            <span className="climate-horizon"><Clock size={15} />Ventana de 6 horas</span>
-          </section>
-          {loadingFc ? <FieldLoading>Consultando pronóstico…</FieldLoading> : forecastError ? <FieldError retry={() => { if (plotId !== null) void loadForecast(plotId); }}>{forecastError}</FieldError> : !forecast ? (
-            <section className="field-panel"><FieldBlank title="El pronóstico está por llegar" icon={<CloudSun size={32} />} action={<Action onClick={() => void onRefreshLive()}>Consultar el clima</Action>}>Actualiza la información de esta parcela antes de evaluar su riego.</FieldBlank></section>
-          ) : (
-            <>
-              {!fresh && <div className="field-notice" role="status">Pronóstico vencido. Actualízalo para utilizarlo en una nueva evaluación.</div>}
-              <div className="climate-grid">
-                <section className="climate-rain-panel" aria-label="Pronóstico de la parcela">
-                  <header><div><p className="field-eyebrow">PRECIPITACIÓN</p><h2>Lluvia prevista</h2></div><CloudRain size={38} strokeWidth={1.25} aria-hidden="true" /></header>
-                  <div className="climate-rain-number">{fmtNum(forecast.rain_mm, 1)}<span>mm</span></div>
-                  <p className="climate-rain-caption">Acumulación prevista en el período</p>
-                  <div className="climate-probability"><div><span>Probabilidad de lluvia</span><strong>{probability}%</strong></div><div className="climate-probability-track" aria-hidden="true"><i style={{ width: `${probability}%` }} /></div></div>
-                  <footer><Clock size={14} /><span>{fmtDateTime(forecast.period_from)} — {fmtDateTime(forecast.period_to)}</span></footer>
-                </section>
-                <section className="field-panel climate-temperature-panel" aria-label="Temperatura prevista">
-                  <header className="field-panel-heading"><div><h2>Temperatura</h2><p>Rango previsto para el período.</p></div><CloudSun size={22} /></header>
-                  <div className="climate-temperatures"><div><span><ArrowUp size={16} />Máxima</span><strong>{forecast.temp_max === null ? "—" : fmtNum(forecast.temp_max, 0)}<small>°C</small></strong></div><div><span><ArrowDown size={16} />Mínima</span><strong>{forecast.temp_min === null ? "—" : fmtNum(forecast.temp_min, 0)}<small>°C</small></strong></div></div>
-                  <div className="climate-temperature-note"><CloudSun size={19} aria-hidden="true" /> <p>La temperatura es parte del cálculo de las necesidades de agua del cultivo.</p></div>
-                </section>
-              </div>
-              <section className="field-panel climate-data" aria-label="Calidad del pronóstico">
-                <header className="field-panel-heading"><div><h2>Información del pronóstico</h2><p>Consulta su origen y vigencia antes de evaluar.</p></div><Status tone={fresh ? "good" : "warn"}>{fresh ? "Vigente" : "Vencido"}</Status></header>
-                <dl><div><dt>Origen de los datos</dt><dd>Fuente: {forecast.origin === "owm" ? "OpenWeather" : forecast.origin === "demo" ? "Demostración" : forecast.origin === "owm_fallo" ? "Respaldo por fallo de OpenWeather" : forecast.origin}</dd></div><div><dt>Última actualización</dt><dd>{fmtDateTime(forecast.fetched_at)}</dd><small>{ageLabel(forecast.fetched_at)}</small></div><div><dt>Vigencia para evaluar</dt><dd>3 horas desde la consulta</dd><small>{fresh ? "Dentro del plazo de vigencia" : "Se requiere una actualización"}</small></div></dl>
-                {forecast.origin !== "owm" && <p className="climate-source-note">Estos datos no proceden de una consulta meteorológica en vivo. Revisa su origen antes de utilizarlos.</p>}
-              </section>
-              <section className="climate-next"><div><h3>La lluvia es una parte de la decisión.</h3><p>Combínala con la humedad del suelo y las necesidades del cultivo.</p></div><FieldLink to="/evaluar" plotId={plotId ?? undefined}>Evaluar riego</FieldLink></section>
-            </>
-          )}
-        </>
-      )}
-    </FieldPage>
-  );
+  const weather = useWeather();
+  const selected = weather.plots.find((p) => p.id === weather.plotId);
+  const rainProb = weather.forecast ? Math.round(Number(weather.forecast.rain_prob) * 100) : null;
+  return <div className="space-y-6">
+    <PageHeading eyebrow="Monitoreo ambiental" title="Clima" description="Consulta el pronóstico reciente de cada parcela antes de evaluar el riego." action={<Button onClick={() => void weather.onRefreshLive()} disabled={weather.refreshing || weather.plotId === null}><RefreshCw size={16} aria-hidden="true" />{weather.refreshing ? "Actualizando…" : "Actualizar pronóstico"}</Button>} />
+    {weather.error ? <ErrorBlock message={weather.error} /> : null}
+    {weather.loadingPlots ? <LoadingBlock label="Cargando parcelas…" /> : weather.plots.length === 0 ? <EmptyBlock title="Sin parcelas disponibles" description="Registra una parcela con ubicación para consultar el clima." /> : <>
+      <Card className="grid gap-4 rounded-xl p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:p-5"><div><label htmlFor="weather-plot" className="mb-1.5 block text-sm font-medium text-neutral-800">Parcela</label><select id="weather-plot" value={weather.plotId ?? ""} onChange={(e) => weather.setPlotId(e.target.value ? Number(e.target.value) : null)} className="min-h-12 w-full max-w-xl rounded-md border border-neutral-300 bg-white px-3 text-sm"><option value="" disabled>Selecciona una parcela</option>{weather.plots.map((plot) => <option key={plot.id} value={plot.id}>{plot.name}</option>)}</select>{selected ? <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-neutral-600"><MapPin size={13} aria-hidden="true" />{fmtNum(selected.latitude)}, {fmtNum(selected.longitude)}</p> : null}</div><Button variant="outline" onClick={() => void weather.loadForecast(weather.plotId!)} disabled={weather.loadingFc || weather.plotId === null}><RefreshCw size={15} aria-hidden="true" />Consultar último pronóstico</Button></Card>
+      {weather.forecastError ? <ErrorBlock message={weather.forecastError} retry={() => weather.plotId !== null && void weather.loadForecast(weather.plotId)} /> : null}
+      {weather.loadingFc ? <LoadingBlock label="Consultando el pronóstico…" /> : weather.forecast ? <>
+        <Card className="overflow-hidden rounded-xl">
+          <div className="grid gap-5 bg-primary-900 px-5 py-6 text-white sm:grid-cols-[1fr_auto] sm:items-center sm:px-7"><div><p className="text-xs font-semibold uppercase tracking-[.12em] text-primary-100">Pronóstico de 6 horas</p><h2 className="mt-2 text-2xl font-semibold">{selected?.name ?? "Parcela"}</h2><p className="mt-1 text-sm text-white/75">Datos obtenidos {fmtDateTime(weather.forecast.fetched_at)}</p></div><div className="flex flex-wrap items-center gap-3"><span className="grid h-14 w-14 place-items-center rounded-2xl bg-white/10"><CloudRain size={28} aria-hidden="true" /></span><div><p className="text-xs text-white/70">Lluvia prevista</p><p className="text-3xl font-semibold tabular-nums">{fmtNum(weather.forecast.rain_mm)} <span className="text-base font-medium">mm</span></p></div></div></div>
+          <div className="grid gap-3 p-4 sm:grid-cols-3 sm:p-5"><Metric label="Probabilidad de lluvia" value={rainProb === null ? "—" : `${rainProb}%`} detail={rainProb !== null && rainProb >= 70 ? "Puede afectar la recomendación de riego." : "No alcanza el umbral para posponer el riego."} icon={<CloudRain size={17} />} tone={rainProb !== null && rainProb >= 70 ? "brand" : "default"} /><Metric label="Temperatura máxima" value={weather.forecast.temp_max === null ? "—" : `${fmtNum(weather.forecast.temp_max)} °C`} detail="En el período consultado" icon={<Sun size={17} />} /><Metric label="Temperatura mínima" value={weather.forecast.temp_min === null ? "—" : `${fmtNum(weather.forecast.temp_min)} °C`} detail="En el período consultado" icon={<Thermometer size={17} />} /></div>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-200 px-4 py-3 sm:px-5"><span className="text-xs text-neutral-600">Fuente: {weather.forecast.origin === "owm" ? "OpenWeatherMap" : weather.forecast.origin}</span><StatusBadge value={weather.fresh ? "ok" : "inactivo"} label={weather.fresh ? "Vigente" : "Necesita actualizarse"} /></div>
+        </Card>
+        <Card className="flex items-start gap-3 rounded-xl p-4"><Wind className="mt-0.5 h-5 w-5 shrink-0 text-primary-700" aria-hidden="true" /><p className="text-sm leading-relaxed text-neutral-700">El motor usa la lluvia prevista y su probabilidad junto con la humedad del suelo. Actualiza el pronóstico antes de una nueva evaluación.</p></Card>
+      </> : <EmptyBlock title="Aún no hay pronóstico" description="Actualiza el clima para esta parcela. Si la fuente externa no está disponible, el servidor puede devolver su origen alternativo." action={<Button onClick={() => void weather.onRefreshLive()} disabled={weather.refreshing}>{weather.refreshing ? "Actualizando…" : "Actualizar pronóstico"}</Button>} />}
+    </>}
+  </div>;
 }
+

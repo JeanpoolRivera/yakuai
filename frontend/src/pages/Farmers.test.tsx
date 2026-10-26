@@ -17,30 +17,30 @@ describe("Agricultores",()=>{
  it("muestra estado y WhatsApp solo con teléfono",async()=>{
   mockLoaded();
   render(<Farmers/>);
-  expect(await screen.findByText("Juana Pérez")).toBeInTheDocument();
+  expect((await screen.findAllByText("Juana Pérez")).length).toBeGreaterThan(0);
   expect(screen.getByText("Agricultor de demostración")).toBeInTheDocument();
   expect(screen.getByText("Sin teléfono registrado")).toBeInTheDocument();
-  expect(screen.getAllByText("Activo")).toHaveLength(2);
-  const wa = screen.getByRole("link",{name:/WhatsApp de Juana/});
+  expect(screen.getAllByText("Activo")).toHaveLength(1);
+  const wa = screen.getByRole("link",{name:/Escribir por WhatsApp/});
   expect(wa).toHaveAttribute("href","https://wa.me/999888777");
-  expect(screen.queryByRole("link",{name:/WhatsApp de Agricultor/})).not.toBeInTheDocument();
+  expect(screen.getAllByRole("link",{name:/Escribir por WhatsApp/})).toHaveLength(1);
  });
  it("busca por nombre o teléfono",async()=>{
   mockLoaded();
   render(<Farmers/>);
-  await screen.findByText("Juana Pérez");
+  await screen.findAllByText("Juana Pérez");
   const search = screen.getByLabelText("Buscar agricultores");
   fireEvent.change(search,{target:{value:"juana"}});
-  expect(screen.getByText("Juana Pérez")).toBeInTheDocument();
+  expect(screen.getAllByText("Juana Pérez")[0]).toBeInTheDocument();
   expect(screen.queryByText("Agricultor de demostración")).not.toBeInTheDocument();
   fireEvent.change(search,{target:{value:"999888"}});
-  expect(screen.getByText("Juana Pérez")).toBeInTheDocument();
+  expect(screen.getAllByText("Juana Pérez")[0]).toBeInTheDocument();
  });
  it("registra con validación de nombre y estado",async()=>{
   mockLoaded();
   api.createFarmer.mockResolvedValue({id:3});
   render(<Farmers/>);
-  await screen.findByText("Juana Pérez");
+  await screen.findAllByText("Juana Pérez");
   fireEvent.click(screen.getByRole("button",{name:"Registrar agricultor"}));
   await screen.findByRole("dialog",{name:"Registrar agricultor"});
   fireEvent.click(screen.getByRole("button",{name:"Registrar"}));
@@ -54,8 +54,8 @@ describe("Agricultores",()=>{
   mockLoaded();
   api.updateFarmer.mockResolvedValue({id:2});
   render(<Farmers/>);
-  await screen.findByText("Juana Pérez");
-  fireEvent.click(screen.getByRole("button",{name:"Editar a Juana Pérez"}));
+  await screen.findAllByText("Juana Pérez");
+  fireEvent.click(screen.getByRole("button",{name:/Editar perfil/}));
   await screen.findByRole("dialog",{name:"Editar agricultor"});
   fireEvent.change(screen.getByLabelText("Estado"),{target:{value:"inactivo"}});
   fireEvent.click(screen.getByRole("button",{name:"Guardar cambios"}));

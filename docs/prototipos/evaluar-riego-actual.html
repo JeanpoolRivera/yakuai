@@ -1,0 +1,1840 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Evaluar riego · YakuAI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --brand: #1a5c4a;
+  --brand-hover: #144d3d;
+  --brand-soft: #e6f2ed;
+  --border: #e2e9e6;
+  --border-strong: #5f7378;
+  --focus-ring: rgb(20 104 82 / .35);
+  --success-bg: #e8f5ec; --success-fg: #0f5942;
+  --warning-bg: #fff4dc; --warning-fg: #7a4a05;
+  --info-bg: #e9f1fb; --info-fg: #1f4a75;
+  --danger-bg: #fdeceb; --danger-fg: #8f2530;
+  --neutral-bg: #f1f4f5; --neutral-fg: #43545e;
+  --verdict-riega-bg: #fff3cd; --verdict-riega-text: #664000;
+  --verdict-no-bg: #e6f4ea; --verdict-no-text: #0a5035;
+  --verdict-espera-bg: #e8f0fe; --verdict-espera-text: #1a3c6e;
+  --verdict-incompleta-bg: #f0f2f5; --verdict-incompleta-text: #3a484f;
+  --neutral-50: #f5f8f7;
+  --neutral-100: #eef2f1;
+  --neutral-200: #dde5e3;
+  --neutral-300: #cadfed;
+  --neutral-400: #a5b3bd;
+  --neutral-500: #5f7378;
+  --neutral-600: #52696e;
+  --neutral-700: #33474e;
+  --neutral-800: #0e1e24;
+  --neutral-900: #0f1a20;
+  --primary-50: #e6f4f1;
+  --primary-100: #c5e6e0;
+  --primary-200: #a6d7ce;
+  --primary-600: #0f8b7f;
+  --primary-700: #0b6e66;
+  --primary-800: #08504a;
+  --primary-950: #0d2a2f;
+  --dark-accent: #d6e8a9;
+  --r-xs: .1875rem;
+  --r-sm: .75rem;
+  --r-md: .875rem;
+  --r-lg: 1.375rem;
+  --r-xl: 1rem;
+  --r-2xl: 1.5rem;
+  --r-full: 999px;
+  --shadow-xs: 0 1px 2px rgb(23 43 54 / .03);
+  --shadow-sm: 0 1px 3px rgb(23 43 54 / .06), 0 1px 2px rgb(23 43 54 / .04);
+  --shadow-md: 0 4px 12px rgb(23 43 54 / .08), 0 2px 4px rgb(23 43 54 / .04);
+  --shadow-lg: 0 12px 28px rgb(23 43 54 / .10), 0 4px 12px rgb(23 43 54 / .05);
+  --font: Inter, "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  --target-sm: 3rem;
+  --target-md: 3rem;
+  --target-lg: 3.5rem;
+  --target-icon: 3rem;
+  --t-2xs: .625rem;
+  --t-xs: .75rem;
+  --t-sm: .8125rem;
+  --t-base: .875rem;
+  --t-lg: 1rem;
+  --t-xl: 1.125rem;
+  --t-d1: clamp(1.9rem, 1.3rem + 2.6vw, 2.75rem);
+  --t-d2: clamp(1.5rem, 1.1rem + 1.8vw, 2rem);
+  --t-d3: clamp(1.25rem, 1rem + 1vw, 1.5rem);
+}
+html { font-size: 16px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+html.field-mode {
+  font-size: 122%;
+  --target-sm: 52px;
+  --target-md: 57px;
+  --target-lg: 66px;
+  --target-icon: 52px;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--neutral-100);
+  color: var(--neutral-800);
+  font-family: var(--font);
+  font-size: .9375rem;
+  line-height: 1.5;
+}
+h1, h2, h3, p, dl, dd, figure { margin: 0; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring); }
+::selection { background: var(--primary-200); color: var(--primary-900, #103e38); }
+* { scrollbar-width: thin; scrollbar-color: var(--neutral-300) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--neutral-300); border-radius: 4px; }
+[hidden] { display: none !important; }
+.ic { width: 1rem; height: 1rem; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ic.sm { width: .75rem; height: .75rem; }
+.ic.lg { width: 1.25rem; height: 1.25rem; }
+.ic.xl { width: 1.75rem; height: 1.75rem; }
+.ic.xxl { width: 2rem; height: 2rem; }
+body.role-agricultor .staff-only { display: none !important; }
+.farmer-only { display: none; }
+body.role-agricultor .farmer-only { display: block; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.skip-link { position: absolute; left: 1rem; top: -4rem; z-index: 900; background: #fff; padding: .5rem 1rem; border-radius: var(--r-md); font-size: var(--t-sm); font-weight: 600; color: var(--primary-700); text-decoration: none; }
+.skip-link:focus { top: 1rem; }
+
+/* Shell */
+.app-shell { display: flex; min-height: 100dvh; }
+.work { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.tech-sidebar { display: none; }
+body.role-tecnico .tech-sidebar {
+  display: flex; flex-direction: column; position: sticky; top: 0; height: 100dvh;
+  width: 15.5rem; flex: none; background: #fff; border-right: 1px solid var(--neutral-200);
+}
+.sidebar-brand { padding: 1.75rem 1.375rem 1.375rem; }
+.brand { display: inline-flex; align-items: center; gap: .625rem; text-decoration: none; }
+.brand-mark { display: grid; place-items: center; width: 2.5rem; height: 2.75rem; border-radius: 12px 12px 12px 3px; background: #103e38; color: var(--dark-accent); }
+.brand-word { font-size: 1.875rem; font-weight: 750; line-height: 1; letter-spacing: -1.5px; color: var(--primary-950); }
+.brand-word b { font-weight: 400; color: var(--primary-600); }
+.brand-word small { display: block; margin-top: .5rem; font-size: 7px; font-weight: 650; letter-spacing: 1px; color: var(--neutral-600); }
+.sidebar-space { margin: 0 1rem 1rem; display: flex; align-items: center; gap: .625rem; padding: .75rem; border: 1px solid var(--neutral-200); border-radius: .4375rem; background: var(--neutral-50); }
+.sidebar-space .ic { color: var(--primary-700); width: 21px; height: 21px; }
+.sidebar-space strong { display: block; font-size: .75rem; font-weight: 600; color: var(--neutral-800); }
+.sidebar-space span { display: block; margin-top: 3px; font-size: 10px; color: var(--neutral-600); }
+.sidebar-nav { flex: 1; min-height: 0; overflow-y: auto; padding: 0 .75rem 1rem; display: grid; align-content: start; gap: 1.375rem; }
+.sidebar-group > p { margin: 0; padding: 0 .75rem .5rem; font-size: 10px; font-weight: 600; color: var(--neutral-600); }
+.sidebar-group ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .125rem; }
+.sidebar-link { display: flex; align-items: center; gap: .75rem; min-height: 2.75rem; margin: .125rem 0; padding: .625rem .75rem; border: 1px solid transparent; border-radius: .875rem; font-size: .8125rem; font-weight: 500; color: var(--neutral-700); text-decoration: none; transition: background .15s, color .15s; }
+.sidebar-link .ic { width: 19px; height: 19px; color: var(--neutral-600); }
+.sidebar-link:hover { background: var(--neutral-50); color: var(--neutral-800); }
+.sidebar-link.active { background: var(--primary-950); border-color: var(--primary-950); color: #fff; font-weight: 650; }
+.sidebar-link.active .ic { color: #c8f169; }
+.sidebar-motto { margin: .75rem 1.5rem; display: flex; align-items: center; gap: .5rem; font-size: 10px; color: var(--neutral-600); }
+.sidebar-motto .ic { width: 16px; height: 16px; }
+.sidebar-user { display: flex; align-items: center; gap: .625rem; border-top: 1px solid var(--neutral-200); padding: 1rem; }
+.avatar { display: grid; place-items: center; flex: none; width: 2.5rem; height: 2.5rem; border-radius: .4375rem; border: 1px solid var(--primary-100); background: var(--primary-50); color: var(--primary-800); font-size: .8125rem; font-weight: 600; }
+.avatar.sm { width: 2.125rem; height: 2.125rem; }
+.sidebar-user div { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.sidebar-user strong { font-size: .75rem; font-weight: 600; color: var(--neutral-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sidebar-user small { font-size: 11px; color: var(--neutral-600); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.icon-button { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; flex: none; border: 1px solid var(--neutral-200); border-radius: var(--r-md); background: #fff; color: var(--neutral-600); transition: background .15s, border-color .15s, color .15s; }
+.icon-button:hover { border-color: var(--primary-200); background: var(--primary-50); color: var(--primary-700); }
+.icon-button.plain { border: 0; background: transparent; width: 2rem; height: 2rem; }
+.icon-button.plain:hover { background: transparent; color: var(--neutral-800); }
+
+.topbar { display: none; }
+body.role-tecnico .topbar {
+  display: flex; align-items: center; gap: 1rem; position: sticky; top: 0; z-index: 20;
+  min-height: 4.25rem; padding: .75rem 2rem; border-bottom: 1px solid var(--neutral-200);
+  background: #eef2f1ed; backdrop-filter: blur(12px);
+}
+.menu-button { display: none; }
+.topbar-crumb { display: flex; align-items: center; flex: 1; min-width: 0; gap: .75rem; }
+.topbar-crumb a { font-size: .75rem; color: var(--neutral-600); text-decoration: none; white-space: nowrap; }
+.topbar-crumb a:hover { color: var(--neutral-800); }
+.topbar-crumb .sep { color: var(--neutral-600); display: inline-flex; }
+.topbar-crumb strong { font-size: .75rem; font-weight: 600; color: var(--neutral-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar-meta { display: flex; align-items: center; gap: 1rem; }
+.topbar-date { display: flex; align-items: center; gap: .5rem; font-size: .75rem; color: var(--neutral-600); white-space: nowrap; }
+.topbar-date .ic { width: 16px; height: 16px; }
+.topbar-divider { width: 1px; height: 1.5rem; background: var(--neutral-200); }
+
+.farmer-header { display: none; }
+body.role-agricultor .farmer-header { display: block; border-bottom: 1px solid var(--neutral-200); background: #fff; padding: 1.375rem 1.5rem; }
+.farmer-header-inner { max-width: 65rem; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 1.25rem; }
+.farmer-user { display: flex; align-items: center; gap: .625rem; min-width: 0; }
+.farmer-user div { min-width: 0; }
+.farmer-user strong { display: block; font-size: .8125rem; font-weight: 600; color: var(--neutral-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.farmer-user small { display: block; margin-top: 3px; font-size: 11px; color: var(--neutral-600); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.farmer-date { display: none; }
+body.role-agricultor .farmer-date { display: flex; align-items: center; gap: .5rem; width: 100%; max-width: 68rem; margin: 0 auto; padding: 1.5rem 1.5rem 0; font-size: .75rem; color: var(--neutral-600); text-transform: capitalize; }
+.farmer-date .ic { width: 15px; height: 15px; }
+
+.workspace-main { width: 100%; max-width: 100rem; margin-inline: auto; flex: 1; padding: 2rem clamp(1.5rem, 3vw, 2.75rem); }
+body.role-agricultor .workspace-main { max-width: 68rem; padding: 1.5rem 1.5rem 7.5rem; }
+.tech-footer { display: none; }
+body.role-tecnico .tech-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; border-top: 1px solid var(--neutral-200); padding: 1.25rem 2rem; font-size: 10px; color: var(--neutral-600); }
+.bottom-nav { display: none; }
+body.role-agricultor .bottom-nav {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .25rem;
+  position: fixed; bottom: 1.25rem; left: 50%; transform: translateX(-50%); z-index: 20;
+  width: min(32.5rem, calc(100% - 2rem)); padding: .375rem; border: 1px solid var(--neutral-200);
+  border-radius: 14px; background: #fff; box-shadow: 0 12px 40px rgba(23, 43, 54, .09);
+}
+.bottom-nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .25rem; min-height: 3.75rem; padding: .5rem .25rem; border-radius: .4375rem; font-size: 11px; font-weight: 600; color: var(--neutral-600); text-decoration: none; }
+.bottom-nav a .ic { width: 21px; height: 21px; }
+.bottom-nav a:hover { color: var(--neutral-800); }
+.bottom-nav a.active { background: var(--primary-50); color: var(--primary-800); }
+
+/* Page */
+.evaluate-page { width: 100%; max-width: 85rem; margin: 0 auto; display: grid; gap: 1.5rem; }
+.evaluate-header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 1rem; }
+.eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--brand); }
+.evaluate-header h1 { margin-top: .25rem; font-size: var(--t-d2); font-weight: 700; letter-spacing: -.055em; line-height: 1.2; color: var(--neutral-900); }
+.evaluate-header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.field-toggle { display: inline-flex; align-items: center; gap: .5rem; min-height: var(--target-sm); padding: 0 .75rem; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: #fff; font-size: .75rem; font-weight: 600; color: var(--neutral-700); transition: background .15s; }
+.field-toggle:hover { background: var(--neutral-50); }
+.field-toggle > .ic { color: var(--brand); }
+.switch { position: relative; display: inline-flex; align-items: center; width: 2.25rem; height: 1.25rem; flex: none; border: 1px solid var(--border-strong); border-radius: var(--r-full); background: var(--neutral-100); transition: background .15s, border-color .15s; }
+.switch::after { content: ""; position: absolute; left: .125rem; width: 1rem; height: 1rem; border: 1px solid var(--border-strong); border-radius: var(--r-full); background: #fff; box-shadow: var(--shadow-xs); transition: transform .15s; }
+.field-toggle[aria-checked="true"] .switch { border-color: var(--brand); background: var(--brand); }
+.field-toggle[aria-checked="true"] .switch::after { transform: translateX(1rem); }
+
+.evaluate-grid { display: grid; align-items: start; gap: 1.5rem; }
+
+/* Plot selector */
+.plot-panel { overflow: hidden; border: 1px solid var(--border); border-radius: var(--r-xl); background: #fff; box-shadow: var(--shadow-sm); }
+.plot-head { display: flex; align-items: center; gap: .75rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+.plot-head h2 { font-size: var(--t-lg); font-weight: 600; color: var(--neutral-800); }
+.plot-head p { margin-top: .125rem; font-size: .75rem; color: var(--neutral-600); }
+.plot-desktop { display: none; }
+.plot-mobile { display: grid; gap: 1rem; padding: 1rem; }
+.plot-list-wrap { display: grid; gap: .75rem; padding: 1rem; }
+.search { position: relative; }
+.search .search-icon { position: absolute; left: .75rem; top: 50%; transform: translateY(-50%); width: 1rem; height: 1rem; color: var(--neutral-600); pointer-events: none; }
+.search input { width: 100%; min-height: var(--target-sm); padding: 0 3rem 0 2.25rem; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: #fff; font-size: var(--t-sm); color: var(--neutral-800); }
+.search input::placeholder { color: var(--neutral-600); }
+.search input::-webkit-search-cancel-button { display: none; }
+.search-clear { display: none; position: absolute; right: 0; top: 0; width: var(--target-sm); height: var(--target-sm); place-items: center; border: 0; border-radius: var(--r-md); background: transparent; color: var(--neutral-600); }
+.search-clear:hover { color: var(--neutral-800); }
+.search.has-value .search-clear { display: grid; }
+.plot-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .25rem; }
+.plot-item { display: flex; align-items: center; gap: .75rem; width: 100%; padding: .75rem; border: 1px solid transparent; border-radius: var(--r-md); background: transparent; text-align: left; transition: background .15s, border-color .15s; }
+.plot-item:hover { background: rgba(230, 242, 237, .6); }
+.plot-item[aria-pressed="true"] { border-color: var(--brand-soft); background: var(--brand-soft); }
+.plot-icon { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; flex: none; border-radius: var(--r-md); background: var(--brand-soft); color: var(--brand); }
+.plot-item[aria-pressed="true"] .plot-icon { background: var(--brand); color: #fff; }
+.plot-icon .ic { width: 1.25rem; height: 1.25rem; }
+.plot-body { flex: 1; min-width: 0; }
+.plot-body strong { display: block; font-size: var(--t-sm); font-weight: 600; color: var(--neutral-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plot-body small { display: block; font-size: .75rem; color: var(--neutral-600); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plot-body .plot-farmer { margin-top: .25rem; }
+.plot-check { display: grid; place-items: center; width: 1.125rem; height: 1.125rem; flex: none; border: 1px solid var(--border); border-radius: var(--r-full); }
+.plot-check .ic { width: .75rem; height: .75rem; }
+.plot-item[aria-pressed="true"] .plot-check { border-color: var(--brand); background: var(--brand); color: #fff; }
+.plot-empty { display: grid; justify-items: center; gap: .75rem; padding: 2.5rem 1.5rem; text-align: center; border: 1px dashed rgba(95, 115, 120, .4); border-radius: var(--r-xl); background: #fff; }
+.plot-empty-icon { display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: var(--r-full); background: var(--neutral-100); color: var(--neutral-600); }
+.plot-empty strong { font-size: var(--t-base); font-weight: 600; color: var(--neutral-800); }
+.plot-empty p { max-width: 32ch; font-size: var(--t-sm); color: var(--neutral-600); }
+.plot-foot { display: grid; gap: 1rem; padding: 1rem; border-top: 1px solid var(--border); background: rgba(245, 248, 247, .6); }
+.plot-context { display: grid; gap: .5rem; font-size: .75rem; }
+.plot-context > div { display: flex; justify-content: space-between; gap: .75rem; }
+.plot-context dt { color: var(--neutral-600); }
+.plot-context dd { margin: 0; font-weight: 500; color: var(--neutral-800); }
+.selected-card { padding: 1rem; border: 1px solid var(--border); border-radius: var(--r-lg); }
+.selected-card .row { display: flex; align-items: center; gap: .75rem; }
+.selected-card .row > div { min-width: 0; }
+.selected-card strong { display: block; font-size: var(--t-sm); font-weight: 600; color: var(--neutral-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.selected-card small { display: block; font-size: .75rem; color: var(--neutral-600); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plot-mobile-empty { font-size: var(--t-sm); color: var(--neutral-600); }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; white-space: nowrap; min-height: var(--target-md); padding: 0 1rem; border: 1px solid transparent; border-radius: var(--r-md); font-size: var(--t-sm); font-weight: 600; text-decoration: none; transition: background .15s, border-color .15s, color .15s; }
+.btn:disabled { opacity: .5; pointer-events: none; }
+.btn-primary { background: var(--brand); color: #fff; }
+.btn-primary:hover { background: var(--brand-hover); }
+.btn-outline { border-color: var(--border-strong); background: #fff; color: var(--neutral-800); }
+.btn-outline:hover { background: var(--neutral-50); }
+.btn-ghost { background: transparent; color: var(--neutral-700); }
+.btn-ghost:hover { background: var(--neutral-100); }
+.btn-block { width: 100%; }
+.btn-lg { min-height: var(--target-lg); padding: 0 1.5rem; font-size: var(--t-base); }
+.history-toggle { width: 100%; }
+
+/* Card / badges */
+.card { border: 1px solid var(--border); border-radius: var(--r-xl); background: #fff; color: var(--neutral-800); box-shadow: var(--shadow-sm); }
+.badge { display: inline-flex; align-items: center; gap: .375rem; white-space: nowrap; padding: .125rem .625rem; border-radius: var(--r-full); font-size: .75rem; font-weight: 600; }
+.badge::before { content: ""; width: .375rem; height: .375rem; border-radius: var(--r-full); background: currentColor; display: none; }
+.badge.dot::before { display: block; }
+.badge-warning { background: var(--warning-bg); color: var(--warning-fg); }
+.badge-success { background: var(--success-bg); color: var(--success-fg); }
+.badge-danger { background: var(--danger-bg); color: var(--danger-fg); }
+.badge-riega { background: var(--verdict-riega-bg); color: var(--verdict-riega-text); }
+.badge-no { background: var(--verdict-no-bg); color: var(--verdict-no-text); }
+.badge-espera { background: var(--verdict-espera-bg); color: var(--verdict-espera-text); }
+.badge-incompleta { background: var(--verdict-incompleta-bg); color: var(--verdict-incompleta-text); }
+
+/* Report */
+.report { overflow: hidden; }
+.report-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); }
+.report-head p:first-child { font-size: var(--t-base); font-weight: 600; color: var(--neutral-800); }
+.report-head p:last-child { margin-top: .125rem; font-size: .75rem; color: var(--neutral-600); }
+.verdict { display: grid; gap: 1rem; padding: 1.5rem; }
+@media (min-width: 480px) { .verdict { padding: 2rem; } }
+.verdict-riega { background: var(--verdict-riega-bg); }
+.verdict-no { background: var(--verdict-no-bg); }
+.verdict-espera { background: var(--verdict-espera-bg); }
+.verdict-incompleta { background: var(--verdict-incompleta-bg); }
+.verdict-top { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
+.verdict-icon { display: grid; place-items: center; width: 3.25rem; height: 3.25rem; border-radius: var(--r-lg); background: rgba(255, 255, 255, .75); }
+.verdict-riega .verdict-icon, .verdict-riega .verdict-copy h2 { color: var(--verdict-riega-text); }
+.verdict-no .verdict-icon, .verdict-no .verdict-copy h2 { color: var(--verdict-no-text); }
+.verdict-espera .verdict-icon, .verdict-espera .verdict-copy h2 { color: var(--verdict-espera-text); }
+.verdict-incompleta .verdict-icon, .verdict-incompleta .verdict-copy h2 { color: var(--verdict-incompleta-text); }
+.verdict-copy { display: grid; gap: .375rem; }
+.verdict-copy h2 { font-size: var(--t-d1); font-weight: 700; line-height: 1.12; letter-spacing: -.055em; }
+.verdict-copy p { max-width: 65ch; font-size: var(--t-sm); color: var(--neutral-700); }
+.confirm-btn { width: 100%; justify-content: center; }
+@media (min-width: 480px) { .confirm-btn { width: auto; } }
+.confirm-btn strong { font-size: var(--t-d2); font-weight: 700; letter-spacing: -.055em; font-variant-numeric: tabular-nums; }
+.confirm-unit { font-size: var(--t-lg); font-weight: 500; }
+.confirm-label { display: none; }
+@media (min-width: 480px) { .confirm-label { display: inline; } }
+.verdict-help { display: grid; gap: .75rem; padding-top: .5rem; }
+.verdict-help p { max-width: 65ch; font-size: var(--t-sm); color: var(--neutral-700); }
+.verdict-help .btn { justify-self: start; }
+
+.evidence-grid { display: grid; gap: 1rem; padding: 1.5rem; border-top: 1px solid var(--border); }
+.evidence-card { display: flex; flex-direction: column; gap: .75rem; height: 100%; padding: 1.25rem; border: 1px solid var(--border); border-radius: var(--r-lg); background: #fff; }
+.evidence-label { display: flex; align-items: center; gap: .5rem; font-size: .75rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--neutral-600); }
+.evidence-label .ic { color: var(--brand); }
+.evidence-pair { display: grid; gap: 1rem; }
+@media (min-width: 480px) { .evidence-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.meter-body { display: flex; flex: 1; flex-direction: column; justify-content: space-between; gap: .75rem; }
+.meter-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
+.meter-top strong { font-size: var(--t-lg); font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; color: var(--neutral-900); }
+.meter-track { position: relative; height: .625rem; overflow: hidden; border-radius: var(--r-full); background: var(--border); }
+.meter-fill { display: block; height: 100%; width: 17.4%; border-radius: inherit; background: var(--warning-fg); }
+.meter-fill.is-ok { background: var(--brand); }
+.meter-fill.is-low { background: var(--warning-fg); }
+.meter-fill.is-crit { background: var(--danger-fg); }
+.humidity-badge { white-space: nowrap; }
+.meter-mark { position: absolute; top: 0; bottom: 0; left: 21.75%; width: 2px; background: var(--neutral-900); }
+.meter-meta { display: flex; align-items: center; justify-content: space-between; gap: .5rem; font-size: .75rem; color: var(--neutral-700); }
+.meter-meta span { padding: .125rem .5rem; border-radius: var(--r-full); background: var(--neutral-bg); font-variant-numeric: tabular-nums; }
+.meter-placeholder { min-height: 1.5rem; }
+.evidence-value { display: flex; flex: 1; flex-direction: column; justify-content: space-between; gap: .75rem; }
+.evidence-value strong { font-size: var(--t-lg); font-weight: 700; letter-spacing: -.03em; color: var(--neutral-900); font-variant-numeric: tabular-nums; }
+.evidence-value p { font-size: .75rem; color: var(--neutral-600); }
+
+.plan { display: grid; gap: 1rem; padding: 1.5rem; border-top: 1px solid var(--border); }
+.plan-head { display: flex; align-items: center; gap: .5rem; }
+.plan-head .ic { color: var(--brand); }
+.plan-head h3 { font-size: var(--t-base); font-weight: 600; color: var(--neutral-800); }
+.plan-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+@media (min-width: 1024px) { .plan-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.plan-grid > div { display: grid; gap: .25rem; }
+.plan-grid dt { font-size: .75rem; color: var(--neutral-600); }
+.plan-grid dd { margin: 0; font-size: var(--t-base); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--neutral-800); }
+.plan-note { display: flex; align-items: flex-start; gap: .75rem; padding: 1rem; border-radius: var(--r-lg); background: var(--warning-bg); font-size: .75rem; line-height: 1.6; color: var(--warning-fg); }
+.plan-note .ic { margin-top: .125rem; }
+
+.calc { border-top: 1px solid var(--border); padding: .5rem 1.5rem; }
+.calc summary { display: flex; align-items: center; justify-content: space-between; min-height: var(--target-sm); padding: .5rem 0; list-style: none; cursor: pointer; font-size: var(--t-sm); font-weight: 500; color: var(--neutral-700); }
+.calc summary::-webkit-details-marker { display: none; }
+.calc summary span:last-child { color: var(--neutral-400); }
+.calc-body { display: grid; gap: 1.25rem; margin-top: 1rem; }
+.calc-body > p { max-width: 65ch; font-size: var(--t-sm); line-height: 1.6; color: var(--neutral-700); }
+.calc-group { display: grid; gap: .75rem; }
+.calc-group h3 { font-size: .75rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--neutral-600); }
+.metric-grid { display: grid; gap: .75rem; }
+@media (min-width: 480px) { .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1024px) { .metric-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.metric { display: grid; gap: .25rem; padding: .75rem; border: 1px solid var(--border); border-radius: var(--r-lg); background: #fff; text-align: left; }
+.metric-label { display: flex; align-items: center; gap: .25rem; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--neutral-600); }
+.metric-label .ic { width: .75rem; height: .75rem; opacity: .7; }
+.metric strong { font-size: var(--t-base); font-weight: 700; line-height: 1.25; font-variant-numeric: tabular-nums; color: var(--neutral-800); }
+
+/* Ready */
+.ready { overflow: hidden; }
+.ready-body { display: grid; justify-items: center; gap: 1rem; padding: 2.5rem 1.5rem; text-align: center; }
+.ready-icon { display: grid; place-items: center; width: 4rem; height: 4rem; border-radius: var(--r-2xl); background: var(--brand-soft); color: var(--brand); }
+.ready-icon .ic { width: 2rem; height: 2rem; }
+.ready-kicker { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--neutral-600); }
+.ready-body h2 { font-size: var(--t-d3); font-weight: 700; letter-spacing: -.055em; color: var(--neutral-900); }
+.ready-inputs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 1.25rem 1.5rem; border-top: 1px solid var(--border); text-align: center; }
+.ready-inputs > div { display: grid; justify-items: center; gap: .375rem; }
+.ready-inputs > div + div { border-left: 1px solid var(--border); }
+.ready-inputs .ic { color: var(--brand); }
+.ready-inputs strong { font-size: .75rem; font-weight: 600; color: var(--neutral-800); }
+.ready-inputs span { font-size: 11px; color: var(--neutral-600); }
+
+/* Loading */
+.loading-state { display: flex; align-items: center; justify-content: center; gap: .75rem; padding: 2.5rem 1.25rem; color: var(--neutral-600); font-size: var(--t-sm); }
+.spinner { width: 1.25rem; height: 1.25rem; border: 2.5px solid var(--border); border-top-color: var(--brand); border-radius: 50%; animation: spin .8s linear infinite; }
+.btn .spinner { border-color: currentColor; border-right-color: transparent; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* History */
+.history-block { display: grid; gap: .75rem; }
+.history-card { padding: 1.5rem; }
+.history-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: 1rem; }
+.history-header h2 { font-size: var(--t-base); font-weight: 600; color: var(--neutral-800); }
+.history-header p { margin-top: .125rem; font-size: .75rem; color: var(--neutral-600); }
+.history-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; font-size: var(--t-sm); color: var(--neutral-600); }
+.history-stats .today { color: var(--brand); font-weight: 500; }
+.history-groups { display: grid; gap: 1rem; margin-top: 1rem; }
+.history-group { overflow: hidden; border: 1px solid var(--border); border-radius: var(--r-lg); background: #fff; }
+.history-group > button { display: flex; align-items: center; justify-content: space-between; gap: 1rem; width: 100%; padding: .75rem 1rem; border: 0; border-bottom: 1px solid var(--border); background: var(--neutral-50); text-align: left; }
+.history-group > button:hover { background: var(--neutral-100); }
+.history-group h3 { font-size: .75rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--neutral-600); }
+.history-counts { display: flex; align-items: center; gap: .75rem; font-size: .75rem; color: var(--neutral-600); }
+.history-counts span { display: flex; align-items: center; gap: .25rem; }
+.history-counts i { width: .375rem; height: .375rem; border-radius: var(--r-full); }
+.crit-dot { background: var(--danger-fg); }
+.riega-dot { background: var(--verdict-riega-text); }
+.no-dot { background: var(--verdict-no-text); }
+.espera-dot { background: var(--verdict-espera-text); }
+.incompleta-dot { background: var(--verdict-incompleta-text); }
+.history-arrow { color: var(--neutral-400); font-size: .75rem; }
+.history-items { list-style: none; margin: 0; padding: 0; }
+.history-items li { display: grid; gap: .5rem; padding: .75rem 1rem; border-bottom: 1px solid var(--border); }
+.history-items li:last-child { border-bottom: 0; }
+@media (min-width: 640px) {
+  .history-items li { grid-template-columns: 7rem 1fr auto; align-items: center; gap: 1rem; }
+}
+.history-items time { font-size: .75rem; color: var(--neutral-600); font-variant-numeric: tabular-nums; }
+.history-liters { font-size: var(--t-sm); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--neutral-800); }
+
+/* Sheet & overlay */
+.overlay { position: fixed; inset: 0; z-index: 500; border: 0; padding: 0; background: rgba(15, 26, 32, .5); }
+#navOverlay { z-index: 80; }
+.sheet { position: fixed; inset: auto 0 0 0; z-index: 510; display: flex; flex-direction: column; gap: 1rem; max-height: 85dvh; overflow-y: auto; padding: 1.25rem; border-top: 1px solid var(--border); border-radius: var(--r-2xl) var(--r-2xl) 0 0; background: #fff; box-shadow: var(--shadow-lg); }
+.sheet-head { display: grid; gap: .25rem; padding-right: 2.5rem; }
+.sheet-head h2 { font-size: var(--t-lg); font-weight: 600; color: var(--neutral-800); }
+.sheet-head p { font-size: var(--t-sm); color: var(--neutral-600); }
+.sheet-close { position: absolute; right: .75rem; top: .75rem; }
+.sheet .plot-list-wrap { padding: 0; }
+
+/* Estados compartidos */
+.empty-state { display: flex; flex-direction: column; align-items: center; gap: .75rem; padding: 2.5rem 1.5rem; border: 1px dashed rgba(95, 115, 120, .4); border-radius: var(--r-xl); background: #fff; text-align: center; }
+.empty-state-icon { display: grid; place-items: center; width: 3rem; height: 3rem; flex: none; border-radius: var(--r-full); background: var(--neutral-100); color: var(--neutral-600); }
+.empty-state-icon .ic { width: 1.25rem; height: 1.25rem; }
+.empty-state-title { font-size: var(--t-base); font-weight: 600; color: var(--neutral-800); }
+.empty-state-desc { max-width: 52ch; font-size: var(--t-sm); color: var(--neutral-600); }
+.empty-state-action { margin-top: .25rem; }
+.alert { display: flex; align-items: flex-start; gap: .75rem; padding: 1rem; border: 1px solid; border-radius: var(--r-lg); font-size: var(--t-sm); }
+.alert-danger { border-color: rgba(143, 37, 48, .25); background: var(--danger-bg); color: var(--danger-fg); }
+.alert-icon { margin-top: .125rem; flex: none; }
+.alert-body { flex: 1; min-width: 0; }
+.alert-title { font-weight: 600; color: var(--neutral-800); }
+.alert-copy { margin-top: .125rem; color: var(--neutral-700); }
+.alert-action { flex: none; }
+.history-loading { padding: 0; }
+.plot-empty-plots { margin-top: 0; }
+.plot-list-wrap .empty-state { margin-top: 0; }
+.plot-context-fallback { font-size: .75rem; color: var(--neutral-600); }
+.plot-item:disabled { opacity: .5; pointer-events: none; }
+
+/* Demo panel */
+.demo-bar { position: fixed; right: 1.25rem; bottom: 1.5rem; z-index: 400; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem .75rem; width: 21rem; padding: .75rem; border: 1px solid var(--border); border-radius: 14px; background: #fff; box-shadow: var(--shadow-lg); font-size: 11px; }
+body.role-agricultor .demo-bar { bottom: 6rem; }
+.demo-title { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: .5rem; font-weight: 600; color: var(--neutral-700); }
+.demo-title span { font-weight: 500; color: var(--neutral-500); }
+.demo-field { display: grid; gap: .25rem; }
+.demo-field > span { color: var(--neutral-600); }
+.demo-field select { width: 100%; min-height: 1.875rem; padding: 0 .375rem; border: 1px solid var(--border-strong); border-radius: .375rem; background: #fff; font-size: 11px; color: var(--neutral-800); }
+
+/* Toasts (sonner) */
+.toaster { position: fixed; top: 1rem; left: 50%; z-index: 800; display: grid; gap: .5rem; width: min(22.25rem, calc(100% - 2rem)); transform: translateX(-50%); pointer-events: none; }
+.toast { position: relative; display: flex; align-items: flex-start; gap: .5rem; padding: 1rem; border: 1px solid var(--neutral-200); border-radius: .5rem; background: #fff; color: var(--neutral-800); box-shadow: var(--shadow-lg); pointer-events: auto; animation: toast-in .2s ease-out; }
+.toast.is-leaving { animation: toast-out .15s ease-in forwards; }
+.toast-icon { flex: none; margin-top: .0625rem; }
+.toast.ok .toast-icon { color: #3c8c4e; }
+.toast.error .toast-icon { color: #e93030; }
+.toast.info .toast-icon { color: var(--info-fg); }
+.toast-body { flex: 1; min-width: 0; }
+.toast-title { font-size: var(--t-sm); font-weight: 600; line-height: 1.35; }
+.toast-close { position: absolute; left: -.375rem; top: -.375rem; display: grid; place-items: center; width: 1.25rem; height: 1.25rem; border: 1px solid var(--neutral-200); border-radius: var(--r-full); background: #fff; color: var(--neutral-600); pointer-events: auto; }
+.toast-close:hover { color: var(--neutral-800); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-.75rem) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes toast-out { to { opacity: 0; transform: translateY(-.5rem) scale(.97); } }
+.spinner.sm { width: 1rem; height: 1rem; border-width: 2px; flex: none; }
+
+@media (min-width: 1024px) {
+  .evaluate-grid { grid-template-columns: minmax(17.5rem, 21.25rem) minmax(0, 1fr); }
+  .plot-panel { position: sticky; top: 5.25rem; display: flex; flex-direction: column; max-height: calc(100dvh - 6.5rem); }
+  .plot-desktop { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .plot-list-wrap { flex: 1; min-height: 0; overflow-y: auto; }
+  .plot-mobile { display: none; }
+}
+@media (max-width: 1000px) {
+  .menu-button { display: grid; }
+  body.role-tecnico .tech-sidebar { position: fixed; top: 0; bottom: 0; left: 0; z-index: 90; width: min(18.75rem, calc(100vw - 2.75rem)); transform: translateX(-100%); visibility: hidden; transition: transform .2s; }
+  body.role-tecnico .tech-sidebar.open { transform: none; visibility: visible; }
+  .topbar { padding: .75rem 1.5rem; }
+  .sidebar-close { display: grid; position: absolute; right: .75rem; top: 1.5rem; z-index: 2; }
+}
+@media (min-width: 1001px) {
+  .sidebar-close { display: none; }
+}
+@media (max-width: 700px) {
+  body.role-tecnico .topbar { min-height: 4rem; gap: .625rem; padding: .625rem 1rem; }
+  .topbar-crumb a, .topbar-crumb .sep, .topbar-date, .topbar-divider { display: none; }
+  body.role-tecnico .workspace-main { padding: 1.5rem 1rem; }
+  body.role-agricultor .farmer-header { padding: 1.125rem 1rem; }
+  body.role-agricultor .farmer-date { padding: 1.25rem 1rem 0; }
+  body.role-agricultor .workspace-main { padding: 1.25rem 1rem 7.5rem; }
+  body.role-agricultor .bottom-nav { bottom: 0; width: 100%; border-radius: 0; border-left: 0; border-right: 0; border-bottom: 0; padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
+  .farmer-user .avatar { display: none; }
+  .farmer-user strong { max-width: 7rem; }
+  .brand-word small { display: none; }
+  .brand-word { font-size: 1.625rem; }
+  .demo-bar { right: .75rem; left: .75rem; bottom: 5.5rem; width: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body.role-agricultor .demo-bar { bottom: calc(4.75rem + env(safe-area-inset-bottom)); }
+  .evaluate-header h1 { font-size: 1.75rem; }
+  .tech-footer span:last-child { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+</style>
+</head>
+<body class="role-tecnico">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></symbol>
+  <symbol id="i-sprout" viewBox="0 0 24 24"><path d="M7 20h10"/><path d="M10 20c5.5-2.5.8-6.4 3-10"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z"/></symbol>
+  <symbol id="i-cloud-rain" viewBox="0 0 24 24"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/></symbol>
+  <symbol id="i-cloud-sun" viewBox="0 0 24 24"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98"/><path d="m15.41 6.51-6.82 3.98"/></symbol>
+  <symbol id="i-access" viewBox="0 0 24 24"><circle cx="16" cy="4" r="1"/><path d="m18 19 1-7-6 1"/><path d="m5 8 3-3 5.5 3-2.36 3.5"/><path d="M4.24 14.5a5 5 0 0 0 6.88 6"/><path d="M13.76 17.5a5 5 0 0 0-6.88-6"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></symbol>
+  <symbol id="i-sensor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></symbol>
+  <symbol id="i-flask" viewBox="0 0 24 24"><path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2"/><path d="M6.453 15h11.094"/><path d="M8.5 2h7"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+  <symbol id="i-circle-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+  <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+  <symbol id="i-calendar-clock" viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M16 14v2.5l2 1.5"/></symbol>
+</svg>
+
+<div class="app-shell">
+  <a class="skip-link" href="#contenido">Saltar al contenido</a>
+
+  <aside class="tech-sidebar" id="techSidebar" aria-label="Navegación principal">
+    <button class="icon-button sidebar-close" id="sidebarClose" aria-label="Cerrar navegación"><svg class="ic"><use href="#i-x"></use></svg></button>
+    <div class="sidebar-brand">
+      <a class="brand" href="#" aria-label="YakuAI inicio">
+        <span class="brand-mark" aria-hidden="true"><svg class="ic" style="width:25px;height:25px"><use href="#i-drop"></use></svg></span>
+        <span class="brand-word">yaku<b>ai</b></span>
+      </a>
+    </div>
+    <div class="sidebar-space">
+      <svg class="ic" aria-hidden="true"><use href="#i-sprout"></use></svg>
+      <div>
+        <strong>Espacio de campo</strong>
+        <span>Chupaca, Junín · Perú</span>
+      </div>
+    </div>
+    <nav class="sidebar-nav" aria-label="Secciones">
+      <div class="sidebar-group">
+        <p>Operación</p>
+        <ul>
+          <li><a class="sidebar-link" href="#"><svg class="ic" aria-hidden="true"><use href="#i-home"></use></svg><span>Resumen</span></a></li>
+          <li><a class="sidebar-link active" href="#" aria-current="page"><svg class="ic" aria-hidden="true"><use href="#i-gauge"></use></svg><span>Evaluar riego</span></a></li>
+          <li><a class="sidebar-link" href="#"><svg class="ic" aria-hidden="true"><use href="#i-drop"></use></svg><span>Historial de riego</span></a></li>
+        </ul>
+      </div>
+      <div class="sidebar-group">
+        <p>Monitoreo</p>
+        <ul>
+          <li><a class="sidebar-link" href="#"><svg class="ic" aria-hidden="true"><use href="#i-bell"></use></svg><span>Alertas</span></a></li>
+          <li><a class="sidebar-link" href="#"><svg class="ic" aria-hidden="true"><use href="#i-sensor"></use></svg><span>Sensores</span></a></li>
+          <li><a class="sidebar-link" href="#"><svg class="ic" aria-hidden="true"><use href="#i-cloud"></use></svg><span>Clima</span></a></li>
+        </ul>
+      </div>
+      <div class="sidebar-group">
+        <p>Gestión de campo</p>
+        <ul>
+          <li><a class="sidebar-link" href="#"><svg class="ic" aria-hidden="true"><use href="#i-map"></use></svg><span>Parcelas</span></a></li>
+          <li><a class="sidebar-link" href="#"><svg class="ic" aria-hidden="true"><use href="#i-users"></use></svg><span>Agricultores</span></a></li>
+        </ul>
+      </div>
+      <div class="sidebar-group">
+        <p>Referencia y pruebas</p>
+        <ul>
+          <li><a class="sidebar-link" href="#"><svg class="ic" aria-hidden="true"><use href="#i-layers"></use></svg><span>Cultivos y suelos</span></a></li>
+          <li><a class="sidebar-link" href="#"><svg class="ic" aria-hidden="true"><use href="#i-flask"></use></svg><span>Validación</span></a></li>
+        </ul>
+      </div>
+    </nav>
+    <p class="sidebar-motto"><svg class="ic" aria-hidden="true"><use href="#i-drop"></use></svg><span>Cada gota, una mejor decisión.</span></p>
+    <div class="sidebar-user">
+      <span class="avatar" aria-hidden="true">E</span>
+      <div>
+        <strong>Elena Torres</strong>
+        <small>Técnico</small>
+      </div>
+      <button class="icon-button plain" aria-label="Cerrar sesión" title="Cerrar sesión"><svg class="ic" aria-hidden="true"><use href="#i-logout"></use></svg></button>
+    </div>
+  </aside>
+
+  <div class="work">
+    <header class="topbar">
+      <button class="icon-button menu-button" id="menuButton" aria-label="Abrir navegación"><svg class="ic" aria-hidden="true"><use href="#i-menu"></use></svg></button>
+      <nav class="topbar-crumb" aria-label="Miga de pan">
+        <a href="#">Mi espacio</a>
+        <span class="sep" aria-hidden="true"><svg class="ic sm"><use href="#i-chevron"></use></svg></span>
+        <strong aria-current="page">Evaluar riego</strong>
+      </nav>
+      <div class="topbar-meta">
+        <span class="topbar-date"><svg class="ic" aria-hidden="true"><use href="#i-calendar"></use></svg>20 de octubre</span>
+        <span class="topbar-divider" aria-hidden="true"></span>
+        <span class="avatar sm" aria-label="Elena Torres">E</span>
+      </div>
+    </header>
+
+    <header class="farmer-header">
+      <div class="farmer-header-inner">
+        <a class="brand" href="#" aria-label="YakuAI inicio">
+          <span class="brand-mark" aria-hidden="true"><svg class="ic" style="width:25px;height:25px"><use href="#i-drop"></use></svg></span>
+          <span class="brand-word">yaku<b>ai</b><small>INTELIGENCIA PARA TU CAMPO</small></span>
+        </a>
+        <div class="farmer-user">
+          <span class="avatar" aria-hidden="true">F</span>
+          <div>
+            <strong>Félix Huamán</strong>
+            <small>Agricultor · Mi campo</small>
+          </div>
+          <button class="icon-button" aria-label="Cerrar sesión" title="Cerrar sesión"><svg class="ic" aria-hidden="true"><use href="#i-logout"></use></svg></button>
+        </div>
+      </div>
+    </header>
+
+    <p class="farmer-date"><svg class="ic" aria-hidden="true"><use href="#i-calendar"></use></svg>martes, 20 de octubre</p>
+
+    <main class="workspace-main" id="contenido" tabindex="-1">
+      <div class="evaluate-page">
+        <header class="evaluate-header">
+          <div>
+            <p class="eyebrow">Gestión del riego</p>
+            <h1>Evaluar riego</h1>
+          </div>
+          <div class="evaluate-header-actions">
+            <button class="field-toggle" id="fieldToggle" type="button" role="switch" aria-checked="false">
+              <svg class="ic" aria-hidden="true"><use href="#i-access"></use></svg>
+              <span>Modo campo</span>
+              <span class="switch" aria-hidden="true"></span>
+            </button>
+          </div>
+        </header>
+
+        <div id="plotsLoading" hidden>
+          <div class="loading-state" role="status" aria-live="polite"><span class="spinner" aria-hidden="true"></span><p>Cargando parcelas…</p></div>
+        </div>
+
+        <div id="plotsError" hidden>
+          <div class="alert alert-danger" role="alert">
+            <svg class="ic alert-icon" aria-hidden="true"><use href="#i-circle-alert"></use></svg>
+            <div class="alert-body">
+              <p class="alert-title">No se pudieron cargar las parcelas</p>
+              <p class="alert-copy" id="plotsErrorMsg">No se pudo conectar con el servidor.</p>
+            </div>
+            <div class="alert-action"><button type="button" class="btn btn-outline" id="plotsRetry">Reintentar</button></div>
+          </div>
+        </div>
+
+        <div class="evaluate-grid" id="evaluateGrid">
+          <aside class="plot-panel" aria-label="Seleccionar parcela">
+            <header class="plot-head">
+              <div>
+                <h2>Selecciona la parcela</h2>
+                <p id="plotHeadNote">Parcelas de tu zona asignada.</p>
+              </div>
+            </header>
+
+            <div class="plot-desktop">
+              <div class="plot-list-wrap">
+                <div class="search" id="searchWrap">
+                  <svg class="ic search-icon" aria-hidden="true"><use href="#i-search"></use></svg>
+                  <input type="search" id="plotSearch" aria-label="Buscar parcela o cultivo" placeholder="Buscar parcela o cultivo" autocomplete="off" spellcheck="false" />
+                  <button type="button" class="search-clear" id="searchClear" aria-label="Limpiar búsqueda"><svg class="ic" aria-hidden="true"><use href="#i-x"></use></svg></button>
+                </div>
+                <ul class="plot-list" id="plotList"></ul>
+                <button type="button" class="btn btn-ghost" id="showMore" hidden>Mostrar más parcelas</button>
+              </div>
+              <div class="plot-foot">
+                <dl class="plot-context" id="plotContext">
+                  <div><dt>Sistema de riego</dt><dd id="ctxSystem">Goteo</dd></div>
+                  <div><dt>Fecha de siembra</dt><dd id="ctxSow">12 ago 2026</dd></div>
+                </dl>
+                <p class="plot-context-fallback" id="plotContextFallback" hidden>Selecciona una parcela para continuar.</p>
+                <button class="btn btn-primary btn-block" id="evaluateBtn">
+                  <svg class="ic" aria-hidden="true"><use href="#i-drop"></use></svg>
+                  Evaluar esta parcela
+                </button>
+              </div>
+            </div>
+
+            <div class="plot-mobile">
+              <div class="selected-card" id="mobileSelected">
+                <div class="row">
+                  <span class="plot-icon" aria-hidden="true"><svg class="ic"><use href="#i-sprout"></use></svg></span>
+                  <div>
+                    <strong id="mobilePlotName">Parcela Alta</strong>
+                    <small id="mobilePlotMeta">Papa · 1,200 m²</small>
+                  </div>
+                </div>
+              </div>
+              <p class="plot-mobile-empty" id="mobileNone" hidden>Ninguna parcela seleccionada.</p>
+              <button class="btn btn-outline" id="changePlot" type="button">Cambiar parcela</button>
+              <dl class="plot-context" id="mobilePlotContext">
+                <div><dt>Sistema de riego</dt><dd id="ctxSystemMobile">Goteo</dd></div>
+                <div><dt>Fecha de siembra</dt><dd id="ctxSowMobile">12 ago 2026</dd></div>
+              </dl>
+              <p class="plot-context-fallback" id="mobilePlotContextFallback" hidden>Selecciona una parcela para continuar.</p>
+              <button class="btn btn-primary btn-block" id="evaluateBtnMobile">
+                <svg class="ic" aria-hidden="true"><use href="#i-drop"></use></svg>
+                Evaluar esta parcela
+              </button>
+            </div>
+          </aside>
+
+          <div class="result-column" style="display:grid;gap:1.5rem;min-width:0">
+            <div id="viewReady" hidden>
+              <article class="card ready">
+                <div class="ready-body">
+                  <span class="ready-icon" aria-hidden="true"><svg class="ic"><use href="#i-drop"></use></svg></span>
+                  <p class="ready-kicker" id="readyPlotName">Parcela Alta</p>
+                  <h2>¿Necesita agua tu parcela?</h2>
+                </div>
+                <div class="ready-inputs">
+                  <div><svg class="ic lg" aria-hidden="true"><use href="#i-drop"></use></svg><strong>Suelo</strong><span>Humedad reciente</span></div>
+                  <div><svg class="ic lg" aria-hidden="true"><use href="#i-sprout"></use></svg><strong>Cultivo</strong><span>Etapa y necesidades</span></div>
+                  <div><svg class="ic lg" aria-hidden="true"><use href="#i-cloud-rain"></use></svg><strong>Clima</strong><span>Previsión de lluvia</span></div>
+                </div>
+              </article>
+            </div>
+
+            <section id="viewResult" aria-live="polite" aria-label="Resultado">
+              <article class="card report">
+                <header class="report-head">
+                  <div>
+                    <p class="js-plot-name">Parcela Alta</p>
+                    <p id="reportAge">Evaluada hace 3 min</p>
+                  </div>
+                  <button class="btn btn-outline js-share" type="button"><svg class="ic" aria-hidden="true"><use href="#i-share"></use></svg>Compartir por WhatsApp</button>
+                </header>
+
+                <div class="verdict verdict-riega" id="verdictBox">
+                  <div class="verdict-top">
+                    <span class="verdict-icon" aria-hidden="true"><svg class="ic xl"><use id="verdictIconUse" href="#i-drop"></use></svg></span>
+                    <span class="badge badge-danger dot" id="criticalBadge" hidden>Prioridad alta</span>
+                  </div>
+                  <div class="verdict-copy">
+                    <h2 id="verdictTitle">Es momento de regar</h2>
+                    <p id="verdictContext">Humedad 17.4% (umbral 22%)</p>
+                  </div>
+                  <button class="btn btn-primary btn-lg confirm-btn js-confirm" id="confirmBtn" type="button">
+                    <strong id="confirmRange">10,080–11,860</strong>
+                    <span class="confirm-unit">L</span>
+                    <span class="confirm-label">Regar ahora</span>
+                  </button>
+                </div>
+
+                <div class="evidence-grid">
+                  <div class="evidence-card">
+                    <div class="evidence-label"><svg class="ic" aria-hidden="true"><use href="#i-drop"></use></svg>Humedad del suelo</div>
+                    <div class="meter-body">
+                      <div class="meter-top">
+                        <strong id="humValue">17.4%</strong>
+                        <span class="badge badge-warning humidity-badge" id="humBadge">Bajo umbral</span>
+                      </div>
+                      <div class="meter-track" id="humTrack" role="progressbar" aria-valuenow="17" aria-valuemin="0" aria-valuemax="100" aria-label="Humedad 17.4 por ciento, Bajo umbral">
+                        <span class="meter-fill" id="humFill"></span>
+                        <span class="meter-mark staff-only" aria-hidden="true"></span>
+                      </div>
+                      <div class="meter-meta staff-only"><span id="humMetaPmp">PMP 9.5%</span><span id="humMetaThreshold">Umbral 21.8%</span></div>
+                      <div class="meter-placeholder farmer-only" aria-hidden="true"></div>
+                    </div>
+                  </div>
+                  <div class="evidence-pair">
+                    <div class="evidence-card">
+                      <div class="evidence-label"><svg class="ic" aria-hidden="true"><use href="#i-cloud-rain"></use></svg>Lluvia · 6 h</div>
+                      <div class="evidence-value">
+                        <strong id="rainValue">1.2 mm</strong>
+                        <p id="rainProb">35% de probabilidad</p>
+                      </div>
+                    </div>
+                    <div class="evidence-card">
+                      <div class="evidence-label"><svg class="ic" aria-hidden="true"><use href="#i-clock"></use></svg>Próxima revisión</div>
+                      <div class="evidence-value">
+                        <strong id="nextValue">21 oct, 06:30</strong>
+                        <p id="nextSub"></p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <section class="plan" aria-labelledby="planTitle" id="planSection">
+                  <div class="plan-head"><svg class="ic" aria-hidden="true"><use href="#i-calendar"></use></svg><h3 id="planTitle">Plan de riego</h3></div>
+                  <dl class="plan-grid">
+                    <div><dt>Inicio</dt><dd id="planStart">20 oct, 06:00</dd></div>
+                    <div><dt>Fin</dt><dd id="planEnd">20 oct, 07:35</dd></div>
+                    <div><dt>Duración</dt><dd id="planDuration">95 min</dd></div>
+                    <div><dt>Días</dt><dd id="planDays">1</dd></div>
+                  </dl>
+                  <p class="plan-note" id="planNote"><svg class="ic" aria-hidden="true"><use href="#i-clock"></use></svg><span id="planNoteText">Riega temprano (05:30–07:00) para que el agua rinda más.</span></p>
+                </section>
+
+                <details class="calc staff-only">
+                  <summary>Ver cálculo <span aria-hidden="true">▼</span></summary>
+                  <div class="calc-body">
+                    <p id="calcBalance">El cultivo pide <strong>ETc</strong> (Kc × ET₀). Humedad 17.4% vs umbral 22% → Regar 10,080–11,860 L ahora.</p>
+                    <section class="calc-group">
+                      <h3>Demanda del cultivo</h3>
+                      <div class="metric-grid">
+                        <div class="metric"><span class="metric-label">Etapa<svg class="ic" aria-hidden="true"><use href="#i-info"></use></svg></span><strong id="calcStage">Desarrollo</strong></div>
+                        <div class="metric"><span class="metric-label">Kc<svg class="ic" aria-hidden="true"><use href="#i-info"></use></svg></span><strong id="calcKc">0.85</strong></div>
+                        <div class="metric"><span class="metric-label">ET₀<svg class="ic" aria-hidden="true"><use href="#i-info"></use></svg></span><strong id="calcEt0">4.3 mm/d</strong></div>
+                        <div class="metric"><span class="metric-label">ETc<svg class="ic" aria-hidden="true"><use href="#i-info"></use></svg></span><strong id="calcEtc">3.7 mm/d</strong></div>
+                      </div>
+                    </section>
+                    <section class="calc-group">
+                      <h3>Agua a aplicar</h3>
+                      <div class="metric-grid">
+                        <div class="metric"><span class="metric-label">Lámina neta<svg class="ic" aria-hidden="true"><use href="#i-info"></use></svg></span><strong id="calcLamina">8.4 mm</strong></div>
+                        <div class="metric"><span class="metric-label">Volumen bruto<svg class="ic" aria-hidden="true"><use href="#i-info"></use></svg></span><strong id="calcVolumen">11,858 L</strong></div>
+                      </div>
+                    </section>
+                    <section class="calc-group">
+                      <h3>Calidad del dato</h3>
+                      <div class="metric-grid">
+                        <div class="metric"><span class="metric-label">Confianza<svg class="ic" aria-hidden="true"><use href="#i-info"></use></svg></span><strong id="calcConfidence">Alta</strong></div>
+                      </div>
+                    </section>
+                  </div>
+                </details>
+              </article>
+            </section>
+
+            <section id="viewSimple" hidden aria-live="polite" aria-label="Resultado">
+              <article class="card report">
+                <header class="report-head">
+                  <div>
+                    <p class="js-plot-name">Parcela Alta</p>
+                    <p id="simpleAge">Evaluada hace 3 min</p>
+                  </div>
+                  <button class="btn btn-outline js-share" type="button"><svg class="ic" aria-hidden="true"><use href="#i-share"></use></svg>Compartir por WhatsApp</button>
+                </header>
+
+                <div class="verdict verdict-no" id="simpleVerdict">
+                  <div class="verdict-top">
+                    <span class="verdict-icon" aria-hidden="true"><svg class="ic xl"><use id="simpleIconUse" href="#i-check"></use></svg></span>
+                  </div>
+                  <div class="verdict-copy">
+                    <h2 id="simpleTitle">No es necesario regar</h2>
+                    <p id="simpleContext">Humedad 26.3% (umbral 22%)</p>
+                  </div>
+                </div>
+
+                <div class="evidence-grid">
+                  <div class="evidence-card">
+                    <div class="evidence-label"><svg class="ic" aria-hidden="true"><use href="#i-drop"></use></svg>Humedad del suelo</div>
+                    <div class="meter-body">
+                      <div class="meter-top">
+                        <strong id="simpleHumValue">26.3%</strong>
+                        <span class="badge badge-success humidity-badge" id="simpleHumBadge">Adecuado</span>
+                      </div>
+                      <div class="meter-track" id="simpleHumTrack" role="progressbar" aria-valuenow="26" aria-valuemin="0" aria-valuemax="100" aria-label="Humedad 26.3 por ciento, Adecuado">
+                        <span class="meter-fill is-ok" id="simpleHumFill"></span>
+                        <span class="meter-mark staff-only" aria-hidden="true"></span>
+                      </div>
+                      <div class="meter-meta staff-only"><span id="simpleHumPmp">PMP 9.5%</span><span id="simpleHumThreshold">Umbral 21.8%</span></div>
+                      <div class="meter-placeholder farmer-only" aria-hidden="true"></div>
+                    </div>
+                  </div>
+                  <div class="evidence-pair">
+                    <div class="evidence-card">
+                      <div class="evidence-label"><svg class="ic" aria-hidden="true"><use href="#i-cloud-rain"></use></svg>Lluvia · 6 h</div>
+                      <div class="evidence-value">
+                        <strong id="simpleRainValue">0.4 mm</strong>
+                        <p id="simpleRainProb">10% de probabilidad</p>
+                      </div>
+                    </div>
+                    <div class="evidence-card">
+                      <div class="evidence-label"><svg class="ic" aria-hidden="true"><use href="#i-clock"></use></svg>Próxima revisión</div>
+                      <div class="evidence-value">
+                        <strong id="simpleNextValue">20 oct, 18:30</strong>
+                        <p></p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <details class="calc staff-only">
+                  <summary>Ver cálculo <span aria-hidden="true">▼</span></summary>
+                  <div class="calc-body">
+                    <p id="simpleBalance">Con los datos registrados se estimó el déficit de agua.</p>
+                    <section class="calc-group">
+                      <h3>Demanda del cultivo</h3>
+                      <div class="metric-grid">
+                        <div class="metric"><span class="metric-label">Etapa<svg class="ic" aria-hidden="true"><use href="#i-info"></use></svg></span><strong id="simpleStage">Desarrollo</strong></div>
+                        <div class="metric"><span class="metric-label">Kc<svg class="ic" aria-hidden="true"><use href="#i-info"></use></svg></span><strong id="simpleKc">0.85</strong></div>
+                        <div class="metric"><span class="metric-label">ET₀<svg class="ic" aria-hidden="true"><use href="#i-info"></use></svg></span><strong id="simpleEt0">4.3 mm/d</strong></div>
+                        <div class="metric"><span class="metric-label">ETc<svg class="ic" aria-hidden="true"><use href="#i-info"></use></svg></span><strong id="simpleEtc">3.7 mm/d</strong></div>
+                      </div>
+                    </section>
+                    <section class="calc-group">
+                      <h3>Agua a aplicar</h3>
+                      <div class="metric-grid">
+                        <div class="metric"><span class="metric-label">Lámina neta<svg class="ic" aria-hidden="true"><use href="#i-info"></use></svg></span><strong id="simpleLamina">—</strong></div>
+                        <div class="metric"><span class="metric-label">Volumen bruto<svg class="ic" aria-hidden="true"><use href="#i-info"></use></svg></span><strong id="simpleVolumen">—</strong></div>
+                      </div>
+                    </section>
+                    <section class="calc-group">
+                      <h3>Calidad del dato</h3>
+                      <div class="metric-grid">
+                        <div class="metric"><span class="metric-label">Confianza<svg class="ic" aria-hidden="true"><use href="#i-info"></use></svg></span><strong id="simpleConfidence">Alta</strong></div>
+                      </div>
+                    </section>
+                  </div>
+                </details>
+              </article>
+            </section>
+
+            <div id="viewLoading" hidden>
+              <div class="card">
+                <div class="loading-state"><span class="spinner" aria-hidden="true"></span><p>Analizando suelo, cultivo y clima…</p></div>
+              </div>
+            </div>
+
+            <section id="viewIncomplete" hidden aria-live="polite" aria-label="Resultado">
+              <article class="card report">
+                <header class="report-head">
+                  <div>
+                    <p class="js-plot-name">Parcela Alta</p>
+                    <p>Evaluada hace 1 min</p>
+                  </div>
+                  <button class="btn btn-outline js-share" type="button"><svg class="ic" aria-hidden="true"><use href="#i-share"></use></svg>Compartir por WhatsApp</button>
+                </header>
+                <div class="verdict verdict-incompleta">
+                  <div class="verdict-top">
+                    <span class="verdict-icon" aria-hidden="true"><svg class="ic xl"><use href="#i-alert"></use></svg></span>
+                  </div>
+                  <div class="verdict-copy">
+                    <h2>Revisar datos</h2>
+                    <p id="incompleteContext">Falta lectura de humedad reciente.</p>
+                  </div>
+                  <div class="verdict-help">
+                    <p class="staff-only" id="incompleteStaffText">Falta lectura de humedad reciente.</p>
+                    <a class="btn btn-outline staff-only" id="incompleteAction" href="#sensores">Ir a sensores</a>
+                    <p class="farmer-only">Contacta a tu técnico para actualizar los datos.</p>
+                  </div>
+                </div>
+                <details class="calc staff-only">
+                  <summary>Ver cálculo <span aria-hidden="true">▼</span></summary>
+                  <div class="calc-body">
+                    <p style="color:var(--neutral-600)">Cálculo no disponible: faltan datos para la evaluación.</p>
+                  </div>
+                </details>
+              </article>
+            </section>
+
+            <div class="history-block" id="historyBlock">
+              <button class="btn btn-outline history-toggle" id="historyToggle" type="button" aria-expanded="false" aria-controls="historyPanel">
+                <svg class="ic" aria-hidden="true"><use href="#i-clock"></use></svg>
+                <span id="historyToggleLabel">Ver historial</span>
+              </button>
+              <div id="historyPanel" hidden>
+                <article class="card history-card">
+                  <header class="history-header">
+                    <div>
+                      <h2>Evaluaciones anteriores</h2>
+                      <p><span class="js-plot-name">Parcela Alta</span> · Últimos 20 resultados</p>
+                    </div>
+                    <div class="loading-state history-loading" id="historyLoading" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span>Cargando historial…</span></div>
+                  </header>
+                  <div id="historyError" hidden>
+                    <div class="alert alert-danger" role="alert">
+                      <svg class="ic alert-icon" aria-hidden="true"><use href="#i-circle-alert"></use></svg>
+                      <div class="alert-body">
+                        <p class="alert-title">No se pudo cargar el historial</p>
+                        <p class="alert-copy" id="historyErrorMsg">No se pudo cargar el historial.</p>
+                      </div>
+                      <div class="alert-action"><button type="button" class="btn btn-outline" id="historyRetry">Reintentar</button></div>
+                    </div>
+                  </div>
+                  <div id="historyEmpty" hidden>
+                    <div class="empty-state">
+                      <span class="empty-state-icon" aria-hidden="true"><svg class="ic"><use href="#i-calendar-clock"></use></svg></span>
+                      <p class="empty-state-title">Sin historial</p>
+                      <p class="empty-state-desc">Esta parcela aún no tiene evaluaciones.</p>
+                    </div>
+                  </div>
+                  <div id="historyData">
+                  <div class="history-stats">
+                    <span>6 evaluaciones totales</span>
+                    <span class="today">2 hoy</span>
+                    <span>6 esta semana</span>
+                  </div>
+                  <div class="history-groups">
+                    <section class="history-group" aria-label="Hoy">
+                      <button type="button" aria-expanded="false">
+                        <h3>Hoy</h3>
+                        <div class="history-counts">
+                          <span><i class="crit-dot"></i>0</span>
+                          <span><i class="riega-dot"></i>1</span>
+                          <span><i class="no-dot"></i>1</span>
+                          <span><i class="espera-dot"></i>0</span>
+                          <span><i class="incompleta-dot"></i>0</span>
+                        </div>
+                        <span class="history-arrow" aria-hidden="true">▼</span>
+                      </button>
+                      <ol class="history-items" hidden>
+                        <li><time datetime="2026-10-20T05:57">05:57</time><span class="badge badge-riega">Bajo umbral</span><span class="history-liters">10,080–11,860 litros</span></li>
+                        <li><time datetime="2026-10-20T04:10">04:10</time><span class="badge badge-no">Suficiente</span><span class="history-liters">—</span></li>
+                      </ol>
+                    </section>
+                    <section class="history-group" aria-label="Ayer">
+                      <button type="button" aria-expanded="false">
+                        <h3>Ayer</h3>
+                        <div class="history-counts">
+                          <span><i class="crit-dot"></i>1</span>
+                          <span><i class="riega-dot"></i>1</span>
+                          <span><i class="no-dot"></i>0</span>
+                          <span><i class="espera-dot"></i>1</span>
+                          <span><i class="incompleta-dot"></i>0</span>
+                        </div>
+                        <span class="history-arrow" aria-hidden="true">▼</span>
+                      </button>
+                      <ol class="history-items" hidden>
+                        <li><time datetime="2026-10-19T18:40">18:40</time><span class="badge badge-espera">Viene lluvia</span><span class="history-liters">—</span></li>
+                        <li><time datetime="2026-10-19T06:15">06:15</time><span class="badge badge-danger">Riego prioritario</span><span class="history-liters">12,400–14,100 litros</span></li>
+                      </ol>
+                    </section>
+                    <section class="history-group" aria-label="16 oct 2026">
+                      <button type="button" aria-expanded="false">
+                        <h3>16 oct 2026</h3>
+                        <div class="history-counts">
+                          <span><i class="crit-dot"></i>0</span>
+                          <span><i class="riega-dot"></i>1</span>
+                          <span><i class="no-dot"></i>1</span>
+                          <span><i class="espera-dot"></i>0</span>
+                          <span><i class="incompleta-dot"></i>0</span>
+                        </div>
+                        <span class="history-arrow" aria-hidden="true">▼</span>
+                      </button>
+                      <ol class="history-items" hidden>
+                        <li><time datetime="2026-10-16T07:05">07:05</time><span class="badge badge-riega">Bajo umbral</span><span class="history-liters">9,800–11,200 litros</span></li>
+                        <li><time datetime="2026-10-16T06:10">06:10</time><span class="badge badge-no">Suficiente</span><span class="history-liters">—</span></li>
+                      </ol>
+                    </section>
+                  </div>
+                  </div>
+                </article>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="tech-footer">
+      <span>YakuAI · Gestión del riego</span>
+      <span>Información para decidir. Tú cuidas el campo.</span>
+    </footer>
+  </div>
+
+  <nav class="bottom-nav" aria-label="Navegación agricultor">
+    <a href="#"><svg class="ic" aria-hidden="true"><use href="#i-home"></use></svg><span>Hoy</span></a>
+    <a href="#" class="active" aria-current="page"><svg class="ic" aria-hidden="true"><use href="#i-gauge"></use></svg><span>Evaluar</span></a>
+    <a href="#"><svg class="ic" aria-hidden="true"><use href="#i-drop"></use></svg><span>Mis riegos</span></a>
+    <a href="#"><svg class="ic" aria-hidden="true"><use href="#i-bell"></use></svg><span>Alertas</span></a>
+  </nav>
+</div>
+
+<button class="overlay" id="navOverlay" aria-label="Cerrar navegación" hidden></button>
+<div class="overlay" id="sheetOverlay" hidden></div>
+<div class="sheet" id="plotSheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
+  <button class="icon-button plain sheet-close" id="sheetClose" aria-label="Cerrar"><svg class="ic" aria-hidden="true"><use href="#i-x"></use></svg></button>
+  <div class="sheet-head">
+    <h2 id="sheetTitle">Elegir parcela</h2>
+    <p>Busca y elige la parcela que quieres evaluar.</p>
+  </div>
+  <div class="plot-list-wrap">
+    <div class="search" id="sheetSearchWrap">
+      <svg class="ic search-icon" aria-hidden="true"><use href="#i-search"></use></svg>
+      <input type="search" id="sheetSearch" aria-label="Buscar parcela o cultivo" placeholder="Buscar parcela o cultivo" autocomplete="off" spellcheck="false" />
+      <button type="button" class="search-clear" id="sheetSearchClear" aria-label="Limpiar búsqueda"><svg class="ic" aria-hidden="true"><use href="#i-x"></use></svg></button>
+    </div>
+    <ul class="plot-list" id="sheetList" style="margin-top:.75rem"></ul>
+  </div>
+</div>
+
+<div class="toaster" id="toaster" aria-live="polite" aria-atomic="false"></div>
+
+<div class="demo-bar" role="region" aria-label="Controles de demostración">
+  <p class="demo-title">Prototipo · datos de ejemplo <span>Estados</span></p>
+  <label class="demo-field"><span>Rol</span>
+    <select id="demoRole">
+      <option value="tecnico">Técnico</option>
+      <option value="agricultor">Agricultor</option>
+    </select>
+  </label>
+  <label class="demo-field"><span>Evaluación</span>
+    <select id="demoEval">
+      <option value="ready">Sin evaluar</option>
+      <option value="loading">Analizando…</option>
+      <option value="riega" selected>Riega</option>
+      <option value="priority">Riego prioritario</option>
+      <option value="no">No es necesario regar</option>
+      <option value="espera">Espera antes de regar</option>
+      <option value="incomplete_humidity">Incompleta · humedad</option>
+      <option value="incomplete_weather">Incompleta · clima</option>
+      <option value="error">Error al evaluar</option>
+    </select>
+  </label>
+  <label class="demo-field"><span>Parcelas</span>
+    <select id="demoPlots">
+      <option value="ok" selected>Cargadas</option>
+      <option value="loading">Cargando…</option>
+      <option value="error">Error</option>
+      <option value="empty">Sin parcelas</option>
+    </select>
+  </label>
+  <label class="demo-field"><span>Historial</span>
+    <select id="demoHistory">
+      <option value="hidden" selected>Oculto</option>
+      <option value="data">Datos</option>
+      <option value="loading">Cargando…</option>
+      <option value="error">Error</option>
+      <option value="empty">Vacío</option>
+    </select>
+  </label>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var PLOTS = {
+    tecnico: [
+      { id: 1, name: "Parcela Alta", crop: "Papa", area: 1200, farmer: "Félix Huamán", system: "Goteo", sow: "12 ago 2026" },
+      { id: 2, name: "Parcela Baja", crop: "Maíz", area: 850, farmer: "Félix Huamán", system: "Aspersión", sow: "3 sep 2026" },
+      { id: 3, name: "Huerto Haba", crop: "Haba", area: 420, farmer: "María Poma", system: "Gravedad", sow: "18 ago 2026" },
+      { id: 4, name: "Zanahoria Norte", crop: "Zanahoria", area: 600, farmer: "Juan Quispe", system: "Goteo", sow: "27 jul 2026" },
+      { id: 5, name: "Lote San José", crop: "Papa", area: 2500, farmer: "Rosa Ccahuana", system: "Aspersión", sow: "9 ago 2026" },
+      { id: 6, name: "Andén Central", crop: "Quinua", area: 700, farmer: "Félix Huamán", system: "Gravedad", sow: "30 ago 2026" },
+      { id: 7, name: "Ladera Sur", crop: "Papa", area: 1100, farmer: "María Poma", system: "Goteo", sow: "22 ago 2026" },
+      { id: 8, name: "Terreno El Molino", crop: "Maíz", area: 1600, farmer: "Juan Quispe", system: "Aspersión", sow: "5 sep 2026" },
+      { id: 9, name: "Huerto Escolar", crop: "Haba", area: 300, farmer: "Rosa Ccahuana", system: "Goteo", sow: "14 ago 2026" },
+      { id: 10, name: "Pampa Verde", crop: "Zanahoria", area: 900, farmer: "Félix Huamán", system: "Goteo", sow: "1 ago 2026" },
+      { id: 11, name: "Sector La Quebrada", crop: "Papa", area: 1300, farmer: "Juan Quispe", system: "Gravedad", sow: "19 ago 2026" },
+      { id: 12, name: "Parcela Los Olivos", crop: "Maíz", area: 750, farmer: "Rosa Ccahuana", system: "Aspersión", sow: "7 sep 2026" }
+    ],
+    agricultor: [
+      { id: 1, name: "Parcela Alta", crop: "Papa", area: 1200, farmer: "Félix Huamán", system: "Goteo", sow: "12 ago 2026" },
+      { id: 2, name: "Parcela Baja", crop: "Maíz", area: 850, farmer: "Félix Huamán", system: "Aspersión", sow: "3 sep 2026" },
+      { id: 3, name: "Huerto Haba", crop: "Haba", area: 420, farmer: "Félix Huamán", system: "Gravedad", sow: "18 ago 2026" }
+    ]
+  };
+
+  var role = "tecnico";
+  var selectedId = 1;
+  var query = "";
+  var visible = 9;
+  var evalState = "riega";
+  var plotsState = "ok";
+  var historyState = "data";
+  var historyOpen = false;
+  var busy = false;
+  var confirming = false;
+  var confirmed = false;
+
+  var REPORTS = {
+    riega: {
+      kind: "riega",
+      title: "Es momento de regar",
+      critical: false,
+      humidity: 17.4,
+      threshold: 21.8,
+      pmp: 9.5,
+      humState: "low",
+      humLabel: "Bajo umbral",
+      humTone: "warning",
+      rain: "1.2 mm",
+      rainProb: "35% de probabilidad",
+      next: "21 oct, 06:30",
+      context: "Humedad 17.4% (umbral 22%)",
+      min: "10,080",
+      max: "11,860",
+      volume: "11,858 L",
+      balance: "Humedad 17.4% vs umbral 22% → Regar 10,080–11,860 L ahora.",
+      plan: { start: "20 oct, 06:00", end: "20 oct, 07:35", duration: "95 min", days: "1", note: "Riega temprano (05:30–07:00) para que el agua rinda más." },
+      details: { stage: "Desarrollo", kc: "0.85", et0: "4.3 mm/d", etc: "3.7 mm/d", lamina: "8.4 mm", volume: "11,858 L", confidence: "Alta" }
+    },
+    priority: {
+      kind: "riega",
+      title: "Riego prioritario",
+      critical: true,
+      humidity: 7.8,
+      threshold: 21.8,
+      pmp: 9.5,
+      humState: "crit",
+      humLabel: "Crítico",
+      humTone: "danger",
+      rain: "1.2 mm",
+      rainProb: "35% de probabilidad",
+      next: "21 oct, 06:30",
+      context: "Humedad 7.8% (umbral 22%)",
+      min: "12,400",
+      max: "14,100",
+      volume: "13,940 L",
+      balance: "Humedad 7.8% vs umbral 22% → Regar 12,400–14,100 L ahora.",
+      plan: { start: "20 oct, 06:30", end: "20 oct, 08:05", duration: "95 min", days: "1", note: null },
+      details: { stage: "Desarrollo", kc: "0.85", et0: "4.3 mm/d", etc: "3.7 mm/d", lamina: "10.4 mm", volume: "13,940 L", confidence: "Alta" }
+    },
+    no: {
+      kind: "simple",
+      result: "no",
+      title: "No es necesario regar",
+      humidity: 26.3,
+      threshold: 21.8,
+      pmp: 9.5,
+      humState: "ok",
+      humLabel: "Adecuado",
+      humTone: "success",
+      rain: "0.4 mm",
+      rainProb: "10% de probabilidad",
+      next: "20 oct, 18:30",
+      context: "Humedad 26.3% (umbral 22%)",
+      balance: "Con los datos registrados se estimó el déficit de agua.",
+      details: { stage: "Desarrollo", kc: "0.85", et0: "4.3 mm/d", etc: "3.7 mm/d", lamina: "—", volume: "—", confidence: "Alta" }
+    },
+    espera: {
+      kind: "simple",
+      result: "espera",
+      title: "Espera antes de regar",
+      humidity: 18.2,
+      threshold: 21.8,
+      pmp: 9.5,
+      humState: "low",
+      humLabel: "Bajo umbral",
+      humTone: "warning",
+      rain: "12.4 mm",
+      rainProb: "85% de probabilidad",
+      next: "20 oct, 12:30",
+      context: "Lluvia prevista en las próximas horas",
+      balance: "Faltó reponer 8.4 mm.",
+      details: { stage: "Desarrollo", kc: "0.85", et0: "4.3 mm/d", etc: "3.7 mm/d", lamina: "8.4 mm", volume: "—", confidence: "Alta" }
+    }
+  };
+
+  var INCOMPLETE = {
+    incomplete_humidity: { text: "Falta lectura de humedad reciente.", action: "Ir a sensores", href: "#sensores" },
+    incomplete_weather: { text: "Falta pronóstico vigente.", action: "Ir a clima", href: "#clima" }
+  };
+
+  function $(id) { return document.getElementById(id); }
+  function num(value) { return value.toLocaleString("es-PE"); }
+  function currentPlots() { return plotsState === "empty" ? [] : PLOTS[role]; }
+  function selectedPlot() {
+    var list = currentPlots();
+    for (var i = 0; i < list.length; i++) if (list[i].id === selectedId) return list[i];
+    return null;
+  }
+  function matching() {
+    var list = currentPlots();
+    var needle = query.trim().toLowerCase();
+    if (!needle) return list;
+    return list.filter(function (plot) {
+      return (plot.name + " " + plot.crop).toLowerCase().indexOf(needle) !== -1;
+    });
+  }
+  function setText(id, value) {
+    var el = $(id);
+    if (el) el.textContent = value;
+  }
+  function isIncomplete(state) { return state === "incomplete_humidity" || state === "incomplete_weather"; }
+  function isBusy() { return busy || evalState === "loading"; }
+
+  function plotMarkup(plot) {
+    var checked = plot.id === selectedId;
+    var off = isBusy() || confirming;
+    return "<li>" +
+      '<button type="button" class="plot-item" data-id="' + plot.id + '" aria-pressed="' + checked + '" aria-label="Seleccionar ' + plot.name + '"' + (off ? " disabled" : "") + ">" +
+        '<span class="plot-icon" aria-hidden="true"><svg class="ic"><use href="#i-sprout"></use></svg></span>' +
+        '<span class="plot-body">' +
+          '<strong>' + plot.name + '</strong>' +
+          '<small>' + plot.crop + " · " + num(plot.area) + " m²</small>" +
+          (role === "tecnico" ? '<small class="plot-farmer">' + plot.farmer + "</small>" : "") +
+        "</span>" +
+        '<span class="plot-check" aria-hidden="true">' + (checked ? '<svg class="ic"><use href="#i-check"></use></svg>' : "") + "</span>" +
+      "</button></li>";
+  }
+
+  function plotsEmptyMarkup() {
+    return '<div class="empty-state plot-empty-plots">' +
+      '<span class="empty-state-icon" aria-hidden="true"><svg class="ic"><use href="#i-sprout"></use></svg></span>' +
+      '<p class="empty-state-title">Sin parcelas</p>' +
+      '<p class="empty-state-desc">Primero debe registrarse una parcela.</p>' +
+      "</div>";
+  }
+
+  function searchEmptyMarkup() {
+    return '<div class="empty-state">' +
+      '<span class="empty-state-icon" aria-hidden="true"><svg class="ic"><use href="#i-inbox"></use></svg></span>' +
+      '<p class="empty-state-title">No encontramos esa parcela</p>' +
+      '<p class="empty-state-desc">Prueba con otro nombre o cultivo.</p>' +
+      '<div class="empty-state-action"><button type="button" class="btn btn-outline" data-clear>Ver todas las parcelas</button></div>' +
+      "</div>";
+  }
+
+  function renderLists() {
+    var found = matching();
+    var shown = found.slice(0, visible);
+    var html;
+    if (!currentPlots().length) html = plotsEmptyMarkup();
+    else if (!found.length) html = searchEmptyMarkup();
+    else html = shown.map(plotMarkup).join("");
+    $("plotList").innerHTML = html;
+    $("sheetList").innerHTML = html;
+    $("showMore").hidden = !currentPlots().length || found.length <= visible || !shown.length;
+    $("searchWrap").classList.toggle("has-value", query.length > 0);
+    $("sheetSearchWrap").classList.toggle("has-value", query.length > 0);
+  }
+
+  function updateSelection() {
+    var plot = selectedPlot();
+    var names = document.querySelectorAll(".js-plot-name");
+    for (var i = 0; i < names.length; i++) names[i].textContent = plot ? plot.name : "Tu próxima decisión";
+    setText("readyPlotName", plot ? plot.name : "Tu próxima decisión");
+    $("plotContext").hidden = !plot;
+    $("plotContextFallback").hidden = !!plot;
+    $("mobileSelected").hidden = !plot;
+    $("mobileNone").hidden = !!plot;
+    $("mobilePlotContext").hidden = !plot;
+    $("mobilePlotContextFallback").hidden = !!plot;
+    if (plot) {
+      setText("ctxSystem", plot.system);
+      setText("ctxSow", plot.sow);
+      setText("ctxSystemMobile", plot.system);
+      setText("ctxSowMobile", plot.sow);
+      setText("mobilePlotName", plot.name);
+      setText("mobilePlotMeta", plot.crop + " · " + num(plot.area) + " m²");
+    }
+    updateDisabled();
+  }
+
+  function syncControls() {
+    $("demoRole").value = role;
+    $("demoEval").value = isBusy() ? "loading" : evalState;
+    $("demoPlots").value = plotsState;
+    $("demoHistory").value = historyOpen ? historyState : "hidden";
+  }
+
+  function setSpinner(btn, on) {
+    if (!btn) return;
+    var spinner = btn.querySelector("[data-loading-spinner]");
+    if (on) {
+      btn.setAttribute("aria-busy", "true");
+      if (!spinner) {
+        spinner = document.createElement("span");
+        spinner.className = "spinner sm";
+        spinner.setAttribute("aria-hidden", "true");
+        spinner.setAttribute("data-loading-spinner", "1");
+        btn.insertBefore(spinner, btn.firstChild);
+      }
+    } else {
+      btn.removeAttribute("aria-busy");
+      if (spinner) spinner.remove();
+    }
+  }
+
+  function updateDisabled() {
+    var off = !selectedPlot() || plotsState !== "ok" || isBusy() || confirming;
+    $("evaluateBtn").disabled = off;
+    $("evaluateBtnMobile").disabled = off;
+    var items = document.querySelectorAll(".plot-item");
+    for (var i = 0; i < items.length; i++) items[i].disabled = isBusy() || confirming;
+    if ($("confirmBtn")) $("confirmBtn").disabled = confirming;
+  }
+
+  function syncBusyUI() {
+    setSpinner($("evaluateBtn"), isBusy());
+    setSpinner($("evaluateBtnMobile"), isBusy());
+    setSpinner($("confirmBtn"), confirming);
+    updateDisabled();
+    syncControls();
+  }
+
+  var TOAST_ICON = { ok: "#i-check-circle", error: "#i-circle-alert", info: "#i-info" };
+
+  function showToast(kind, message) {
+    var wrap = $("toaster");
+    while (wrap.children.length >= 3) wrap.removeChild(wrap.lastChild);
+    var el = document.createElement("div");
+    el.className = "toast " + kind;
+    el.setAttribute("role", kind === "error" ? "alert" : "status");
+    el.innerHTML = '<svg class="ic toast-icon" aria-hidden="true"><use href="' + TOAST_ICON[kind] + '"></use></svg>' +
+      '<div class="toast-body"><p class="toast-title"></p></div>' +
+      '<button class="toast-close" type="button" aria-label="Cerrar notificación"><svg class="ic sm"><use href="#i-x"></use></svg></button>';
+    el.querySelector(".toast-title").textContent = message;
+    wrap.insertBefore(el, wrap.firstChild);
+    var dismissed = false;
+    function dismiss() {
+      if (dismissed) return;
+      dismissed = true;
+      el.classList.add("is-leaving");
+      setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 160);
+    }
+    el.querySelector(".toast-close").addEventListener("click", dismiss);
+    setTimeout(dismiss, 4500);
+  }
+
+  function announce(state) {
+    if (state === "priority") showToast("ok", "Humedad crítica: riega hoy mismo.");
+    else if (state === "riega") showToast("ok", "Recomendación lista: toca regar.");
+    else if (state === "espera") showToast("info", "Viene lluvia: mejor esperar 6 horas.");
+    else if (state === "no") showToast("ok", "La tierra está bien. Sin riego por ahora.");
+    else if (isIncomplete(state)) showToast("info", "Faltan datos para decidir. Revisa qué está pendiente.");
+    else if (state === "error") showToast("error", "No se pudo evaluar.");
+  }
+
+  function applyReport(report) {
+    var d = report.details;
+    if (report.kind === "riega") {
+      $("viewResult").hidden = false;
+      setText("verdictTitle", report.title);
+      setText("verdictContext", report.context);
+      $("criticalBadge").hidden = !report.critical;
+      setText("confirmRange", report.min + "–" + report.max);
+      setText("humValue", report.humidity.toFixed(1) + "%");
+      var badge = $("humBadge");
+      badge.className = "badge badge-" + report.humTone + " humidity-badge";
+      badge.textContent = report.humLabel;
+      var fill = $("humFill");
+      fill.className = "meter-fill is-" + report.humState;
+      fill.style.width = report.humidity + "%";
+      var track = $("humTrack");
+      track.setAttribute("aria-valuenow", String(Math.round(report.humidity)));
+      track.setAttribute("aria-label", "Humedad " + report.humidity.toFixed(1) + " por ciento, " + report.humLabel);
+      setText("humMetaPmp", "PMP " + report.pmp.toFixed(1) + "%");
+      setText("humMetaThreshold", "Umbral " + report.threshold.toFixed(1) + "%");
+      setText("rainValue", report.rain);
+      setText("rainProb", report.rainProb);
+      setText("nextValue", report.next);
+      $("planStart").textContent = report.plan.start;
+      $("planEnd").textContent = report.plan.end;
+      $("planDuration").textContent = report.plan.duration;
+      $("planDays").textContent = report.plan.days;
+      $("planNote").hidden = !report.plan.note;
+      if (report.plan.note) $("planNoteText").textContent = report.plan.note;
+      $("calcBalance").innerHTML = "El cultivo pide <strong>ETc</strong> (Kc × ET₀). " + report.balance;
+      setText("calcStage", d.stage);
+      setText("calcKc", d.kc);
+      setText("calcEt0", d.et0);
+      setText("calcEtc", d.etc);
+      setText("calcLamina", d.lamina);
+      setText("calcVolumen", d.volume);
+      setText("calcConfidence", d.confidence);
+      return;
+    }
+
+    $("viewSimple").hidden = false;
+    $("simpleVerdict").className = "verdict verdict-" + report.result;
+    $("simpleIconUse").setAttribute("href", report.result === "no" ? "#i-check" : "#i-cloud-sun");
+    setText("simpleTitle", report.title);
+    setText("simpleContext", report.context);
+    setText("simpleHumValue", report.humidity.toFixed(1) + "%");
+    var simpleBadge = $("simpleHumBadge");
+    simpleBadge.className = "badge badge-" + report.humTone + " humidity-badge";
+    simpleBadge.textContent = report.humLabel;
+    var simpleFill = $("simpleHumFill");
+    simpleFill.className = "meter-fill is-" + report.humState;
+    simpleFill.style.width = report.humidity + "%";
+    var simpleTrack = $("simpleHumTrack");
+    simpleTrack.setAttribute("aria-valuenow", String(Math.round(report.humidity)));
+    simpleTrack.setAttribute("aria-label", "Humedad " + report.humidity.toFixed(1) + " por ciento, " + report.humLabel);
+    setText("simpleHumPmp", "PMP " + report.pmp.toFixed(1) + "%");
+    setText("simpleHumThreshold", "Umbral " + report.threshold.toFixed(1) + "%");
+    setText("simpleRainValue", report.rain);
+    setText("simpleRainProb", report.rainProb);
+    setText("simpleNextValue", report.next);
+    $("simpleBalance").innerHTML = "El cultivo pide <strong>ETc</strong> (Kc × ET₀). " + report.balance;
+    setText("simpleStage", d.stage);
+    setText("simpleKc", d.kc);
+    setText("simpleEt0", d.et0);
+    setText("simpleEtc", d.etc);
+    setText("simpleLamina", d.lamina);
+    setText("simpleVolumen", d.volume);
+    setText("simpleConfidence", d.confidence);
+  }
+
+  function applyIncomplete(state) {
+    var help = INCOMPLETE[state];
+    setText("incompleteContext", help.text);
+    setText("incompleteStaffText", help.text);
+    var action = $("incompleteAction");
+    action.textContent = help.action;
+    action.setAttribute("href", help.href);
+    $("viewIncomplete").hidden = false;
+  }
+
+  function applyEvalState(state, notify) {
+    evalState = state;
+    var views = ["viewReady", "viewResult", "viewSimple", "viewLoading", "viewIncomplete"];
+    for (var i = 0; i < views.length; i++) $(views[i]).hidden = true;
+    if (state === "ready") {
+      $("viewReady").hidden = false;
+    } else if (state === "loading") {
+      $("viewLoading").hidden = false;
+    } else if (state === "error") {
+      $("viewReady").hidden = false;
+      if (notify) announce(state);
+    } else if (isIncomplete(state)) {
+      applyIncomplete(state);
+    } else if (REPORTS[state]) {
+      applyReport(REPORTS[state]);
+    }
+    syncBusyUI();
+  }
+
+  function applyRole(next) {
+    role = next;
+    if (!selectedPlot() && currentPlots().length) selectedId = currentPlots()[0].id;
+    document.body.className = "role-" + role;
+    $("plotHeadNote").textContent = role === "tecnico" ? "Parcelas de tu zona asignada." : "El punto de partida de tu evaluación.";
+    document.title = "Evaluar riego · YakuAI (" + (role === "tecnico" ? "técnico" : "agricultor") + ")";
+    query = "";
+    visible = 9;
+    $("plotSearch").value = "";
+    $("sheetSearch").value = "";
+    renderLists();
+    updateSelection();
+    renderHistory();
+    syncControls();
+  }
+
+  function renderPlots() {
+    $("plotsLoading").hidden = plotsState !== "loading";
+    $("plotsError").hidden = plotsState !== "error";
+    $("evaluateGrid").hidden = plotsState === "loading" || plotsState === "error";
+    if (plotsState === "ok" || plotsState === "empty") {
+      renderLists();
+      updateSelection();
+      renderHistory();
+    }
+    syncBusyUI();
+  }
+
+  function setPlotsState(state) {
+    plotsState = state;
+    if (state === "ok" && !selectedPlot() && currentPlots().length) selectedId = currentPlots()[0].id;
+    if (state === "empty") applyEvalState("ready", false);
+    renderPlots();
+    syncControls();
+  }
+
+  function renderHistory() {
+    var plot = selectedPlot();
+    $("historyBlock").hidden = !plot || plotsState !== "ok";
+    $("historyToggle").setAttribute("aria-expanded", String(historyOpen));
+    $("historyToggleLabel").textContent = historyOpen ? "Ocultar historial" : "Ver historial";
+    $("historyPanel").hidden = !historyOpen;
+    $("historyLoading").hidden = historyState !== "loading";
+    $("historyError").hidden = historyState !== "error";
+    $("historyEmpty").hidden = historyState !== "empty";
+    $("historyData").hidden = historyState !== "data";
+  }
+
+  function selectPlot(id) {
+    if (id === selectedId) { closeSheet(); return; }
+    selectedId = id;
+    confirmed = false;
+    var previousHistory = historyState;
+    applyEvalState("ready", false);
+    renderLists();
+    updateSelection();
+    if (historyOpen) {
+      historyState = "loading";
+      renderHistory();
+      setTimeout(function () {
+        if (!historyOpen) return;
+        historyState = previousHistory === "loading" ? "loading" : previousHistory;
+        renderHistory();
+        syncControls();
+      }, 700);
+    } else {
+      renderHistory();
+    }
+    closeSheet();
+  }
+
+  function openSheet() {
+    $("sheetOverlay").hidden = false;
+    $("plotSheet").hidden = false;
+    $("sheetSearch").focus();
+  }
+  function closeSheet() {
+    $("sheetOverlay").hidden = true;
+    $("plotSheet").hidden = true;
+  }
+
+  function onListClick(event) {
+    var target = event.target.closest("[data-id]");
+    if (target) { selectPlot(Number(target.dataset.id)); return; }
+    if (event.target.closest("[data-clear]")) {
+      query = "";
+      $("plotSearch").value = "";
+      $("sheetSearch").value = "";
+      visible = 9;
+      renderLists();
+    }
+  }
+
+  document.querySelectorAll(".search input").forEach(function (input) {
+    input.addEventListener("input", function (event) {
+      query = event.target.value;
+      $("plotSearch").value = query;
+      $("sheetSearch").value = query;
+      visible = 9;
+      renderLists();
+    });
+  });
+  $("searchClear").addEventListener("click", function () {
+    query = "";
+    $("plotSearch").value = "";
+    $("sheetSearch").value = "";
+    renderLists();
+    $("plotSearch").focus();
+  });
+  $("sheetSearchClear").addEventListener("click", function () {
+    query = "";
+    $("plotSearch").value = "";
+    $("sheetSearch").value = "";
+    renderLists();
+    $("sheetSearch").focus();
+  });
+  $("plotList").addEventListener("click", onListClick);
+  $("sheetList").addEventListener("click", onListClick);
+  $("showMore").addEventListener("click", function () { visible += 9; renderLists(); });
+  $("changePlot").addEventListener("click", openSheet);
+  $("sheetClose").addEventListener("click", closeSheet);
+  $("sheetOverlay").addEventListener("click", closeSheet);
+
+  $("demoRole").addEventListener("change", function (event) { applyRole(event.target.value); });
+  $("demoEval").addEventListener("change", function (event) {
+    var next = event.target.value;
+    applyEvalState(next, next === "error");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+  $("demoPlots").addEventListener("change", function (event) { setPlotsState(event.target.value); });
+  $("demoHistory").addEventListener("change", function (event) {
+    var next = event.target.value;
+    if (next === "hidden") {
+      historyOpen = false;
+    } else {
+      historyOpen = true;
+      historyState = next;
+    }
+    renderHistory();
+    syncControls();
+  });
+
+  $("plotsRetry").addEventListener("click", function () {
+    setPlotsState("loading");
+    setTimeout(function () { setPlotsState("ok"); }, 900);
+  });
+  $("historyRetry").addEventListener("click", function () {
+    historyState = "loading";
+    renderHistory();
+    syncControls();
+    setTimeout(function () {
+      historyState = "data";
+      renderHistory();
+      syncControls();
+    }, 900);
+  });
+
+  function runEvaluation() {
+    if (isBusy() || plotsState !== "ok" || !selectedPlot()) return;
+    var target = REPORTS[evalState] ? evalState : "riega";
+    var previousHistory = historyState;
+    busy = true;
+    confirmed = false;
+    applyEvalState("loading", false);
+    if (historyOpen) {
+      historyState = "loading";
+      renderHistory();
+    }
+    syncBusyUI();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setTimeout(function () {
+      busy = false;
+      applyEvalState(target, false);
+      announce(target);
+      if (historyOpen) {
+        setTimeout(function () {
+          if (!historyOpen) { syncControls(); return; }
+          historyState = previousHistory === "loading" ? "loading" : previousHistory;
+          renderHistory();
+          syncControls();
+        }, 600);
+      }
+      syncBusyUI();
+    }, 1200);
+  }
+  $("evaluateBtn").addEventListener("click", runEvaluation);
+  $("evaluateBtnMobile").addEventListener("click", runEvaluation);
+
+  function shareMessage() {
+    var plot = selectedPlot();
+    var name = plot ? plot.name : "Parcela";
+    var lines = ["🌱 YakuAI – " + name, ""];
+    if (isIncomplete(evalState)) {
+      lines.push("⚠️ *Nos faltan datos para decidir*", "");
+      lines.push("Falta información del campo. Pide al técnico que revise el sensor.");
+    } else {
+      var r = REPORTS[evalState] || REPORTS.riega;
+      if (evalState === "riega") lines.push("🟠 *Toca regar*");
+      else if (evalState === "priority") lines.push("🟠 *Toca regar hoy mismo*");
+      else if (evalState === "no") lines.push("🟢 *Tu tierra está bien, no riegues hoy*");
+      else if (evalState === "espera") lines.push("🔵 *Mejor espera, ya viene la lluvia*");
+      if (r.kind === "riega") {
+        lines.push("💧 Tu tierra está seca.");
+        lines.push("🪣 Riega " + r.volume + " (rango " + r.min + "–" + r.max + " litros) = " + r.plan.duration);
+        lines.push("🕐 Inicia: " + r.plan.start);
+        lines.push("🏁 Termina: " + r.plan.end);
+      } else if (evalState === "no") {
+        lines.push("💧 La tierra aún tiene agua suficiente.");
+      } else {
+        lines.push("🌧️ Va a llover en las próximas horas. Espera antes de regar.");
+      }
+      lines.push("🕐 Riega temprano: 05:30–07:00");
+      lines.push("🔄 Revisamos: " + r.next);
+    }
+    return lines.join("\n");
+  }
+
+  function share(button) {
+    if (button.getAttribute("aria-busy") === "true") return;
+    setSpinner(button, true);
+    button.disabled = true;
+    setTimeout(function () {
+      var win = window.open("https://wa.me/?text=" + encodeURIComponent(shareMessage()), "_blank", "noopener");
+      if (win === null) {
+        showToast("info", "El navegador bloqueó la ventana: permite ventanas emergentes para compartir por WhatsApp.");
+      }
+      setSpinner(button, false);
+      button.disabled = false;
+    }, 650);
+  }
+  document.addEventListener("click", function (event) {
+    var button = event.target.closest(".js-share");
+    if (button && !button.disabled) share(button);
+  });
+
+  function confirmIrrigation() {
+    if (confirming) return;
+    var already = confirmed;
+    confirming = true;
+    syncBusyUI();
+    setTimeout(function () {
+      confirming = false;
+      if (already) {
+        showToast("info", "Esta parcela ya tiene un riego registrado en las últimas 24 horas. Revisa el historial antes de regar de nuevo.");
+      } else {
+        confirmed = true;
+        showToast("ok", "Riego anotado. Mañana verificamos si la tierra se recuperó.");
+      }
+      syncBusyUI();
+    }, 900);
+  }
+  $("confirmBtn").addEventListener("click", confirmIrrigation);
+
+  $("historyToggle").addEventListener("click", function () {
+    historyOpen = !historyOpen;
+    renderHistory();
+    syncControls();
+  });
+
+  document.querySelectorAll(".history-group > button").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var expanded = button.getAttribute("aria-expanded") === "true";
+      button.setAttribute("aria-expanded", String(!expanded));
+      var arrow = button.querySelector(".history-arrow");
+      if (arrow) arrow.textContent = expanded ? "▼" : "▲";
+      var items = button.parentElement.querySelector(".history-items");
+      if (items) items.hidden = expanded;
+    });
+  });
+
+  $("fieldToggle").addEventListener("click", function () {
+    var enabled = document.documentElement.classList.toggle("field-mode");
+    $("fieldToggle").setAttribute("aria-checked", String(enabled));
+  });
+
+  function openNav() {
+    $("techSidebar").classList.add("open");
+    $("navOverlay").hidden = false;
+  }
+  function closeNav() {
+    $("techSidebar").classList.remove("open");
+    $("navOverlay").hidden = true;
+  }
+  $("menuButton").addEventListener("click", openNav);
+  $("navOverlay").addEventListener("click", closeNav);
+  $("sidebarClose").addEventListener("click", closeNav);
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") { closeSheet(); closeNav(); }
+  });
+
+  renderPlots();
+  renderHistory();
+  applyEvalState(evalState, false);
+  syncControls();
+
+  var params = window.location.hash.slice(1).split(",");
+  if (params.indexOf("agricultor") !== -1) applyRole("agricultor");
+  if (params.indexOf("parcelas-cargando") !== -1) setPlotsState("loading");
+  if (params.indexOf("parcelas-error") !== -1) setPlotsState("error");
+  if (params.indexOf("sin-parcelas") !== -1) setPlotsState("empty");
+  if (params.indexOf("historial") !== -1) { historyOpen = true; historyState = "data"; renderHistory(); }
+  if (params.indexOf("historial-cargando") !== -1) { historyOpen = true; historyState = "loading"; renderHistory(); }
+  if (params.indexOf("historial-error") !== -1) { historyOpen = true; historyState = "error"; renderHistory(); }
+  if (params.indexOf("historial-vacio") !== -1) { historyOpen = true; historyState = "empty"; renderHistory(); }
+  if (params.indexOf("listo") !== -1) applyEvalState("ready", false);
+  if (params.indexOf("incompleta") !== -1) applyEvalState("incomplete_humidity", false);
+  if (params.indexOf("clima") !== -1) applyEvalState("incomplete_weather", false);
+  if (params.indexOf("prioridad") !== -1) applyEvalState("priority", false);
+  if (params.indexOf("cargando") !== -1) applyEvalState("loading", false);
+  if (params.indexOf("no") !== -1) applyEvalState("no", false);
+  if (params.indexOf("espera") !== -1) applyEvalState("espera", false);
+  if (params.indexOf("error") !== -1) applyEvalState("error", false);
+  syncControls();
+})();
+</script>
+</body>
+</html>

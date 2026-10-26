@@ -1,11 +1,6 @@
-/**
- * YakuAI Design System — Sombras y elevación.
- */
-
+/** Elevación discreta en tinta azul petróleo y foco de alto contraste. */
 export const shadow = {
-  xs: "0 1px 2px rgba(16, 46, 43, 0.06)",
-  sm: "0 1px 3px rgba(16, 46, 43, 0.08), 0 1px 2px rgba(16, 46, 43, 0.04)",
-  md: "0 6px 16px rgba(16, 46, 43, 0.08)",
-  lg: "0 16px 40px rgba(16, 46, 43, 0.12)",
-  focus: "0 0 0 3px rgba(20, 104, 82, 0.35)",
+  xs: "0 1px 2px rgba(17,45,59,.04)", sm: "0 4px 14px rgba(17,45,59,.06)",
+  md: "0 12px 32px rgba(17,45,59,.09)", lg: "0 20px 48px rgba(17,45,59,.14)",
+  focus: "0 0 0 3px rgba(11,102,114,.28)",
 } as const;

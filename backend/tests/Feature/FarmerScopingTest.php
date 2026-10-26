@@ -91,4 +91,24 @@ class FarmerScopingTest extends TestCase
             $this->getJson($path)->assertOk()->assertJsonCount(0, 'data');
         }
     }
-}
+
+    public function test_alerts_support_agricultores_with_multiple_plots(): void
+    {
+        $this->seed(CatalogSeeder::class);
+        $farmer = Farmer::create(['name' => 'Parcelas múltiples']);
+
+        foreach (['Parcela A', 'Parcela B'] as $name) {
+            $plot = $this->plot($farmer->id, $name);
+            Evaluation::create([
+                'plot_id' => $plot->id,
+                'evaluated_at' => now()->startOfHour()->toDateTimeString(),
+                'inputs_snapshot' => [],
+                'result' => 'incompleta',
+                'reason' => 'sin_humedad_valida',
+            ]);
+        }
+
+        Sanctum::actingAs(User::factory()->create(['role' => 'agricultor', 'farmer_id' => $farmer->id]));
+
+        $this->getJson('/api/v1/alerts')->assertOk()->assertJsonCount(2, 'data');
+    }}

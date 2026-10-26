@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { listEvaluations, listPlots, listSensors } from "@/api/endpoints";
-import type { Evaluation } from '@/api/types';
+import type { Evaluation, Plot } from '@/api/types';
 import { friendlyError } from "@/api/client";
 
 export function useHoy() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [plotCount, setPlotCount] = useState(0);
+  const [plots, setPlots] = useState<Plot[]>([]);
   const [sensorsOk, setSensorsOk] = useState(0);
   const [sensorsTotal, setSensorsTotal] = useState(0);
   const [latest, setLatest] = useState<Evaluation[]>([]);
@@ -18,7 +18,7 @@ export function useHoy() {
     setError(null);
     try {
       const [plots, evals, sens] = await Promise.all([listPlots(), listEvaluations(), listSensors()]);
-      setPlotCount(plots.length);
+      setPlots(plots);
       setSensorsTotal(sens.length);
       setSensorsOk(sens.filter((s) => s.status === "ok" && s.is_active).length);
       setLatest(latestPerPlot(evals));
@@ -34,7 +34,7 @@ export function useHoy() {
     void load();
   }, []);
 
-  return { loading, error, plotCount, sensorsOk, sensorsTotal, latest, refreshing, load };
+  return { loading, error, plots, plotCount: plots.length, sensorsOk, sensorsTotal, latest, refreshing, load };
 }
 
 function latestPerPlot(all: Evaluation[]): Evaluation[] {

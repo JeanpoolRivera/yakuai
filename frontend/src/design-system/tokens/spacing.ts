@@ -1,8 +1,4 @@
-/**
- * YakuAI Design System — Espaciado.
- * Base 4px. Usar los pasos para padding/gap/margin coherentes.
- */
-
+/** Escala 4 px. Contenedores orientados a decisión, no a dashboard denso. */
 export const space = {
   0: "0",
   1: "0.25rem",
@@ -15,11 +11,13 @@ export const space = {
   10: "2.5rem",
   12: "3rem",
   16: "4rem",
+  20: "5rem",
+  24: "6rem",
 } as const;
 
-/** Anchos máximos de contenido del módulo. */
 export const contentWidth = {
-  prose: "42rem",
+  prose: "40rem",
+  farmer: "40rem",
   panel: "56rem",
   workspace: "72rem",
 } as const;

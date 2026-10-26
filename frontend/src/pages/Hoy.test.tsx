@@ -24,7 +24,7 @@ describe("Hoy",()=>{
  it("muestra héroe, cifras y última recomendación con antigüedad",async()=>{
   mockLoaded();
   render(<MemoryRouter><Hoy/></MemoryRouter>);
-  expect(await screen.findByText("1 parcela pide agua hoy")).toBeInTheDocument();
+  expect(await screen.findByText("1 parcela tiene recomendación de riego")).toBeInTheDocument();
   expect(screen.getByText("El Molino")).toBeInTheDocument();
   expect(screen.getByText("La Esperanza")).toBeInTheDocument();
   expect(screen.getByText("Los Sauces")).toBeInTheDocument();

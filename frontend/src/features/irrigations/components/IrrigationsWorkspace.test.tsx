@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { Irrigation } from "@/api/types";
 import { EMPTY_FILTERS, countByStatus, groupByDay, summarize } from "../utils";
 import type { UseIrrigationFiltersResult } from "../hooks/useIrrigationFilters";
@@ -75,13 +75,13 @@ describe("IrrigationsWorkspace", () => {
     setup(items);
 
     // Table has header row + 20 data rows = 21 rows total
-    const table = screen.getByRole("table");
-    expect(within(table).getAllByRole("row")).toHaveLength(21); // header + 20 data rows
+    
+    expect(screen.getAllByRole("button", { name: /Abrir registro de/ })).toHaveLength(20);
 
-    fireEvent.click(screen.getByRole("button", { name: "Mostrar más (5)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver 5 registros anteriores" }));
 
     // After clicking "Mostrar más", should have 25 data rows + header = 26 rows
-    expect(within(screen.getByRole("table")).getAllByRole("row")).toHaveLength(26);
+    expect(screen.getAllByRole("button", { name: /Abrir registro de/ })).toHaveLength(25);
     expect(screen.queryByRole("button", { name: /Mostrar más/ })).not.toBeInTheDocument();
   });
 

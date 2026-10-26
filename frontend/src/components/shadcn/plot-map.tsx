@@ -26,8 +26,25 @@ const CHUPACA: [number, number] = [-12.0667, -75.2833];
 // Colores de marcador/dibujo (dominio mapa; inline styles de la barra propia).
 const MARKER_EDGE = "#285942";
 const MARKER_FILL = "#386c50";
-const SKETCH_EDGE = "#b3541e";
-const SKETCH_FILL = "#e07b39";
+const SKETCH_EDGE = "#704C10";
+const SKETCH_FILL = "#D6B46A";
+
+export function MapLegend({ editable = false }: { editable?: boolean }): React.JSX.Element {
+  return (
+    <div role="group" aria-label="Leyenda del mapa" className="flex flex-wrap gap-x-5 gap-y-2 border-t border-neutral-200 px-3 py-3 text-xs text-neutral-700">
+      <span className="inline-flex items-center gap-2">
+        <span aria-hidden="true" className="h-3 w-3 rounded-full border-2 border-[#285942] bg-[#386c50]" />
+        Parcela registrada
+      </span>
+      {editable ? (
+        <span className="inline-flex items-center gap-2">
+          <span aria-hidden="true" className="h-3 w-3 rounded-sm border-2 border-[#704C10] bg-[#F3E2B8]" />
+          Contorno en edición
+        </span>
+      ) : null}
+    </div>
+  );
+}
 
 export function PlotMap({
   plots,
@@ -97,33 +114,54 @@ export function PlotMap({
       let point: L.Layer | null = null;
 
       bar = document.createElement("div");
+      bar.setAttribute("role", "toolbar");
+      bar.setAttribute("aria-label", "Herramientas para marcar parcela");
+      bar.setAttribute("aria-orientation", "horizontal");
       bar.setAttribute(
         "style",
-        "position:absolute;top:10px;left:10px;z-index:500;display:flex;flex-wrap:wrap;gap:6px;max-width:92%;",
+        "position:absolute;top:10px;left:10px;z-index:500;display:flex;flex-wrap:wrap;align-items:center;gap:8px;max-width:calc(100% - 20px);padding:8px;background:#ffffff;border:1px solid #E4E8DF;border-radius:12px;box-shadow:0 4px 14px rgba(21,43,32,.12);box-sizing:border-box;",
       );
-      const paint = (b: HTMLButtonElement, active: boolean): void => {
+      const paint = (b: HTMLButtonElement, active: boolean, disabled = false, toggle = false): void => {
         b.type = "button";
+        b.disabled = disabled;
+        if (toggle) b.setAttribute("aria-pressed", String(active));
         b.setAttribute(
           "style",
-          `background:${active ? "#285942" : "#ffffff"};color:${active ? "#ffffff" : "#111111"};border:1px solid #285942;border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer;`,
+          "min-height:44px;padding:8px 12px;background:" + (active ? "#35563D" : "#ffffff") +
+            ";color:" + (active ? "#ffffff" : "#202C24") +
+            ";border:1px solid #35563D;border-radius:8px;font-size:14px;font-weight:600;cursor:" +
+            (disabled ? "not-allowed" : "pointer") + ";opacity:" + (disabled ? ".55" : "1") + ";",
         );
       };
       const btnPunto = document.createElement("button");
-      btnPunto.textContent = "📍 1) Fijar punto";
+      btnPunto.textContent = "Ubicar punto";
+      btnPunto.setAttribute("aria-label", "Modo: ubicar punto");
       const btnEsq = document.createElement("button");
-      btnEsq.textContent = "⬠ 2) Marcar esquinas";
+      btnEsq.textContent = "Dibujar contorno";
+      btnEsq.setAttribute("aria-label", "Modo: dibujar contorno");
       const btnUndo = document.createElement("button");
-      btnUndo.textContent = "↩ Quitar última";
+      btnUndo.textContent = "Deshacer";
       const btnClear = document.createElement("button");
-      btnClear.textContent = "🗑 Limpiar";
+      btnClear.textContent = "Limpiar";
       const btnOk = document.createElement("button");
-      btnOk.textContent = "✔ Usar contorno";
+      btnOk.textContent = "Usar contorno";
       const badge = document.createElement("div");
+      badge.setAttribute("role", "status");
+      badge.setAttribute("aria-live", "polite");
       badge.setAttribute(
         "style",
-        "background:#285942;color:#ffffff;border-radius:8px;padding:6px 10px;font-size:13px;",
+        "display:flex;align-items:center;min-height:40px;padding:6px 10px;background:#F1F3ED;color:#303D33;border-radius:8px;font-size:12px;",
       );
       bar.append(btnPunto, btnEsq, btnUndo, btnClear, btnOk, badge);
+      bar.addEventListener("keydown", (event: KeyboardEvent) => {
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        const controls = Array.from(bar?.querySelectorAll<HTMLButtonElement>("button:not([disabled])") ?? []);
+        const current = controls.indexOf(document.activeElement as HTMLButtonElement);
+        if (current < 0 || controls.length === 0) return;
+        event.preventDefault();
+        const direction = event.key === "ArrowRight" ? 1 : -1;
+        controls[(current + direction + controls.length) % controls.length]?.focus();
+      });
       map.getContainer().appendChild(bar);
 
       const refresh = (): void => {
@@ -141,12 +179,11 @@ export function PlotMap({
           if (verts.length >= 3) line.push([verts[0].lat, verts[0].lng]);
           L.polyline(line, { color: SKETCH_EDGE }).addTo(sketch);
         }
-        paint(btnPunto, mode === "punto");
-        paint(btnEsq, mode === "esquinas");
-        paint(btnUndo, false);
-        paint(btnClear, false);
-        paint(btnOk, verts.length >= 3);
-        btnOk.style.opacity = verts.length >= 3 ? "1" : "0.5";
+        paint(btnPunto, mode === "punto", false, true);
+        paint(btnEsq, mode === "esquinas", false, true);
+        paint(btnUndo, false, verts.length === 0);
+        paint(btnClear, false, verts.length === 0);
+        paint(btnOk, false, verts.length < 3);
         const area =
           verts.length >= 3
             ? Math.round(ringAreaM2(verts.map((v): [number, number] => [v.lng, v.lat])) * 100) / 100
@@ -247,7 +284,8 @@ export function PlotMap({
       >
         <div ref={divRef} style={{ height: "100%", width: "100%" }} />
       </div>
-      <p className="border-t border-neutral-200 px-3 py-2 text-xs text-neutral-500" aria-label="Parcelas en el mapa">
+      <MapLegend editable={editable} />
+      <p className="border-t border-neutral-200 px-3 py-2 text-xs text-neutral-600" aria-label="Parcelas en el mapa">
         {plots.length === 0
           ? "Sin parcelas en el mapa."
           : `${plots.length} ${plots.length === 1 ? "parcela en el mapa" : "parcelas en el mapa"}: ${plots.map((p) => p.name).join(", ")}`}

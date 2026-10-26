@@ -1,188 +1,112 @@
-import { useState } from "react";
-import { Droplets, SearchX } from "lucide-react";
-import { Alert, Button, EmptyState, LoadingState } from "@/design-system/primitives";
+import { useMemo, useState } from "react";
+import { Droplets, FilePlus2, Filter, Search, X } from "lucide-react";
+import { pageCopy, statusLabel, STATUS_ORDER, STATUS_FILTER_LABEL, PERIOD_LABEL, deviationIcon, deviationLabel, originLabel, EMPTY_FILTERED_TITLE, EMPTY_FILTERED_HINT, NO_PLOTS, FORM_TITLE, FORM_HINT } from "../copy";
+import { deviationFor, deviationLevel } from "../utils";
 import type { Irrigation } from "@/api/types";
-import {
-  CLEAR_FILTERS,
-  EMPTY_FILTERED_HINT,
-  EMPTY_FILTERED_TITLE,
-  LOAD_ERROR,
-  RETRY,
-  pageCopy,
-} from "../copy";
-import { groupByDay } from "../utils";
+import type { UseIrrigationsResult } from "../hooks/useIrrigations";
 import type { UseIrrigationFiltersResult } from "../hooks/useIrrigationFilters";
 import type { IrrigationMutationsResult } from "../hooks/useIrrigationMutations";
-import type { UseIrrigationsResult } from "../hooks/useIrrigations";
-import { IrrigationAnnulDialog } from "./IrrigationAnnulDialog";
-import { IrrigationCorrectDialog } from "./IrrigationCorrectDialog";
-import { IrrigationCreateDialog } from "./IrrigationCreateDialog";
-import { IrrigationDetail } from "./IrrigationDetail";
-import { IrrigationFilters } from "./IrrigationFilters";
-import { IrrigationHeader } from "./IrrigationHeader";
-import { IrrigationLedger } from "./IrrigationLedger";
-import { IrrigationSummaryCards } from "./IrrigationSummaryCards";
+import { PageHeading, Metric, StatusBadge, EmptyBlock, ErrorBlock, LoadingBlock } from "@/components/workspace/WorkspaceKit";
+import { Button } from "@/components/shadcn/button";
+import { Card } from "@/components/shadcn/card";
+import { Input } from "@/components/shadcn/input";
+import { SearchInput } from "@/components/shadcn/search-input";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/shadcn/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/shadcn/table";
+import { fmtDateTime, fmtNum } from "@/lib/format";
 
-const PAGE_SIZE = 20;
+type DialogMode = "create" | "detail" | "correct" | "annul" | null;
 
-export interface IrrigationsWorkspaceProps {
-  isStaff: boolean;
-  irrigations: UseIrrigationsResult;
-  filters: UseIrrigationFiltersResult;
-  mutations: IrrigationMutationsResult;
-}
-
-export function IrrigationsWorkspace({
-  isStaff,
-  irrigations,
-  filters,
-  mutations,
-}: IrrigationsWorkspaceProps): React.JSX.Element {
+export function IrrigationsWorkspace({ isStaff, irrigations, filters, mutations }: { isStaff: boolean; irrigations: UseIrrigationsResult; filters: UseIrrigationFiltersResult; mutations: IrrigationMutationsResult }): React.JSX.Element {
   const copy = pageCopy(isStaff);
+  const [mode, setMode] = useState<DialogMode>(null);
   const [selected, setSelected] = useState<Irrigation | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [correcting, setCorrecting] = useState<Irrigation | null>(null);
-  const [annulling, setAnnulling] = useState<Irrigation | null>(null);
+  const [visibleCount, setVisibleCount] = useState(20);
+  const [plotId, setPlotId] = useState("");
+  const [occurredAt, setOccurredAt] = useState(() => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+  const [applied, setApplied] = useState("");
+  const [recommended, setRecommended] = useState("");
+  const [note, setNote] = useState("");
+  const [reason, setReason] = useState("");
 
-  const filterKey = JSON.stringify(filters.filters);
-  const [pager, setPager] = useState({ key: "", count: PAGE_SIZE });
-  const visibleCount = pager.key === filterKey ? pager.count : PAGE_SIZE;
-  const visibleItems = filters.filtered.slice(0, visibleCount);
-  const visibleDays = groupByDay(visibleItems);
-  const remaining = filters.filtered.length - visibleItems.length;
+
+  const rows = useMemo(() => filters.filtered.slice(0, visibleCount), [filters.filtered, visibleCount]);
+  const fieldError = (key: string): string | undefined => mutations.fieldErrors[key]?.[0];
 
   function openCreate(): void {
-    mutations.clearFieldErrors();
-    setCreating(true);
+    setPlotId(irrigations.plots[0] ? String(irrigations.plots[0].id) : "");
+    setOccurredAt(new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+    setApplied(""); setRecommended(""); setNote(""); mutations.clearFieldErrors(); setMode("create");
+  }
+  function openDetail(item: Irrigation): void { setSelected(item); setMode("detail"); setReason(""); }
+  function close(): void { setMode(null); setSelected(null); mutations.clearFieldErrors(); }
+  async function submitCreate(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!plotId) return;
+    const ok = await mutations.create({ plot_id: Number(plotId), occurred_at: new Date(occurredAt).toISOString().slice(0, 19), applied_liters: Number(applied), recommended_liters: recommended ? Number(recommended) : null, note: note.trim() || undefined });
+    if (ok) close();
+  }
+  async function submitCorrect(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selected) return;
+    if (await mutations.correct(selected.id, Number(applied), reason.trim())) close();
+  }
+  async function submitAnnul(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selected) return;
+    if (await mutations.annul(selected.id, reason.trim())) close();
   }
 
-  function startCorrect(item: Irrigation): void {
-    mutations.clearFieldErrors();
-    setSelected(null);
-    setCorrecting(item);
-  }
+  return <div className="space-y-6">
+    <PageHeading eyebrow={copy.eyebrow} title={copy.title} description={copy.description} action={<Button onClick={openCreate} disabled={irrigations.plots.length === 0}><FilePlus2 size={16} aria-hidden="true" />{copy.cta}</Button>} />
+    {irrigations.error ? <ErrorBlock message={irrigations.error} retry={() => void irrigations.reload()} /> : null}
+    {irrigations.loading ? <LoadingBlock label="Cargando historial de riego…" /> : <>
+      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-label="Resumen de riegos">
+        <Metric label="Riegos vigentes" value={fmtNum(filters.summary.activeCount)} detail={`${filters.counts.corregido} corregidos · ${filters.counts.anulado} anulados`} icon={<Droplets size={17} />} tone="brand" />
+        <Metric label="Agua aplicada" value={`${fmtNum(filters.summary.appliedLiters)} L`} detail="Solo registros vigentes" icon={<Droplets size={17} />} />
+        <Metric label="Agua recomendada" value={`${fmtNum(filters.summary.recommendedLiters)} L`} detail={`${filters.summary.withRecommendation} con recomendación`} icon={<Filter size={17} />} />
+        <Metric label="Diferencia" value={filters.summary.deviation === null ? "—" : `${filters.summary.deviation > 0 ? "+" : ""}${fmtNum(filters.summary.deviation)} L`} detail={filters.summary.deviation === null ? "Sin recomendaciones para comparar" : deviationLabel(filters.summary.level)} tone={filters.summary.level === "over" ? "warning" : filters.summary.level === "under" ? "danger" : "default"} />
+      </section>
 
-  function startAnnul(item: Irrigation): void {
-    mutations.clearFieldErrors();
-    setSelected(null);
-    setAnnulling(item);
-  }
+      <Card className="space-y-4 rounded-xl p-4 sm:p-5">
+        <div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary-50 text-primary-700"><Search size={17} aria-hidden="true" /></span><div><h2 className="font-semibold text-neutral-900">Buscar y filtrar</h2><p className="mt-1 text-sm text-neutral-600">Acota el historial por parcela, fecha o estado.</p></div></div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(14rem,1.4fr)_repeat(4,minmax(8rem,1fr))_auto]">
+          <SearchInput value={filters.filters.query} onChange={(query) => filters.update({ query })} placeholder={copy.searchPlaceholder} label="Buscar riegos por parcela o nota" />
+          <label className="grid gap-1 text-xs font-medium text-neutral-700">Estado<select value={filters.filters.status} onChange={(e) => filters.update({ status: e.target.value as typeof filters.filters.status })} className="min-h-12 rounded-md border border-neutral-300 bg-white px-3 text-sm"><option value="todos">Todos los estados</option>{STATUS_ORDER.filter((s) => s !== "todos").map((s) => <option value={s} key={s}>{STATUS_FILTER_LABEL[s]}</option>)}</select></label>
+          <label className="grid gap-1 text-xs font-medium text-neutral-700">Período<select value={filters.filters.period} onChange={(e) => filters.update({ period: e.target.value as typeof filters.filters.period, from: null, to: null })} className="min-h-12 rounded-md border border-neutral-300 bg-white px-3 text-sm">{Object.entries(PERIOD_LABEL).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+          <label className="grid gap-1 text-xs font-medium text-neutral-700">Parcela<select value={filters.filters.plotId ?? ""} onChange={(e) => filters.update({ plotId: e.target.value ? Number(e.target.value) : null })} className="min-h-12 rounded-md border border-neutral-300 bg-white px-3 text-sm"><option value="">Todas</option>{irrigations.plots.map((plot) => <option key={plot.id} value={plot.id}>{plot.name}</option>)}</select></label>
+          <label className="grid gap-1 text-xs font-medium text-neutral-700">Desde<input type="date" value={filters.filters.from ?? ""} onChange={(e) => filters.update({ from: e.target.value || null })} className="min-h-12 rounded-md border border-neutral-300 bg-white px-3 text-sm" /></label>
+          <Button variant="ghost" onClick={() => { filters.reset(); setVisibleCount(20); }} className="sm:col-span-2 xl:col-span-1"><X size={15} aria-hidden="true" />Limpiar</Button>
+        </div>
+        {filters.filters.from ? <label className="inline-flex items-center gap-2 text-sm text-neutral-700">Hasta<input type="date" value={filters.filters.to ?? ""} onChange={(e) => filters.update({ to: e.target.value || null })} className="min-h-10 rounded-md border border-neutral-300 bg-white px-2" /></label> : null}
+        <div className="flex items-center justify-between border-t border-neutral-200 pt-3 text-xs text-neutral-500"><span>{filters.total} registros</span>{filters.hasFilters ? <Button variant="link" size="sm" onClick={filters.reset}>Quitar filtros</Button> : null}</div>
+      </Card>
 
-  return (
-    <div className="mx-auto grid w-full max-w-[1360px] gap-6">
-      <IrrigationHeader isStaff={isStaff} onCreate={openCreate} />
+      {!irrigations.plots.length && !irrigations.items.length ? <EmptyBlock title="No hay parcelas disponibles" description={NO_PLOTS} /> : !filters.filtered.length ? <EmptyBlock title={filters.hasFilters ? EMPTY_FILTERED_TITLE : copy.emptyTitle} description={filters.hasFilters ? EMPTY_FILTERED_HINT : copy.emptyHint} action={!filters.hasFilters && irrigations.plots.length ? <Button onClick={openCreate}>{copy.cta}</Button> : undefined} /> : <>
+        <section aria-label="Historial detallado" className="space-y-3">
+          <div className="flex items-end justify-between gap-3"><div><h2 className="text-base font-semibold text-neutral-900">Registros de riego</h2><p className="mt-1 text-sm text-neutral-600">Los datos corregidos o anulados quedan en la trazabilidad.</p></div><span className="text-xs text-neutral-500">{rows.length} de {filters.total}</span></div>
+          <Card className="hidden overflow-hidden rounded-xl md:block"><Table><caption className="sr-only">Historial de riegos con fecha, parcela, litros, diferencia y estado</caption><TableHeader className="bg-neutral-50"><TableRow><TableHead>Fecha</TableHead><TableHead>Parcela</TableHead><TableHead className="text-right">Recomendado</TableHead><TableHead className="text-right">Aplicado</TableHead><TableHead>Diferencia</TableHead><TableHead>Estado</TableHead><TableHead><span className="sr-only">Acciones</span></TableHead></TableRow></TableHeader><TableBody>{rows.map((item) => { const deviation = deviationFor(item); const level = deviationLevel(item); return <TableRow key={item.id}><TableCell className="whitespace-nowrap text-sm text-neutral-700">{fmtDateTime(item.occurred_at)}</TableCell><TableCell className="font-medium text-neutral-900">{item.plot?.name ?? `Parcela #${item.plot_id}`}</TableCell><TableCell className="text-right tabular-nums">{item.recommended_liters === null ? "—" : `${fmtNum(item.recommended_liters)} L`}</TableCell><TableCell className="text-right font-semibold tabular-nums">{fmtNum(item.applied_liters)} L</TableCell><TableCell className="whitespace-nowrap"><span className={level === "over" ? "text-warning-800" : level === "under" ? "text-danger-700" : "text-neutral-600"}>{deviationIcon(level)} {deviation === null ? "—" : `${deviation > 0 ? "+" : ""}${fmtNum(deviation)} L`}</span></TableCell><TableCell><StatusBadge value={item.status} label={statusLabel(item.status)} /></TableCell><TableCell><Button variant="ghost" size="sm" aria-label={`Abrir registro de ${item.plot?.name ?? item.plot_id} del ${fmtDateTime(item.occurred_at)}`} onClick={() => openDetail(item)}>Ver</Button></TableCell></TableRow>; })}</TableBody></Table></Card>
+          <div className="grid gap-3 md:hidden">{rows.map((item) => { const deviation = deviationFor(item); const level = deviationLevel(item); return <Card key={item.id} className="rounded-xl p-4"><button type="button" className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40" aria-label={`Abrir registro de ${item.plot?.name ?? item.plot_id} del ${fmtDateTime(item.occurred_at)}`} onClick={() => openDetail(item)}><div className="flex items-start justify-between gap-2"><div><p className="font-semibold text-neutral-900">{item.plot?.name ?? `Parcela #${item.plot_id}`}</p><p className="mt-1 text-xs text-neutral-500">{fmtDateTime(item.occurred_at)}</p></div><StatusBadge value={item.status} label={statusLabel(item.status)} /></div><div className="mt-4 grid grid-cols-2 gap-3 text-sm"><div><p className="text-xs text-neutral-500">Aplicado</p><p className="mt-0.5 font-semibold tabular-nums text-neutral-900">{fmtNum(item.applied_liters)} L</p></div><div><p className="text-xs text-neutral-500">Recomendado</p><p className="mt-0.5 tabular-nums text-neutral-800">{item.recommended_liters === null ? "—" : `${fmtNum(item.recommended_liters)} L`}</p></div></div><p className="mt-3 text-xs text-neutral-600">Diferencia: {deviation === null ? "Sin referencia" : `${deviationIcon(level)} ${deviation > 0 ? "+" : ""}${fmtNum(deviation)} L · ${deviationLabel(level)}`}</p></button></Card>; })}</div>
+        </section>
+        {filters.total > visibleCount ? <div className="text-center"><Button variant="outline" onClick={() => setVisibleCount((n) => n + 20)}>Ver {Math.min(20, filters.total - visibleCount)} registros anteriores</Button></div> : null}
+      </>}
+    </>}
 
-      {irrigations.loading ? (
-        <LoadingState text="Cargando historial…" />
-      ) : irrigations.error ? (
-        <Alert
-          tone="danger"
-          title={LOAD_ERROR}
-          action={
-            <Button variant="outline" size="sm" onClick={() => void irrigations.reload()}>
-              {RETRY}
-            </Button>
-          }
-        >
-          {irrigations.error}
-        </Alert>
-      ) : (
-        <>
-          <IrrigationSummaryCards summary={filters.summary} />
-
-          <IrrigationFilters
-            filters={filters.filters}
-            counts={filters.counts}
-            plots={irrigations.plots}
-            isStaff={isStaff}
-            hasFilters={filters.hasFilters}
-            total={filters.total}
-            onChange={filters.update}
-            onReset={filters.reset}
-          />
-
-          {irrigations.items.length === 0 ? (
-            <EmptyState
-              title={copy.emptyTitle}
-              description={copy.emptyHint}
-              icon={<Droplets className="h-5 w-5" />}
-              className="py-10"
-              action={<Button onClick={openCreate}>{copy.cta}</Button>}
-            />
-          ) : filters.total === 0 ? (
-            <EmptyState
-              title={EMPTY_FILTERED_TITLE}
-              description={EMPTY_FILTERED_HINT}
-              icon={<SearchX className="h-5 w-5" />}
-              className="py-10"
-              action={
-                <Button variant="outline" onClick={filters.reset}>
-                  {CLEAR_FILTERS}
-                </Button>
-              }
-            />
-          ) : (
-            <>
-              <IrrigationLedger days={visibleDays} onOpen={setSelected} irrigations={irrigations.items} visibleIrrigations={visibleItems} />
-              {remaining > 0 ? (
-                <div className="flex justify-center">
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      setPager({ key: filterKey, count: visibleCount + PAGE_SIZE })
-                    }
-                  >
-                    Mostrar más ({remaining})
-                  </Button>
-                </div>
-              ) : null}
-            </>
-          )}
-        </>
-      )}
-
-      {creating ? (
-        <IrrigationCreateDialog
-          open
-          plots={irrigations.plots}
-          busy={mutations.busy}
-          fieldErrors={mutations.fieldErrors}
-          onClose={() => setCreating(false)}
-          onSubmit={mutations.create}
-        />
-      ) : null}
-
-      {correcting ? (
-        <IrrigationCorrectDialog
-          item={correcting}
-          busy={mutations.busy}
-          fieldErrors={mutations.fieldErrors}
-          onClose={() => setCorrecting(null)}
-          onSubmit={mutations.correct}
-        />
-      ) : null}
-
-      {annulling ? (
-        <IrrigationAnnulDialog
-          item={annulling}
-          busy={mutations.busy}
-          fieldErrors={mutations.fieldErrors}
-          onClose={() => setAnnulling(null)}
-          onSubmit={mutations.annul}
-        />
-      ) : null}
-
-      <IrrigationDetail
-        item={selected}
-        items={filters.filtered}
-        open={selected !== null}
-        onOpenChange={(open) => {
-          if (!open) setSelected(null);
-        }}
-        onOpenRelated={setSelected}
-        onCorrect={startCorrect}
-        onAnnul={startAnnul}
-      />
-    </div>
-  );
+    <Dialog open={mode !== null} onOpenChange={(open) => { if (!open) close(); }}>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
+        {mode === "create" ? <><DialogHeader><DialogTitle>{FORM_TITLE.create}</DialogTitle><DialogDescription>{FORM_HINT.create}</DialogDescription></DialogHeader><form onSubmit={(event) => void submitCreate(event)} className="space-y-4">
+          <label className="grid gap-1.5 text-sm font-medium text-neutral-800">Parcela<select required value={plotId} onChange={(e) => setPlotId(e.target.value)} className="min-h-12 rounded-md border border-neutral-300 bg-white px-3"><option value="" disabled>Selecciona una parcela</option>{irrigations.plots.map((plot) => <option value={plot.id} key={plot.id}>{plot.name}</option>)}</select>{fieldError("plot_id") ? <span className="text-xs text-danger-700">{fieldError("plot_id")}</span> : null}</label>
+          <div className="grid gap-3 sm:grid-cols-2"><label className="grid gap-1.5 text-sm font-medium text-neutral-800">Fecha y hora<input required type="datetime-local" value={occurredAt} onChange={(e) => setOccurredAt(e.target.value)} className="min-h-12 rounded-md border border-neutral-300 px-3" />{fieldError("occurred_at") ? <span className="text-xs text-danger-700">{fieldError("occurred_at")}</span> : null}</label><label className="grid gap-1.5 text-sm font-medium text-neutral-800">Agua aplicada (L)<Input type="number" min="0" step="1" required value={applied} onChange={(e) => setApplied(e.target.value)} aria-invalid={Boolean(fieldError("applied_liters"))} />{fieldError("applied_liters") ? <span className="text-xs text-danger-700">{fieldError("applied_liters")}</span> : null}</label></div>
+          <div className="grid gap-3 sm:grid-cols-2"><label className="grid gap-1.5 text-sm font-medium text-neutral-800">Recomendado (L)<Input type="number" min="0" step="1" value={recommended} onChange={(e) => setRecommended(e.target.value)} /></label><label className="grid gap-1.5 text-sm font-medium text-neutral-800">Nota (opcional)<Input value={note} onChange={(e) => setNote(e.target.value)} maxLength={255} /></label></div>
+          <DialogFooter><Button type="button" variant="outline" onClick={close}>Cancelar</Button><Button type="submit" loading={mutations.busy}>Guardar riego</Button></DialogFooter>
+        </form></> : null}
+        {mode === "detail" && selected ? <><DialogHeader><DialogTitle>Detalle del riego</DialogTitle><DialogDescription>{selected.plot?.name ?? `Parcela #${selected.plot_id}`} · {fmtDateTime(selected.occurred_at)}</DialogDescription></DialogHeader><div className="grid grid-cols-2 gap-3 rounded-lg bg-neutral-50 p-4 text-sm"><div><p className="text-xs text-neutral-500">Aplicado</p><p className="mt-1 font-semibold tabular-nums">{fmtNum(selected.applied_liters)} L</p></div><div><p className="text-xs text-neutral-500">Recomendado</p><p className="mt-1 font-semibold tabular-nums">{selected.recommended_liters === null ? "—" : `${fmtNum(selected.recommended_liters)} L`}</p></div><div><p className="text-xs text-neutral-500">Estado</p><div className="mt-1"><StatusBadge value={selected.status} label={statusLabel(selected.status)} /></div></div><div><p className="text-xs text-neutral-500">Origen</p><p className="mt-1">{originLabel(selected.origin)}</p></div>{selected.note ? <p className="col-span-2 text-neutral-700">{selected.note}</p> : null}</div><DialogFooter className="flex-wrap"><Button variant="outline" onClick={close}>Cerrar</Button>{selected.status === "activo" ? <><Button variant="outline" onClick={() => { setApplied(String(Number(selected.applied_liters))); setReason(""); setMode("correct"); }}>Corregir</Button><Button variant="danger" onClick={() => { setReason(""); setMode("annul"); }}>Anular</Button></> : null}</DialogFooter></> : null}
+        {mode === "correct" && selected ? <><DialogHeader><DialogTitle>{FORM_TITLE.correct}</DialogTitle><DialogDescription>{FORM_HINT.correct}</DialogDescription></DialogHeader><form onSubmit={(event) => void submitCorrect(event)} className="space-y-4"><label className="grid gap-1.5 text-sm font-medium text-neutral-800">Cantidad aplicada correcta (L)<Input type="number" min="0" step="1" required value={applied} onChange={(e) => setApplied(e.target.value)} />{fieldError("applied_liters") ? <span className="text-xs text-danger-700">{fieldError("applied_liters")}</span> : null}</label><label className="grid gap-1.5 text-sm font-medium text-neutral-800">Motivo de la corrección<Input required maxLength={255} value={reason} onChange={(e) => setReason(e.target.value)} />{fieldError("motivo") ? <span className="text-xs text-danger-700">{fieldError("motivo")}</span> : null}</label><DialogFooter><Button type="button" variant="outline" onClick={() => setMode("detail")}>Volver</Button><Button type="submit" loading={mutations.busy}>Guardar corrección</Button></DialogFooter></form></> : null}
+        {mode === "annul" && selected ? <><DialogHeader><DialogTitle>{FORM_TITLE.void}</DialogTitle><DialogDescription>{FORM_HINT.void}</DialogDescription></DialogHeader><form onSubmit={(event) => void submitAnnul(event)} className="space-y-4"><label className="grid gap-1.5 text-sm font-medium text-neutral-800">Motivo de anulación<Input required maxLength={255} value={reason} onChange={(e) => setReason(e.target.value)} />{fieldError("motivo") ? <span className="text-xs text-danger-700">{fieldError("motivo")}</span> : null}</label><DialogFooter><Button type="button" variant="outline" onClick={() => setMode("detail")}>Volver</Button><Button type="submit" variant="danger" loading={mutations.busy}>Anular riego</Button></DialogFooter></form></> : null}
+      </DialogContent>
+    </Dialog>
+  </div>;
 }
+
+
+

@@ -11,8 +11,8 @@ describe('Resumen del técnico',()=>{
   it('presenta indicadores globales y destinos de intervención',async()=>{
     setup();expect(await screen.findByRole('link',{name:'Revisar: El Molino'})).toHaveAttribute('href','/evaluar');
     expect(screen.getByRole('link',{name:'Ver sensores: Los Sauces'})).toHaveAttribute('href','/sensores');
-    expect(screen.getByRole('heading',{name:'Red de sensores'})).toBeInTheDocument();
-    expect(screen.getByRole('heading',{name:'Actividad de evaluación'})).toBeInTheDocument();
+    expect(screen.getByRole('link',{name:/Red de sensores/})).toBeInTheDocument();
+    expect(screen.getByRole('region',{name:'Indicadores de contexto'})).toBeInTheDocument();
   });
   it('filtra por nombre de agricultor y permite limpiar búsquedas',async()=>{
     setup();await screen.findByRole('link',{name:'Revisar: El Molino'});
@@ -27,22 +27,24 @@ describe('Resumen del técnico',()=>{
     expect(screen.queryByRole('link',{name:'Revisar: El Molino'})).not.toBeInTheDocument();
     expect(screen.getByRole('link',{name:'Ver sensores: Los Sauces'})).toBeInTheDocument();
   });
-  it('cambia el período del gráfico',async()=>{
-    setup();await screen.findByRole('heading',{name:'Actividad de evaluación'});
-    fireEvent.change(screen.getByRole('combobox',{name:'Período del gráfico'}),{target:{value:'14'}});
-    expect(within(screen.getByLabelText('Evaluaciones por día')).getAllByRole('button')).toHaveLength(14);
+  it('muestra los indicadores principales del resumen',async()=>{
+    setup();
+    const indicators = await screen.findByRole('region',{name:'Indicadores de contexto'});
+    expect(within(indicators).getByText('Parcelas activas')).toBeInTheDocument();
+    expect(within(indicators).getByText('Evaluadas hoy')).toBeInTheDocument();
+    expect(within(indicators).getByText('Agua hoy')).toBeInTheDocument();
   });
   it('una fuente fallida no borra las demás ni muestra cero como salud',async()=>{
     setup();await screen.findByRole('link',{name:'Revisar: El Molino'});
     api.listSensors.mockRejectedValue(new Error('Sin conexión'));
     fireEvent.click(screen.getByRole('button',{name:'Actualizar resumen'}));
     expect(await screen.findByRole('alert')).toHaveTextContent('carga anterior');
-    expect(screen.getByRole('link',{name:/Parcelas activas/})).toBeInTheDocument();
+    expect(screen.getByText('Parcelas activas')).toBeInTheDocument();
   });
   it('muestra fuentes incompletas en la primera carga fallida',async()=>{
     api.listPlots.mockResolvedValue(plots);api.listFarmers.mockResolvedValue(farmers);api.listSensors.mockRejectedValue(new Error('Sin conexión'));api.listEvaluations.mockResolvedValue(evaluations);api.listIrrigations.mockResolvedValue([]);
     render(<MemoryRouter><Dashboard/></MemoryRouter>);
     expect(await screen.findByText('Información incompleta')).toBeInTheDocument();
-    expect(screen.getByText('No se pudo consultar el estado de los sensores.')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Los datos disponibles siguen visibles');
   });
 });

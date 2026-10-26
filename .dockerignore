@@ -1,0 +1,36 @@
+# Repositorio y herramientas locales
+.git
+.github
+.cursor
+
+# Secretos y configuración local
+**/.env
+**/.env.*
+**/auth.json
+
+# Dependencias y artefactos de compilación
+**/node_modules
+backend/vendor
+**/dist
+**/dist-ssr
+**/coverage
+**/.phpunit.result.cache
+**/phpunit-junit.xml
+
+# Documentación no requerida para las imágenes
+/docs
+
+# Estado local de Laravel
+backend/storage/logs/*
+backend/storage/framework/cache/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*
+backend/bootstrap/cache/*.php
+
+# Archivo con nombre reservado de Windows
+backend/NUL
+backend/tests
+backend/phpunit.xml
+backend/AGENTS.md
+backend/CLAUDE.md
+backend/README.md

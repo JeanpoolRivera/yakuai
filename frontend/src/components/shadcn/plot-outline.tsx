@@ -13,6 +13,6 @@ export function PlotOutline({ boundary }: { boundary: number[][][] | null }): Re
   const points = ring.map(([x, y]) => `${150 + ((x - minX) * longitudeScale - width / 2) * scale},${55 - (y - minY - height / 2) * scale}`).join(" ");
   return <svg className="plot-outline" viewBox="0 0 300 110" role="img" aria-label="Vista del contorno registrado">
     <path d="M0 27H300M0 55H300M0 83H300M50 0V110M100 0V110M150 0V110M200 0V110M250 0V110" stroke="#d5e3dc" strokeWidth="1" />
-    <polygon points={points} fill="#0f8b7f" fillOpacity=".18" stroke="#0b6e66" strokeWidth="2" strokeLinejoin="round" />
+    <polygon points={points} fill="#315E42" fillOpacity=".18" stroke="#35563D" strokeWidth="2" strokeLinejoin="round" />
   </svg>;
 }

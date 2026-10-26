@@ -58,6 +58,7 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
   try {
     response = await fetch(`/api/v1/${path}`, {
       method: options.method ?? "GET",
+      cache: "no-store",
       headers,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
     });

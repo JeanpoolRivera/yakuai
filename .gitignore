@@ -36,8 +36,6 @@
 /backend/phpunit-junit.xml
 /sonar-project.properties
 /sonar-scanner-cli-*.zip
-/docs/plan-historial-riego.md
-/docs/prototipos/*.html
 /frontend/coverage/
 /frontend/public/icon-192.svg
 /frontend/public/icon-512.svg

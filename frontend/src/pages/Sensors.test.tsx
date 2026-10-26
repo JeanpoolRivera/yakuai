@@ -54,11 +54,11 @@ describe("Validación de rangos en lecturas",()=>{
   api.listSensors.mockResolvedValue(mixed);
   api.listPlots.mockResolvedValue([]);
   render(<Sensors/>);
-  await screen.findByRole("region",{name:"Dispositivos"});
+  await screen.findByRole("region",{name:"Registros de sensores"});
  }
  it("bloquea valores fuera de rango por tipo",async()=>{
   await openReadingForm();
-  fireEvent.click(screen.getByRole("button",{name:"Registrar lectura"}));
+  fireEvent.click(screen.getAllByRole("button",{name:"Registrar lectura"})[0]);
   const sensor = screen.getByRole("combobox",{name:/^Sensor/});
   const raw = screen.getByLabelText(/Valor crudo/);
   const save = screen.getByRole("button",{name:"Guardar lectura"});
@@ -77,7 +77,7 @@ describe("Validación de rangos en lecturas",()=>{
  });
  it("acepta valores dentro de rango",async()=>{
   await openReadingForm();
-  fireEvent.click(screen.getByRole("button",{name:"Registrar lectura"}));
+  fireEvent.click(screen.getAllByRole("button",{name:"Registrar lectura"})[0]);
   api.createMeasurement.mockResolvedValue({id:1,quality:"ok",norm_value:52.86});
   fireEvent.change(screen.getByRole("combobox",{name:/^Sensor/}),{target:{value:"11"}});
   fireEvent.change(screen.getByLabelText(/Valor crudo/),{target:{value:"650"}});
@@ -89,8 +89,8 @@ describe("Validación de rangos en lecturas",()=>{
   api.listSensors.mockResolvedValue([{...sensors[0],id:21,latest_measurement:{id:7,measured_at:new Date().toISOString(),raw_value:"650",norm_value:"52.86",quality:"ok"}}]);
   api.listPlots.mockResolvedValue([]);
   render(<Sensors/>);
-  await screen.findByRole("region",{name:"Dispositivos"});
-  fireEvent.click(within(screen.getByRole("region",{name:"Dispositivos"})).getByRole("button",{name:"Ver sensor 21"}));
+  await screen.findByRole("region",{name:"Registros de sensores"});
+  fireEvent.click(within(screen.getByRole("region",{name:"Registros de sensores"})).getByRole("button",{name:"Ver sensor 21"}));
   expect(within(screen.getByRole("dialog")).getByText(/Última lectura/)).toBeInTheDocument();
   expect(within(screen.getByRole("dialog")).getByText(/52\.9/)).toBeInTheDocument();
   expect(within(screen.getByRole("dialog")).getByText(/ahora mismo/)).toBeInTheDocument();
@@ -105,7 +105,7 @@ describe("Filtro de dispositivos",()=>{
   api.listPlots.mockResolvedValue([]);
   render(<Sensors/>);
   await screen.findAllByText("Inactivo");
-  fireEvent.click(screen.getByText(/Administrar registros y equipos opcionales/));
+  fireEvent.click(screen.getByRole("heading",{name:"Inventario de sensores"}));
   fireEvent.click(screen.getByRole("button",{name:"Operativos (0)"}));
   expect(screen.getByText("Sin coincidencias")).toBeInTheDocument();
  });
@@ -116,8 +116,8 @@ describe("Filtros combinados del inventario",()=>{
   api.listSensors.mockResolvedValue(sensors);
   api.listPlots.mockResolvedValue(plots);
   render(<Sensors/>);
-  await screen.findByRole("region",{name:"Dispositivos"});
-  fireEvent.click(screen.getByText(/Administrar registros y equipos opcionales/));
+  await screen.findByRole("region",{name:"Registros de sensores"});
+  fireEvent.click(screen.getByRole("heading",{name:"Inventario de sensores"}));
   const inventory = within(screen.getByRole("region",{name:"Registros de sensores"}));
   fireEvent.change(screen.getByLabelText("Filtrar por parcela"),{target:{value:"1"}});
   expect(inventory.getByRole("button",{name:"Ver sensor 1"})).toBeInTheDocument();
@@ -141,8 +141,8 @@ describe("Monitoreo por parcela",()=>{
   api.listSensors.mockResolvedValue(records);
   api.listPlots.mockResolvedValue(plots);
   render(<Sensors/>);
-  const overview=within(await screen.findByRole("region",{name:"Dispositivos"}));
-  expect(overview.getByRole("heading",{name:"Temperatura y humedad del aire"})).toBeInTheDocument();
+  const overview=within(await screen.findByRole("region",{name:"Lecturas de la parcela"}));
+  expect(screen.getByRole("heading",{name:"Ambiente y riego"})).toBeInTheDocument();
   expect(overview.getByText("22.5 °C")).toBeInTheDocument();
   expect(overview.getByText("64.0 %")).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText("Parcela"),{target:{value:"2"}});
@@ -155,8 +155,8 @@ describe("Monitoreo por parcela",()=>{
   render(<Sensors/>);
   await screen.findByLabelText("Parcela");
   fireEvent.change(screen.getByLabelText("Parcela"),{target:{value:"2"}});
-  const air=within(screen.getByRole("region",{name:"Humedad del aire"}));
-  fireEvent.click(air.getByRole("button",{name:"Configurar"}));
+  const air=within(screen.getByRole("region",{name:"Lecturas de la parcela"}));
+  fireEvent.click(air.getAllByRole("button",{name:"Configurar"})[1]);
   const dialog=within(screen.getByRole("dialog"));
   expect(dialog.getByLabelText(/Parcela/)).toHaveValue("2");
   expect(dialog.getByLabelText(/Tipo de sensor/)).toHaveValue("aire_hr");

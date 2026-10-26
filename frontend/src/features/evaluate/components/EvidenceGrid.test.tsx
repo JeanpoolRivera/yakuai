@@ -29,7 +29,7 @@ describe("EvidenceGrid", () => {
     expect(screen.getByText("Sin datos")).toBeInTheDocument();
   });
 
-  it("muestra guiones cuando la evaluación está incompleta", () => {
+  it("conserva la evidencia disponible aunque la evaluación esté incompleta", () => {
     render(
       <EvidenceGrid
         evaluation={{
@@ -39,7 +39,8 @@ describe("EvidenceGrid", () => {
         }}
       />,
     );
-    expect(screen.getByText("Sin datos")).toBeInTheDocument();
+    expect(screen.getByText("0 mm")).toBeInTheDocument();
+    expect(screen.getByText("0% de probabilidad")).toBeInTheDocument();
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
 

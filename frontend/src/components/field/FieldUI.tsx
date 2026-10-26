@@ -2,7 +2,6 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { ArrowUpRight, LoaderCircle, X } from "lucide-react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Link } from "react-router-dom";
-import "../../styles/field.css";
 
 export function FieldPage({ title, intro, actions, children }: { title: string; intro: string; actions?: ReactNode; children: ReactNode }) {
   return <div className="field-app"><header className="field-header"><div><p className="field-eyebrow">GESTIÓN DEL RIEGO</p><h1>{title}</h1><p className="field-intro">{intro}</p></div>{actions && <div className="field-actions">{actions}</div>}</header>{children}</div>;

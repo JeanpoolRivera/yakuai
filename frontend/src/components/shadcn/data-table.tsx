@@ -25,16 +25,25 @@ export function DataTable<T>({
   columns,
   rowKey,
   mobileCards = false,
+  emptyState,
 }: {
   label: string;
   rows: T[];
   columns: TableColumn<T>[];
   rowKey: (row: T) => string | number;
   mobileCards?: boolean;
+  emptyState?: ReactNode;
 }): React.JSX.Element {
   return (
-    <div className={cn("relative w-full overflow-x-auto rounded-md border border-neutral-200", mobileCards && "mobile-card-table")} role="region" aria-label={label} tabIndex={0}>
-      <Table role="table">
+      <Table
+        role="table"
+        containerProps={{
+          role: "region",
+          "aria-label": label,
+          tabIndex: 0,
+          className: cn("rounded-md border border-neutral-200", mobileCards && "mobile-card-table"),
+        }}
+      >
         <caption className="sr-only">{label}</caption>
         <TableHeader role="rowgroup">
           <TableRow role="row" className="bg-neutral-50 hover:bg-neutral-50">
@@ -46,7 +55,13 @@ export function DataTable<T>({
           </TableRow>
         </TableHeader>
         <TableBody role="rowgroup">
-          {rows.map((row) => (
+          {rows.length === 0 ? (
+            <TableRow role="row">
+              <TableCell role="cell" colSpan={Math.max(columns.length, 1)} className="py-10 text-center text-sm text-neutral-700">
+                {emptyState ?? "No hay registros para mostrar."}
+              </TableCell>
+            </TableRow>
+          ) : rows.map((row) => (
             <TableRow role="row" key={rowKey(row)}>
               {columns.map((c) => (
                 <TableCell role="cell" key={c.key} data-label={c.label} className={cn(c.numeric && "text-right tabular-nums")}>
@@ -57,6 +72,5 @@ export function DataTable<T>({
           ))}
         </TableBody>
       </Table>
-    </div>
   );
 }

@@ -5,14 +5,16 @@ import { toastError, toastInfo, toastOk } from "@/lib/toast";
 
 export interface UseIrrigationConfirmResult {
   confirming: boolean;
-  confirm: () => Promise<void>;
+  recorded: boolean;
+  confirm: (appliedLiters: number) => Promise<boolean>;
 }
 
 export function useIrrigationConfirm(evaluation: Evaluation | null): UseIrrigationConfirmResult {
   const [confirming, setConfirming] = useState(false);
+  const [recordedEvaluationId, setRecordedEvaluationId] = useState<number | null>(null);
 
-  const confirm = useCallback(async () => {
-    if (!evaluation || evaluation.result !== "riega") return;
+  const confirm = useCallback(async (appliedLiters: number): Promise<boolean> => {
+    if (!evaluation || evaluation.result !== "riega" || !Number.isFinite(appliedLiters) || appliedLiters <= 0) return false;
     setConfirming(true);
     try {
       // El backend ignora plot_id para agricultor: filtramos en cliente.
@@ -26,29 +28,32 @@ export function useIrrigationConfirm(evaluation: Evaluation | null): UseIrrigati
       );
       if (alreadyWatered) {
         toastInfo(
-          "Esta parcela ya tiene un riego registrado en las últimas 24 horas. Revisa el historial antes de regar de nuevo.",
+          "Esta parcela ya tiene un riego registrado en las últimas 24 horas. Revisa el historial antes de registrar otro.",
         );
-        return;
+        return false;
       }
-      const average =
-        evaluation.min_liters && evaluation.max_liters
+      const recommended =
+        evaluation.min_liters !== null && evaluation.max_liters !== null
           ? Math.round((Number(evaluation.min_liters) + Number(evaluation.max_liters)) / 2)
-          : 0;
+          : null;
       await createIrrigation({
         plot_id: evaluation.plot_id,
         evaluation_id: evaluation.id,
         occurred_at: new Date().toISOString().slice(0, 19),
-        recommended_liters: average,
-        applied_liters: average,
-        note: "Confirmado con 1 desde Evaluar",
+        recommended_liters: recommended,
+        applied_liters: appliedLiters,
+        note: "Cantidad aplicada confirmada desde Evaluar.",
       });
-      toastOk("Riego anotado. Mañana verificamos si la tierra se recuperó.");
+      setRecordedEvaluationId(evaluation.id);
+      toastOk("Riego registrado con la cantidad que aplicaste.");
+      return true;
     } catch (err) {
-      toastError(err instanceof Error ? err.message : "No se pudo anotar el riego.");
+      toastError(err instanceof Error ? err.message : "No se pudo registrar el riego.");
+      return false;
     } finally {
       setConfirming(false);
     }
   }, [evaluation]);
 
-  return { confirming, confirm };
+  return { confirming, recorded: recordedEvaluationId === evaluation?.id, confirm };
 }
