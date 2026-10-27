@@ -16,7 +16,7 @@ export function rangeMessage(type: string, raw: number): string | null {
   if (!Number.isFinite(raw)) return "Escribe un valor numérico.";
   switch (type) {
     case "humedad":
-      return raw < 0 || raw > 1023 ? "YL-69 entrega 0–1023 en crudo. Revisa el valor." : null;
+      return !Number.isInteger(raw) || raw < 0 || raw > 1023 ? "YL-69 entrega 0–1023 en crudo. Revisa el valor." : null;
     case "aire_temp":
       return raw < -10 || raw > 60 ? "DHT11 mide de -10 a 60 °C. Revisa el valor." : null;
     case "aire_hr":
@@ -54,3 +54,5 @@ export function sensorValue(s: { latest_measurement?: { value?: number; raw_valu
   if (!m) return "—";
   return String(m.value ?? m.raw_value ?? "—");
 }
+
+

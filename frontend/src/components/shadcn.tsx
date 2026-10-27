@@ -1,10 +1,10 @@
 // Barrel de componentes nuevos (shadcn/ui + tokens YakuAI).
-export { Button, buttonVariants } from "./shadcn/button";
+export { Button } from "./shadcn/button";
 export { Input } from "./shadcn/input";
 export { Textarea } from "./shadcn/textarea";
 export { Label } from "./shadcn/label";
 export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent } from "./shadcn/card";
-export { Badge, badgeVariants, badgeVariantForTone } from "./shadcn/badge";
+export { Badge } from "./shadcn/badge";
 export { FilterTabs } from "./shadcn/filter-tabs";
 export { Avatar, AvatarImage, AvatarFallback } from "./shadcn/avatar";
 export { Select, SelectGroup, SelectValue, SelectTrigger, SelectContent, SelectLabel, SelectItem, SelectSeparator } from "./shadcn/select";
@@ -20,7 +20,7 @@ export { Slider } from "./shadcn/slider";
 export { Separator } from "./shadcn/separator";
 export { ScrollArea, ScrollBar } from "./shadcn/scroll-area";
 export { Sheet, SheetPortal, SheetOverlay, SheetTrigger, SheetClose, SheetContent, SheetHeader, SheetFooter, SheetTitle, SheetDescription } from "./shadcn/sheet";
-export { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuContent, NavigationMenuTrigger, NavigationMenuLink, NavigationMenuIndicator, NavigationMenuViewport, navigationMenuTriggerStyle } from "./shadcn/navigation-menu";
+export { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuContent, NavigationMenuTrigger, NavigationMenuLink, NavigationMenuIndicator, NavigationMenuViewport } from "./shadcn/navigation-menu";
 export { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationPrevious, PaginationNext, PaginationEllipsis } from "./shadcn/pagination";
 export { PaginationControls } from "./shadcn/PaginationControls";
 export { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "./shadcn/accordion";

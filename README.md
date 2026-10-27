@@ -15,14 +15,14 @@ Sistema web de apoyo a decisiones de riego para agricultura familiar. Combina da
 | Riegos | Registro manual, corrección con sucesor y anulación con motivo; historial de riegos. | No acciona válvulas. |
 | Alertas | Sensores sin datos/anómalos, evaluaciones incompletas y humedad crítica. | No se genera una alerta específica por lluvia alta. |
 | Validación | Matriz determinista de 10 casos demo. | Es una validación de escenarios, no evidencia de precisión en campo. |
-| Tareas automáticas | Revisión de sensores cada 15 min, re-chequeo de esperas cada 30 min, auditoría diaria 05:30 y limpieza semanal. | Scheduler y worker solo corren al activar el perfil Docker produccion. |
+| Tareas automáticas | Revisión de sensores cada 15 min, re-chequeo de esperas cada 30 min, auditoría diaria 05:30 y limpieza semanal. | En desarrollo requieren el perfil `produccion` de `docker-compose.yml`; `docker-compose.production.yml` los inicia como servicios separados. |
 | WhatsApp | Servicio y trabajos en cola para avisos de auditoría y re-chequeos. | Envío real requiere credenciales y worker activo; sin configuración el servicio simula el envío en logs. |
 
 ## Roles y permisos
 
 El frontend ofrece Hoy, Evaluar, Mis riegos y Alertas a agricultores; el personal técnico y administrador ven el panel de operación. El backend aplica scoping de lectura para parcelas del agricultor y limita algunas rutas por rol.
 
-**Brecha de autorización por revisar:** varias mutaciones no comprueban explícitamente el rol en sus controladores. En particular, POST /users, PATCH /users/{id}, mutaciones de agricultores, POST /plots y mutaciones de sensores deben recibir una revisión de permisos antes de producción. La visibilidad de botones en el frontend no sustituye autorización del API.
+**Autorización:** las rutas privadas requieren Sanctum y el middleware de cuenta activa/capacidades. Las operaciones de usuarios están limitadas a administradores; las mutaciones de agricultores, parcelas y sensores limitan el acceso a personal técnico y administradores mediante solicitudes de validación y comprobaciones de controlador. El control se reparte entre middleware, solicitudes y controladores, así que revisa la ruta y su autorización en backend antes de cambiar permisos. La visibilidad de botones en el frontend no sustituye autorización de la API.
 
 ## Arquitectura y ejecución
 

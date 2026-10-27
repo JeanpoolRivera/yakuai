@@ -144,11 +144,17 @@ export function IrrigationLedger({
               return (
                 <tr
                   key={irr.id}
-                  className="cursor-pointer border-b border-border/60 transition-colors hover:bg-neutral-50"
-                  onClick={() => onOpen(irr)}
+                  className="border-b border-border/60 transition-colors hover:bg-neutral-50"
                 >
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold tabular-nums text-neutral-800">
-                    {fmtDate(irr.occurred_at)}
+                    <button
+                      type="button"
+                      className="rounded-sm text-left underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                      aria-label={`Ver detalle del riego de ${plotName ?? `Parcela #${irr.plot_id}`} del ${fmtDate(irr.occurred_at)}`}
+                      onClick={() => onOpen(irr)}
+                    >
+                      {fmtDate(irr.occurred_at)}
+                    </button>
                   </td>
                   <td className="px-4 py-3 text-sm font-medium text-neutral-800">
                     {plotName ?? `Parcela #${irr.plot_id}`}

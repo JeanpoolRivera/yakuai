@@ -3,7 +3,8 @@ FROM php:8.3-fpm-bookworm AS php-runtime
 ARG APP_UID=1000
 ARG APP_GID=1000
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
+  && apt-get update && apt-get install -y --no-install-recommends \
     libonig-dev libxml2-dev libzip-dev libsqlite3-dev libfcgi-bin \
   && docker-php-ext-install bcmath mbstring opcache pdo_mysql pdo_sqlite pcntl zip \
   && pecl install redis-6.2.0 \

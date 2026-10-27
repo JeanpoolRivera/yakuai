@@ -33,7 +33,7 @@ export function FormField({
         id,
         ...(described ? { "aria-describedby": described } : {}),
         ...(error ? { "aria-invalid": true } : {}),
-        ...(required ? { "aria-required": true } : {}),
+        ...(required ? { "aria-required": true, required: true } : {}),
       })
     : children;
   return (
@@ -48,10 +48,12 @@ export function FormField({
         </span>
       ) : null}
       {error ? (
-        <span className="text-xs font-medium text-danger-600" role="alert" id={errorId}>
+        <span className="validation-message" role="alert" id={errorId}>
           {error}
         </span>
       ) : null}
     </div>
   );
 }
+
+

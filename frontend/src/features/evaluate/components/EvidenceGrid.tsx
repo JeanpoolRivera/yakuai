@@ -27,10 +27,9 @@ export interface EvidenceGridProps {
 export function EvidenceGrid({ evaluation, showTechnical = true, className }: EvidenceGridProps): React.JSX.Element {
   const { actual, threshold, pmp } = humidityFromSnapshot(evaluation.inputs_snapshot);
   const rain = rainFromSnapshot(evaluation.inputs_snapshot);
-  const incomplete = evaluation.result === "incompleta";
-  const hasHumidity = !incomplete && actual !== null;
-  const hasRain = !incomplete && rain.mm !== null;
-  const hasNext = !incomplete && evaluation.next_at !== null;
+  const hasHumidity = actual !== null;
+  const hasRain = rain.mm !== null;
+  const hasNext = evaluation.next_at !== null;
 
   return (
     <div className={cn("grid gap-4 sm:grid-cols-2 lg:grid-cols-3", className)}>

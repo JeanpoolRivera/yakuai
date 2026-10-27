@@ -10,6 +10,7 @@ use App\Services\SensorNormalizer;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Database\QueryException;
 
 #[Signature('yakuai:sensores:simular {plot : ID de la parcela de prueba} {--minutos=15 : Paso de simulación}')]
 #[Description('Simula humedad coherente (solo prueba, origin=demo) para una parcela.')]
@@ -42,7 +43,7 @@ class SensoresSimular extends Command
             ->latest('measured_at')
             ->first();
 
-        $pct = $ultima?.norm_value !== null ? (float) $ultima->norm_value : 25.0;
+        $pct = $ultima?->norm_value !== null ? (float) $ultima->norm_value : 25.0;
 
         // Pérdida coherente: más al mediodía, menos de noche.
         $h = (int) $now->format('H');
@@ -74,7 +75,7 @@ class SensoresSimular extends Command
                 'quality' => $result['quality'],
                 'origin' => 'demo',
             ]);
-        } catch (\Illuminate\Database\QueryException $e) {
+        } catch (QueryException $e) {
             if ($e->getCode() === '23000') {
                 $this->warn('Medición duplicada en este minuto, se omite.');
 

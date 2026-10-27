@@ -1,3 +1,4 @@
+import { isValidEmail } from "@/lib/validation";
 export function hintFor(status: number, backendMsg: string): string | null {
   if (status === 429) return null;
   if (/inactiva/i.test(backendMsg)) return "Pide a tu administrador que active tu cuenta.";
@@ -20,7 +21,7 @@ export function passwordStrength(pw: string): { score: number; label: string; co
 
 export function validateEmail(email: string): string {
   if (!email.trim()) return "Escribe tu correo.";
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return "Escribe un correo válido.";
+  if (!isValidEmail(email)) return "Escribe un correo válido.";
   return "";
 }
 

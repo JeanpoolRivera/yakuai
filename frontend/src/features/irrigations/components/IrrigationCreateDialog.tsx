@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { Alert, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/design-system/primitives";
 import { FormField } from "@/components/forms/FormField";
-import { Input } from "@/components/shadcn/input";
+import { GuardedInput } from "@/components/forms/GuardedInput";
 import { localInputToIso, nowLocalInput } from "@/lib/format";
 import type { IrrigationInput } from "@/api/endpoints";
 import type { Plot } from "@/api/types";
@@ -37,16 +37,23 @@ export function IrrigationCreateDialog({
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
-    if (!plotId || applied.trim() === "") {
-      setFormError("Elige la parcela y escribe cuánta agua aplicaste.");
+    const appliedValue = Number(applied);
+    const recommendedValue = recommended.trim() === "" ? null : Number(recommended);
+    const occurredTimestamp = occurredAt ? new Date(occurredAt).getTime() : Number.NaN;
+    if (!plotId || !Number.isFinite(occurredTimestamp) || occurredTimestamp > Date.now() || !Number.isFinite(appliedValue) || appliedValue <= 0 || appliedValue > 99999999.99 || Math.round(appliedValue * 100) !== appliedValue * 100) {
+      setFormError("Completa parcela y fecha; los litros deben ser mayores que 0 (máx. 2 decimales).");
+      return;
+    }
+    if (recommendedValue !== null && (!Number.isFinite(recommendedValue) || recommendedValue < 0 || recommendedValue > 99999999.99 || Math.round(recommendedValue * 100) !== recommendedValue * 100)) {
+      setFormError("Litros recomendados: 0–99 999 999,99 (máx. 2 decimales).");
       return;
     }
     setFormError(null);
     const ok = await onSubmit({
       plot_id: Number(plotId),
       occurred_at: localInputToIso(occurredAt),
-      applied_liters: Number(applied),
-      recommended_liters: recommended.trim() === "" ? null : Number(recommended),
+      applied_liters: appliedValue,
+      recommended_liters: recommendedValue,
       note: note.trim() || undefined,
     });
     if (ok) onClose();
@@ -71,7 +78,7 @@ export function IrrigationCreateDialog({
           </Alert>
         ) : null}
 
-        <form id="irrigation-create-form" onSubmit={(event) => void handleSubmit(event)} className="grid gap-4">
+        <form id="irrigation-create-form" noValidate onSubmit={(event) => void handleSubmit(event)} className="grid gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField label="Parcela" required htmlFor="irr-plot" error={fieldErrors.plot_id?.[0]}>
               <select
@@ -92,6 +99,7 @@ export function IrrigationCreateDialog({
               <Input
                 id="irr-at"
                 type="datetime-local"
+                required
                 max={nowLocalInput()}
                 value={occurredAt}
                 onChange={(event) => setOccurredAt(event.target.value)}
@@ -100,13 +108,7 @@ export function IrrigationCreateDialog({
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField label="Agua aplicada (L)" required htmlFor="irr-applied" error={fieldErrors.applied_liters?.[0]}>
-              <Input
-                id="irr-applied"
-                inputMode="decimal"
-                placeholder="Ej. 4800"
-                value={applied}
-                onChange={(event) => setApplied(event.target.value)}
-              />
+              <GuardedInput id="irr-applied" guardMode="decimal" maxDecimals={2} required placeholder="Ej. 4800" value={applied} onValueChange={setApplied} />
             </FormField>
             <FormField
               label="Agua recomendada (L, opcional)"
@@ -114,25 +116,14 @@ export function IrrigationCreateDialog({
               htmlFor="irr-recommended"
               error={fieldErrors.recommended_liters?.[0]}
             >
-              <Input
-                id="irr-recommended"
-                inputMode="decimal"
-                placeholder="Ej. 4650"
-                value={recommended}
-                onChange={(event) => setRecommended(event.target.value)}
-              />
+              <GuardedInput id="irr-recommended" guardMode="decimal" maxDecimals={2} placeholder="Ej. 4650" value={recommended} onValueChange={setRecommended} />
             </FormField>
           </div>
           <FormField label="Nota (opcional)" htmlFor="irr-note" error={fieldErrors.note?.[0]}>
-            <Input
-              id="irr-note"
-              placeholder="Ej. Riego de prueba"
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-            />
+            <GuardedInput id="irr-note" guardMode="text" maxLength={255} placeholder="Ej. Riego de prueba" value={note} onValueChange={setNote} />
           </FormField>
           {formError ? (
-            <p role="alert" className="text-sm font-medium text-danger-600">
+            <p role="alert" className="validation-message">
               {formError}
             </p>
           ) : null}
@@ -150,3 +141,12 @@ export function IrrigationCreateDialog({
     </Dialog>
   );
 }
+
+
+
+
+
+
+
+
+

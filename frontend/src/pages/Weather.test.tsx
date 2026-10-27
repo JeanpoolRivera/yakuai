@@ -17,8 +17,8 @@ const live = {
 };
 async function selectPlot():Promise<void> {
  render(<MemoryRouter><Weather/></MemoryRouter>);
- await screen.findByRole("option",{name:/El Molino/});
- fireEvent.change(screen.getByLabelText("Pronóstico para"),{target:{value:"1"}});
+ await screen.findByLabelText("Parcela");
+ fireEvent.change(screen.getByLabelText("Parcela"),{target:{value:"1"}});
 }
 describe("Clima",()=>{
  it("muestra vigencia OWM y actualiza en vivo con un clic",async()=>{
@@ -28,7 +28,7 @@ describe("Clima",()=>{
   await selectPlot();
   expect(await screen.findByText(/Vigente/)).toBeInTheDocument();
   expect(screen.getByText(/OpenWeather/)).toBeInTheDocument();
-  expect(screen.getByText(/10\.0/)).toBeInTheDocument();
+  expect(screen.getByText("10")).toBeInTheDocument(); expect(screen.getByText("mm")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button",{name:/Actualizar/}));
   expect(api.refreshWeather).toHaveBeenCalledWith(1);
   expect(await screen.findByText(/OpenWeather/)).toBeInTheDocument();
@@ -37,8 +37,8 @@ describe("Clima",()=>{
   api.listPlots.mockResolvedValue(plots);
   api.getWeather.mockResolvedValue({...live,fetched_at:new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()});
   await selectPlot();
-  expect(await screen.findByText(/Vencido/)).toBeInTheDocument();
-  expect(screen.getByText(/Pronóstico vencido/)).toBeInTheDocument();
+  expect(await screen.findByText("Necesita actualizarse")).toBeInTheDocument();
+  expect(screen.getByText(/Actualiza el pronóstico antes de una nueva evaluación/)).toBeInTheDocument();
  });
 });
 
@@ -59,7 +59,7 @@ describe("Contexto de navegación",()=>{
   api.getWeather.mockResolvedValue({...live,plot_id:2});
   render(<MemoryRouter initialEntries={[{pathname:"/clima",state:{plotId:2}}]}><Weather/></MemoryRouter>);
   await screen.findByText("Vigente");
-  expect(screen.getByLabelText("Pronóstico para")).toHaveValue("2");
+  expect(screen.getByLabelText("Parcela")).toHaveValue("2");
   expect(api.getWeather).toHaveBeenCalledWith(2);
  });
 });

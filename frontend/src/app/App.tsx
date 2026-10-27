@@ -3,7 +3,7 @@ import { ROUTE_TITLES } from "./navigation";
 /* YakuAI — rutas y puertas por rol. */
 import { Suspense, lazy } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "./auth";
+import { useAuth } from "./auth-context";
 import { FarmerShell } from "../components/layout/FarmerShell";
 import { TechShell } from "../components/layout/TechShell";
 import { Button } from "../components/shadcn/button";
@@ -11,6 +11,7 @@ import { Empty, Loading } from "../components/shadcn/feedback";
 import { isFarmerRole, isStaffRole } from "../lib/permissions";
 import { Login } from "../pages/Login";
 import { RecoverPin } from "../pages/RecoverPin";
+import { ActivateFarmer } from "../pages/ActivateFarmer";
 
 const Dashboard = lazy(() => import("../pages/Dashboard").then((m) => ({ default: m.Dashboard })));
 const Hoy = lazy(() => import("../pages/Hoy").then((m) => ({ default: m.Hoy })));
@@ -109,6 +110,7 @@ export function App(): React.JSX.Element {
     <Routes>
       <Route path="/login" element={session ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/recuperar-pin" element={session ? <Navigate to="/" replace /> : <RecoverPin />} />
+      <Route path="/activar-cuenta" element={<ActivateFarmer />} />
       <Route path="/*" element={<ShellRoutes />} />
     </Routes>
   );

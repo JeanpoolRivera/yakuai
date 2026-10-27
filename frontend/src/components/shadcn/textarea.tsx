@@ -10,7 +10,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttribu
           "hover:border-primary-600",
           "focus:outline-none focus:ring-2 focus:ring-primary-600/15 focus:border-primary-600",
           "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-neutral-100",
-          "aria-invalid:border-danger-500 aria-invalid:focus:ring-danger-500/15",
+          "aria-invalid:border-danger-600 aria-invalid:focus:ring-danger-500/20",
           className
         )}
         ref={ref}

@@ -60,7 +60,7 @@ describe("useIrrigationMutations", () => {
 
     expect(ok).toBe(false);
     expect(result.current.fieldErrors).toEqual({ applied_liters: ["Debe ser numérico"] });
-    expect(toast.toastError).toHaveBeenCalledWith("Revisa los campos marcados.");
+    expect(toast.toastError).not.toHaveBeenCalled();
 
     act(() => result.current.clearFieldErrors());
     expect(result.current.fieldErrors).toEqual({});

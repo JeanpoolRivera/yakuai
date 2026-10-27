@@ -54,7 +54,7 @@ FormDescription.displayName = "FormDescription"
 
 const FormMessage = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(
   ({ className, children, ...props }, ref) => (
-    <p ref={ref} className={cn("text-sm font-medium text-danger-600", className)} {...props}>
+    <p ref={ref} className={cn("validation-message", className)} {...props}>
       {children}
     </p>
   )

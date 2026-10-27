@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Rules\EmailAddress;
+
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -12,21 +14,13 @@ class LoginRequest extends FormRequest
         return true;
     }
 
-    /**
-     * @return array<string, ValidationRule|array<mixed>|string>
-     */
+    /** @return array<string, ValidationRule|array<mixed>|string> */
     public function rules(): array
     {
-        if ($this->is('*/auth/pin')) {
-            return [
-                'email' => ['required', 'email'],
-                'pin' => ['required', 'digits:4'],
-            ];
-        }
-
         return [
-            'email' => ['required', 'email'],
-            'secret' => ['required', 'string'],
+            'email' => ['required', 'string', new EmailAddress, 'max:254'],
+            'secret' => ['required', 'string', 'max:255'],
         ];
     }
 }
+

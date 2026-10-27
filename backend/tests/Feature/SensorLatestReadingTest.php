@@ -73,4 +73,31 @@ class SensorLatestReadingTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.latest_measurement', null);
     }
+
+    public function test_agricultor_recibe_403_y_no_genera_lecturas_al_simular(): void
+    {
+        $sensor = $this->sensor();
+        $farmerId = $sensor->plot->farmer_id;
+        Sanctum::actingAs(User::factory()->create([
+            'role' => 'agricultor',
+            'farmer_id' => $farmerId,
+        ]));
+
+        $this->postJson("/api/v1/sensors/{$sensor->id}/simular")->assertForbidden();
+
+        $this->assertDatabaseCount('measurements', 0);
+    }
+
+    public function test_sensor_inactivo_rechaza_simulacion_y_no_genera_lecturas(): void
+    {
+        $sensor = $this->sensor();
+        $sensor->update(['is_active' => false]);
+        Sanctum::actingAs(User::factory()->create(['role' => 'tecnico']));
+
+        $this->postJson("/api/v1/sensors/{$sensor->id}/simular")
+            ->assertUnprocessable()
+            ->assertJsonPath('error.message', 'No se pueden simular lecturas en un sensor inactivo.');
+
+        $this->assertDatabaseCount('measurements', 0);
+    }
 }

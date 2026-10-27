@@ -21,7 +21,7 @@ export function pageCopy(isStaff: boolean): PageCopy {
       cta: "Registrar riego",
       emptyTitle: "Aún no hay riegos registrados",
       emptyHint: "Registra el primer riego para empezar a comparar el agua aplicada con la recomendación.",
-      searchPlaceholder: "Buscar por parcela o nota",
+      searchPlaceholder: "Parcela o nota",
     };
   }
   return {

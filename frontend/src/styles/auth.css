@@ -157,7 +157,6 @@
   cursor: pointer;
 }
 .auth-password-toggle:hover { background: var(--color-neutral-100); color: var(--color-primary-700); }
-.auth-field-error { margin: 0; color: var(--color-danger-700); font-size: 0.8125rem; }
 .auth-caps-hint { margin: 0; color: var(--color-warning-700); font-size: 0.8125rem; }
 .auth-submit {
   display: flex;
@@ -650,3 +649,5 @@
   .auth-step-marker { width: 1.75rem; height: 1.75rem; }
   .auth-progress::before { top: .875rem; }
 }
+
+

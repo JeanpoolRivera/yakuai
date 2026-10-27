@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/design-system/primitives";
 import { FormField } from "@/components/forms/FormField";
-import { Input } from "@/components/shadcn/input";
+import { GuardedInput } from "@/components/forms/GuardedInput";
 import type { Irrigation } from "@/api/types";
 import { FORM_HINT, FORM_TITLE } from "../copy";
 import { fmtNum } from "@/lib/format";
@@ -22,18 +22,19 @@ export function IrrigationCorrectDialog({
   onClose,
   onSubmit,
 }: IrrigationCorrectDialogProps): React.JSX.Element {
-  const [applied, setApplied] = useState(item.applied_liters);
+  const [applied, setApplied] = useState(String(item.applied_liters));
   const [motivo, setMotivo] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
-    if (applied.trim() === "" || motivo.trim() === "") {
-      setFormError("Escribe el valor corregido y el motivo.");
+    const value = Number(applied);
+    if (!Number.isFinite(value) || value <= 0 || value > 99999999.99 || Math.round(value * 100) !== value * 100 || !motivo.trim() || motivo.trim().length > 255) {
+      setFormError("Litros: mayor que 0, máx. 2 decimales. Motivo: máx. 255 caracteres.");
       return;
     }
     setFormError(null);
-    const ok = await onSubmit(item.id, Number(applied), motivo.trim());
+    const ok = await onSubmit(item.id, value, motivo.trim());
     if (ok) onClose();
   }
 
@@ -56,19 +57,14 @@ export function IrrigationCorrectDialog({
           Valor actual: <strong className="tabular-nums">{fmtNum(item.applied_liters)} L</strong>
         </p>
 
-        <form id="irrigation-correct-form" onSubmit={(event) => void handleSubmit(event)} className="grid gap-4">
+        <form id="irrigation-correct-form" noValidate onSubmit={(event) => void handleSubmit(event)} className="grid gap-4">
           <FormField
             label="Agua aplicada corregida (L)"
             required
             htmlFor="irr-correct-applied"
             error={fieldErrors.applied_liters?.[0]}
           >
-            <Input
-              id="irr-correct-applied"
-              inputMode="decimal"
-              value={applied}
-              onChange={(event) => setApplied(event.target.value)}
-            />
+            <GuardedInput id="irr-correct-applied" guardMode="decimal" maxDecimals={2} required value={applied} onValueChange={setApplied} />
           </FormField>
           <FormField
             label="Motivo"
@@ -77,15 +73,10 @@ export function IrrigationCorrectDialog({
             htmlFor="irr-correct-motivo"
             error={fieldErrors.motivo?.[0]}
           >
-            <Input
-              id="irr-correct-motivo"
-              placeholder="Ej. Medí mal el contador"
-              value={motivo}
-              onChange={(event) => setMotivo(event.target.value)}
-            />
+            <GuardedInput id="irr-correct-motivo" guardMode="text" maxLength={255} placeholder="Ej. Medí mal el contador" value={motivo} onValueChange={setMotivo} />
           </FormField>
           {formError ? (
-            <p role="alert" className="text-sm font-medium text-danger-600">
+            <p role="alert" className="validation-message">
               {formError}
             </p>
           ) : null}
@@ -103,3 +94,11 @@ export function IrrigationCorrectDialog({
     </Dialog>
   );
 }
+
+
+
+
+
+
+
+

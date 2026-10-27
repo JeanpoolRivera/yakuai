@@ -3,9 +3,11 @@ import { useState } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
 import { AlertCircle, ArrowRight, Eye, EyeOff, KeyRound, LoaderCircle, Mail } from "lucide-react";
-import { useAuth } from "@/app/auth";
+import { useAuth } from "@/app/auth-context";
 import { ApiError, friendlyError } from "@/api/client";
 import { AUTH_COPY as C } from "../copy";
+import { GuardedInput } from "@/components/forms/GuardedInput";
+import { isValidEmail } from "@/lib/validation";
 
 function hintFor(status: number, backendMsg: string): string | null {
   if (status === 429) return null;
@@ -36,7 +38,7 @@ export function LoginWorkspace(): React.JSX.Element {
     setFieldError("");
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) return setFieldError(C.emailError);
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) return setFieldError(C.invalidEmail);
+    if (!isValidEmail(cleanEmail)) return setFieldError(C.invalidEmail);
     if (!secret) return setFieldError("Ingresa tu PIN o contraseña.");
 
     setBusy(true);
@@ -87,14 +89,15 @@ export function LoginWorkspace(): React.JSX.Element {
           <label htmlFor="access-email">Correo de cuenta</label>
           <div className="auth-input-wrap">
             <Mail aria-hidden="true" />
-            <input
-              id="access-email" className="auth-input" type="email" autoComplete="email" required maxLength={254}
+            <GuardedInput
+              id="access-email" className="auth-input" guardMode="email" autoComplete="email" required maxLength={254}
               placeholder={C.emailPlaceholder} value={email} disabled={busy} aria-invalid={Boolean(emailError)}
               aria-describedby={emailError ? "access-email-error" : undefined}
-              onChange={(event) => { setEmail(event.target.value); if (fieldError || error) clearError(); }}
+              onValueChange={(value) => { setEmail(value); if (fieldError || error) clearError(); }}
+              onBlur={() => { if (email.trim() && !isValidEmail(email)) setFieldError(C.invalidEmail); }}
             />
           </div>
-          {emailError ? <p className="auth-field-error" id="access-email-error" role="alert">{emailError}</p> : null}
+          {emailError ? <p className="validation-message" id="access-email-error" role="alert">{emailError}</p> : null}
         </div>
         <div className="auth-field">
           <label htmlFor="access-secret">PIN o contraseña</label>
@@ -102,7 +105,7 @@ export function LoginWorkspace(): React.JSX.Element {
             <KeyRound aria-hidden="true" />
             <input
               id="access-secret" className="auth-input has-trailing" type={showSecret ? "text" : "password"}
-              autoComplete="current-password" required maxLength={128} placeholder="Ingresa tu PIN o contraseña"
+              autoComplete="current-password" required maxLength={255} placeholder="Ingresa tu PIN o contraseña"
               value={secret} disabled={busy} aria-invalid={Boolean(secretError)}
               aria-describedby={secretError ? "access-secret-error" : undefined}
               onKeyDown={trackCaps} onKeyUp={trackCaps} onBlur={() => setCapsOn(false)}
@@ -113,7 +116,7 @@ export function LoginWorkspace(): React.JSX.Element {
             </button>
           </div>
           {capsOn && !showSecret ? <p className="auth-caps-hint" role="status">{C.capsLock}</p> : null}
-          {secretError ? <p className="auth-field-error" id="access-secret-error" role="alert">{secretError}</p> : null}
+          {secretError ? <p className="validation-message" id="access-secret-error" role="alert">{secretError}</p> : null}
         </div>
         <button className="auth-submit" type="submit" disabled={busy}>
           {busy ? <><LoaderCircle size={17} className="auth-loader" aria-hidden="true" />{C.verifying}</> : <>{C.loginButton}<ArrowRight size={17} aria-hidden="true" /></>}
@@ -125,3 +128,8 @@ export function LoginWorkspace(): React.JSX.Element {
     </AuthLayout>
   );
 }
+
+
+
+
+

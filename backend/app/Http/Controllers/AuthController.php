@@ -4,10 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\AuditLog;
+use App\Models\FarmerInvitation;
 use App\Models\User;
+use App\Rules\EmailAddress;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -30,6 +34,10 @@ class AuthController extends Controller
         }
 
         if ($user->role === 'agricultor') {
+            if ($user->pin_code === null) {
+                return response()->json(['error' => ['message' => 'Activa tu cuenta desde el enlace de invitación enviado a tu correo.']], 409);
+            }
+
             $lockKey = 'pin-lock:'.$email;
             $failKey = 'pin-fail:'.$email;
 
@@ -39,7 +47,7 @@ class AuthController extends Controller
                 ], 429);
             }
 
-            if ($user->pin_code === null || ! Hash::check($secret, $user->pin_code)) {
+            if (! preg_match('/^\d{4}$/', $secret) || ! Hash::check($secret, $user->pin_code)) {
                 $fails = (int) Cache::get($failKey, 0) + 1;
                 Cache::put($failKey, $fails, now()->addMinutes(15));
 
@@ -74,54 +82,90 @@ class AuthController extends Controller
         return $this->tokenResponse($user, 'web');
     }
 
+    public function activateFarmer(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'token' => ['required', 'string', 'regex:/^[A-Za-z0-9]{64}$/'],
+            'new_pin' => ['required', 'string', 'regex:/^\d{4}$/'],
+            'new_pin_confirmation' => ['required', 'same:new_pin'],
+        ]);
+
+        DB::transaction(function () use ($data): void {
+            $invitation = FarmerInvitation::query()
+                ->where('token_hash', hash('sha256', $data['token']))
+                ->lockForUpdate()
+                ->first();
+
+            if ($invitation === null || $invitation->accepted_at !== null || $invitation->expires_at->isPast()) {
+                throw ValidationException::withMessages(['token' => ['La invitación venció o ya fue usada. Solicita una nueva.']]);
+            }
+
+            $user = $invitation->user()->lockForUpdate()->firstOrFail();
+            $emailInUse = User::query()->where('email', $invitation->email)->whereKeyNot($user->id)->exists();
+            if ($emailInUse) {
+                throw ValidationException::withMessages(['token' => ['Ese correo ya está asociado a otra cuenta. Contacta a tu técnico.']]);
+            }
+
+            $user->update([
+                'email' => $invitation->email,
+                'email_verified_at' => now(),
+                'pin_code' => $data['new_pin'],
+            ]);
+            $invitation->update(['accepted_at' => now()]);
+            $user->invitations()->whereNull('accepted_at')->whereKeyNot($invitation->id)->delete();
+        });
+
+        return response()->json(['data' => ['message' => 'Cuenta activada. Ya puedes iniciar sesión con tu correo y PIN.']]);
+    }
+
     public function recoverPin(Request $request): JsonResponse
     {
-        $email = strtolower(trim($request->input('email', '')));
-
-        if ($email === '') {
-            return response()->json([
-                'error' => ['message' => 'El email es requerido.'],
-            ], 422);
-        }
-
+        $data = $request->validate([
+            'email' => ['required', 'string', new EmailAddress, 'max:254'],
+        ]);
+        $email = strtolower(trim($data['email']));
         $user = User::where('email', $email)
             ->where('role', 'agricultor')
             ->first();
 
+        if ($user !== null && $user->pin_code === null) {
+            return response()->json([
+                'error' => ['message' => 'Esta cuenta aún debe activarse desde la invitación enviada al correo.'],
+            ], 409);
+        }
+
         if ($user === null) {
             return response()->json([
-                'error' => ['message' => 'No existe una cuenta de agricultor con ese email.'],
+                'error' => ['message' => 'No existe una cuenta de agricultor con ese correo.'],
             ], 404);
         }
 
         $recoveryCode = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         Cache::put('pin-recovery:'.$email, $recoveryCode, now()->addMinutes(10));
 
-        $this->sendRecoveryEmail($user, $recoveryCode);
+        if (! $this->sendRecoveryEmail($user, $recoveryCode)) {
+            Cache::forget('pin-recovery:'.$email);
+
+            return response()->json([
+                'error' => ['message' => 'No se pudo enviar el correo de recuperación. Inténtalo más tarde.'],
+            ], 503);
+        }
 
         return response()->json([
-            'data' => ['message' => 'Código de recuperación enviado a tu email.'],
+            'data' => ['message' => 'Código de recuperación enviado a tu correo.'],
         ]);
     }
 
     public function resetPin(Request $request): JsonResponse
     {
-        $email = strtolower(trim($request->input('email', '')));
-        $recoveryCode = trim($request->input('recovery_code', ''));
-        $newPin = $request->input('new_pin', '');
-
-        if ($email === '' || $recoveryCode === '' || $newPin === '') {
-            return response()->json([
-                'error' => ['message' => 'Todos los campos son requeridos.'],
-            ], 422);
-        }
-
-        if (! preg_match('/^\d{4}$/', $newPin)) {
-            return response()->json([
-                'error' => ['message' => 'El PIN debe tener 4 dígitos numéricos.'],
-            ], 422);
-        }
-
+        $data = $request->validate([
+            'email' => ['required', 'string', new EmailAddress, 'max:254'],
+            'recovery_code' => ['required', 'string', 'regex:/^\d{6}$/'],
+            'new_pin' => ['required', 'string', 'regex:/^\d{4}$/'],
+        ]);
+        $email = strtolower(trim($data['email']));
+        $recoveryCode = $data['recovery_code'];
+        $newPin = $data['new_pin'];
         $cachedCode = Cache::get('pin-recovery:'.$email);
 
         if ($cachedCode === null || ! hash_equals($cachedCode, $recoveryCode)) {
@@ -133,6 +177,12 @@ class AuthController extends Controller
         $user = User::where('email', $email)
             ->where('role', 'agricultor')
             ->first();
+
+        if ($user !== null && $user->pin_code === null) {
+            return response()->json([
+                'error' => ['message' => 'Esta cuenta aún debe activarse desde la invitación enviada al correo.'],
+            ], 409);
+        }
 
         if ($user === null) {
             return response()->json([
@@ -186,14 +236,18 @@ class AuthController extends Controller
         return $this->tokenResponse($user, 'refresh', ['*']);
     }
 
-    private function sendRecoveryEmail(User $user, string $code): void
+    private function sendRecoveryEmail(User $user, string $code): bool
     {
         try {
             Mail::send('emails.pin-recovery', ['code' => $code], function ($message) use ($user) {
                 $message->to($user->email)->subject('YakuAI - Código de recuperación de PIN');
             });
+
+            return true;
         } catch (\Throwable $e) {
             Log::error('Brevo SMTP: fallo al enviar email', ['error' => $e->getMessage()]);
+
+            return false;
         }
     }
 

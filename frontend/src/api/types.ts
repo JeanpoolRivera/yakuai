@@ -25,6 +25,9 @@ export interface CropStage {
   root_depth_m: string;
   depletion_fraction: string;
   version: number;
+  source: string;
+  source_url: string | null;
+  reviewed_at: string | null;
 }
 
 export interface Crop {
@@ -43,6 +46,8 @@ export interface SoilTexture {
   field_capacity: string;
   wilting_point: string;
   source: string;
+  source_url: string | null;
+  reviewed_at: string | null;
   version: number;
 }
 
@@ -50,6 +55,10 @@ export interface Farmer {
   id: number;
   name: string;
   phone: string | null;
+  email?: string | null;
+  access_status?: "sin_cuenta" | "invitacion_pendiente" | "invitacion_vencida" | "invitacion_requerida" | "activo";
+  can_resend_invitation?: boolean;
+  invitation_sent?: boolean | null;
   is_active: boolean;
   plots_count?: number;
   plots?: Plot[];

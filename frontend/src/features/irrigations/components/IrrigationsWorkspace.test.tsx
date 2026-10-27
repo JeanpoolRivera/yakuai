@@ -28,7 +28,7 @@ function make(id: number): Irrigation {
 function setup(items: Irrigation[], overrides: { loading?: boolean; error?: string | null } = {}) {
   const irrigations: UseIrrigationsResult = {
     items,
-    plots: [],
+    plots: [{ id: 1, name: "Parcela Norte" } as UseIrrigationsResult["plots"][number]],
     loading: overrides.loading ?? false,
     error: overrides.error ?? null,
     reload: vi.fn(),
@@ -76,12 +76,12 @@ describe("IrrigationsWorkspace", () => {
 
     // Table has header row + 20 data rows = 21 rows total
     
-    expect(screen.getAllByRole("button", { name: /Abrir registro de/ })).toHaveLength(20);
+    expect(screen.getAllByRole("row")).toHaveLength(21);
 
     fireEvent.click(screen.getByRole("button", { name: "Ver 5 registros anteriores" }));
 
     // After clicking "Mostrar más", should have 25 data rows + header = 26 rows
-    expect(screen.getAllByRole("button", { name: /Abrir registro de/ })).toHaveLength(25);
+    expect(screen.getAllByRole("row")).toHaveLength(26);
     expect(screen.queryByRole("button", { name: /Mostrar más/ })).not.toBeInTheDocument();
   });
 
@@ -89,6 +89,6 @@ describe("IrrigationsWorkspace", () => {
     const { irrigations } = setup([], { error: "Sin conexión" });
     fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
     expect(irrigations.reload).toHaveBeenCalledOnce();
-    expect(screen.getByText("No se pudo cargar el historial.")).toBeInTheDocument();
+    expect(screen.getByText("Sin conexión")).toBeInTheDocument();
   });
 });

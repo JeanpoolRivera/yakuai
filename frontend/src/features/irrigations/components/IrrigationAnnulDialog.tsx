@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { Alert, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/design-system/primitives";
 import { FormField } from "@/components/forms/FormField";
-import { Input } from "@/components/shadcn/input";
+import { GuardedInput } from "@/components/forms/GuardedInput";
 import type { Irrigation } from "@/api/types";
 import { FORM_HINT, FORM_TITLE } from "../copy";
 import { plotName } from "../utils";
@@ -27,8 +27,8 @@ export function IrrigationAnnulDialog({
   const [formError, setFormError] = useState<string | null>(null);
 
   async function submit(): Promise<void> {
-    if (motivo.trim() === "") {
-      setFormError("Escribe el motivo de la anulación.");
+    if (!motivo.trim() || motivo.trim().length > 255) {
+      setFormError("Escribe un motivo (máx. 255 caracteres).");
       setConfirming(false);
       return;
     }
@@ -80,15 +80,10 @@ export function IrrigationAnnulDialog({
               htmlFor="irr-annul-motivo"
               error={fieldErrors.motivo?.[0]}
             >
-              <Input
-                id="irr-annul-motivo"
-                placeholder="Ej. No se regó"
-                value={motivo}
-                onChange={(event) => setMotivo(event.target.value)}
-              />
+<GuardedInput id="irr-annul-motivo" guardMode="text" maxLength={255} required placeholder="Ej. No se regó" value={motivo} onValueChange={setMotivo} />
             </FormField>
             {formError ? (
-              <p role="alert" className="text-sm font-medium text-danger-600">
+              <p role="alert" className="validation-message">
                 {formError}
               </p>
             ) : null}
@@ -111,3 +106,9 @@ export function IrrigationAnnulDialog({
     </Dialog>
   );
 }
+
+
+
+
+
+

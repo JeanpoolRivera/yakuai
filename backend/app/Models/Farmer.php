@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Farmer extends Model
 {
@@ -18,5 +19,10 @@ class Farmer extends Model
     public function plots(): HasMany
     {
         return $this->hasMany(Plot::class);
+    }
+    /** @return HasOne<User> */
+    public function accessAccount(): HasOne
+    {
+        return $this->hasOne(User::class)->where('role', 'agricultor');
     }
 }

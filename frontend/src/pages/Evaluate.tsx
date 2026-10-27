@@ -1,7 +1,7 @@
 /* Evaluar riego: elige parcela → veredicto idempotente + historial + WhatsApp. */
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useLocation } from "react-router-dom";
-import { useAuth } from "../app/auth";
+import { useAuth } from "../app/auth-context";
 import { EvaluationWorkspace } from "../features/evaluate/components";
 import { useEvaluation, useHistory, useIrrigationConfirm, usePlots } from "../features/evaluate/hooks";
 

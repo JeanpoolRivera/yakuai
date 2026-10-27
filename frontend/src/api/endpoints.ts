@@ -36,6 +36,13 @@ export function recoverPin(email: string): Promise<{ message: string }> {
   });
 }
 
+export function activateFarmer(token: string, newPin: string, confirmation: string): Promise<{ message: string }> {
+  return api<{ message: string }>("auth/activate-farmer", {
+    method: "POST",
+    body: { token, new_pin: newPin, new_pin_confirmation: confirmation },
+  });
+}
+
 export function resetPin(email: string, recoveryCode: string, newPin: string): Promise<{ message: string }> {
   return api<{ message: string }>("auth/reset-pin", {
     method: "POST",
@@ -56,6 +63,7 @@ export function listSoils(): Promise<SoilTexture[]> {
 export interface FarmerInput {
   name: string;
   phone?: string;
+  email?: string;
   is_active?: boolean;
 }
 
@@ -69,6 +77,10 @@ export function createFarmer(input: FarmerInput): Promise<Farmer> {
 
 export function updateFarmer(id: number, input: FarmerInput): Promise<Farmer> {
   return api<Farmer>(`farmers/${id}`, { method: "PATCH", body: input });
+}
+
+export function resendFarmerInvitation(id: number): Promise<{ message: string }> {
+  return api<{ message: string }>(`farmers/${id}/invitation`, { method: "POST" });
 }
 
 /* ---------- Parcelas ---------- */

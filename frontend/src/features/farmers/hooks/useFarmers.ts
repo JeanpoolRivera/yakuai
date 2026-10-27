@@ -1,36 +1,37 @@
-import { useEffect, useState } from "react";
-import { listFarmers, createFarmer, updateFarmer } from "@/api/endpoints";
+import { useState } from "react";
+import { useAsync } from "@/hooks/useAsync";
+import { createFarmer, listFarmers, resendFarmerInvitation, updateFarmer } from "@/api/endpoints";
 import type { Farmer } from "@/api/types";
 import { ApiError, friendlyError } from "@/api/client";
 import { toastError, toastOk } from "@/lib/toast";
+import { isValidEmail, isValidFarmerName, isValidPeruvianPhone } from "@/lib/validation";
 
 export function useFarmers() {
-  const [farmers, setFarmers] = useState<Farmer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  async function load(): Promise<void> {
-    setLoading(true);
-    setError(null);
+  const { data, loading, error, execute, setData } = useAsync<Farmer[]>(async () => {
     try {
-      setFarmers(await listFarmers());
+      return await listFarmers();
     } catch (err) {
-      setError(friendlyError(err, "No se pudieron cargar los agricultores."));
-    } finally {
-      setLoading(false);
+      throw new Error(friendlyError(err, "No se pudieron cargar los agricultores."));
+    }
+  });
+
+  async function resendInvitation(farmerId: number): Promise<void> {
+    try {
+      await resendFarmerInvitation(farmerId);
+      toastOk("Invitación enviada nuevamente.");
+      await execute();
+    } catch (err) {
+      toastError(friendlyError(err, "No se pudo reenviar la invitación."));
     }
   }
 
-  useEffect(() => {
-    void load();
-  }, []);
-
-  return { farmers, loading, error, load, setFarmers };
+  return { farmers: data ?? [], loading, error, load: execute, setFarmers: setData, resendInvitation };
 }
 
 export interface FarmerFormState {
   name: string;
   phone: string;
+  email: string;
   active: boolean;
   editing: Farmer | null;
   open: boolean;
@@ -42,6 +43,7 @@ export function useFarmerForm() {
   const [state, setState] = useState<FarmerFormState>({
     name: "",
     phone: "",
+    email: "",
     active: true,
     editing: null,
     open: false,
@@ -49,41 +51,52 @@ export function useFarmerForm() {
     fieldErrors: {},
   });
 
-  function openCreate() {
-    setState({ name: "", phone: "", active: true, editing: null, open: true, saving: false, fieldErrors: {} });
+  function openCreate(): void {
+    setState({ name: "", phone: "", email: "", active: true, editing: null, open: true, saving: false, fieldErrors: {} });
   }
 
-  function openEdit(f: Farmer) {
-    setState({ name: f.name, phone: f.phone ?? "", active: f.is_active, editing: f, open: true, saving: false, fieldErrors: {} });
+  function openEdit(farmer: Farmer): void {
+    setState({ name: farmer.name, phone: farmer.phone ?? "", email: farmer.email ?? "", active: farmer.is_active, editing: farmer, open: true, saving: false, fieldErrors: {} });
   }
 
-  function close() {
-    setState((s) => ({ ...s, open: false }));
+  function close(): void {
+    setState((current) => ({ ...current, open: false }));
   }
 
-  async function submit(load: () => Promise<void>) {
-    if (state.name.trim().length < 2) {
-      toastError("El nombre debe tener al menos 2 letras.");
+  async function submit(load: () => Promise<void>): Promise<void> {
+    const name = state.name.trim();
+    const phone = state.phone.trim();
+    const emailInput = state.email.trim();
+    const errors: Record<string, string[]> = {};
+    if (!isValidFarmerName(name)) errors.name = ["Usa un nombre válido (2 a 120 caracteres)."];
+    if (phone && !isValidPeruvianPhone(phone)) errors.phone = ["Usa 9 dígitos, sin símbolos."];
+    if (emailInput && !isValidEmail(emailInput)) errors.email = ["Escribe un correo válido."];
+    if (state.editing?.email && !emailInput) errors.email = ["No se puede quitar el correo de una cuenta de acceso."];
+    if (Object.keys(errors).length) {
+      setState((current) => ({ ...current, fieldErrors: errors }));
       return;
     }
-    setState((s) => ({ ...s, saving: true, fieldErrors: {} }));
+    setState((current) => ({ ...current, saving: true, fieldErrors: {} }));
     try {
-      const body = { name: state.name.trim(), phone: state.phone.trim() || undefined, is_active: state.active };
-      if (state.editing) {
-        await updateFarmer(state.editing.id, body);
-        toastOk("Agricultor actualizado.");
+      const email = emailInput.toLowerCase();
+      const body = { name: state.name.trim(), phone: state.phone.trim() || undefined, ...(email ? { email } : {}), is_active: state.active };
+      const saved = state.editing
+        ? await updateFarmer(state.editing.id, body)
+        : await createFarmer(body);
+      if (saved.invitation_sent === false) {
+        toastError("La ficha se guardó, pero no se pudo enviar la invitación. Reenvíala desde el directorio.");
+      } else if (saved.invitation_sent === true) {
+        toastOk("Agricultor guardado e invitación enviada.");
       } else {
-        await createFarmer(body);
-        toastOk("Agricultor registrado.");
+        toastOk(state.editing ? "Agricultor actualizado." : "Agricultor registrado.");
       }
-      setState((s) => ({ ...s, open: false }));
+      setState((current) => ({ ...current, open: false }));
       await load();
     } catch (err) {
       if (err instanceof ApiError && err.status === 422) {
-        setState((s) => ({ ...s, fieldErrors: err.fields, saving: false }));
-        toastError("Revisa los campos marcados.");
+        setState((current) => ({ ...current, fieldErrors: err.fields, saving: false }));
       } else {
-        setState((s) => ({ ...s, saving: false }));
+        setState((current) => ({ ...current, saving: false }));
         toastError(friendlyError(err, "No se pudo guardar."));
       }
     }
@@ -91,3 +104,6 @@ export function useFarmerForm() {
 
   return { state, setState, openCreate, openEdit, close, submit };
 }
+
+
+

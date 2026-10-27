@@ -20,7 +20,7 @@ const SelectTrigger = React.forwardRef<
       "hover:border-primary-600",
       "focus:outline-none focus:ring-2 focus:ring-primary-600/15 focus:border-primary-600",
       "disabled:cursor-not-allowed disabled:opacity-50",
-      "aria-invalid:border-danger-500 aria-invalid:focus:ring-danger-500/15",
+      "aria-invalid:border-danger-600 aria-invalid:focus:ring-danger-500/20",
       "[&>span]:line-clamp-1",
       className
     )}

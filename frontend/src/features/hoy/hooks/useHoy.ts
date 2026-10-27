@@ -1,47 +1,50 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { listEvaluations, listPlots, listSensors } from "@/api/endpoints";
-import type { Evaluation, Plot } from '@/api/types';
+import type { Evaluation, Plot } from "@/api/types";
 import { friendlyError } from "@/api/client";
+import { useAsync } from "@/hooks/useAsync";
+
+type HoyData = { plots: Plot[]; sensorsOk: number; sensorsTotal: number; latest: Evaluation[] };
+const EMPTY_HOY: HoyData = { plots: [], sensorsOk: 0, sensorsTotal: 0, latest: [] };
 
 export function useHoy() {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [plots, setPlots] = useState<Plot[]>([]);
-  const [sensorsOk, setSensorsOk] = useState(0);
-  const [sensorsTotal, setSensorsTotal] = useState(0);
-  const [latest, setLatest] = useState<Evaluation[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-
-  async function load(isRefresh = false): Promise<void> {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
-    setError(null);
+  const { data, loading, error, execute, refresh } = useAsync<HoyData>(async () => {
     try {
-      const [plots, evals, sens] = await Promise.all([listPlots(), listEvaluations(), listSensors()]);
-      setPlots(plots);
-      setSensorsTotal(sens.length);
-      setSensorsOk(sens.filter((s) => s.status === "ok" && s.is_active).length);
-      setLatest(latestPerPlot(evals));
+      const [plots, evaluations, sensors] = await Promise.all([listPlots(), listEvaluations(), listSensors()]);
+      return {
+        plots,
+        sensorsTotal: sensors.length,
+        sensorsOk: sensors.filter((sensor) => sensor.status === "ok" && sensor.is_active).length,
+        latest: latestPerPlot(evaluations),
+      };
     } catch (err) {
-      setError(friendlyError(err, "No se pudo cargar tu información."));
+      throw new Error(friendlyError(err, "No se pudo cargar tu información."));
+    }
+  });
+
+  const load = useCallback(async (isRefresh = false): Promise<void> => {
+    if (!isRefresh) {
+      await execute();
+      return;
+    }
+    setRefreshing(true);
+    try {
+      await refresh();
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
-  }
+  }, [execute, refresh]);
 
-  useEffect(() => {
-    void load();
-  }, []);
-
-  return { loading, error, plots, plotCount: plots.length, sensorsOk, sensorsTotal, latest, refreshing, load };
+  const value = data ?? EMPTY_HOY;
+  return { loading, error, ...value, plotCount: value.plots.length, refreshing, load };
 }
 
 function latestPerPlot(all: Evaluation[]): Evaluation[] {
   const seen = new Map<number, Evaluation>();
   const sorted = [...all].sort((a, b) => (a.evaluated_at < b.evaluated_at ? 1 : -1));
-  for (const e of sorted) {
-    if (!seen.has(e.plot_id)) seen.set(e.plot_id, e);
+  for (const evaluation of sorted) {
+    if (!seen.has(evaluation.plot_id)) seen.set(evaluation.plot_id, evaluation);
   }
   return [...seen.values()];
 }

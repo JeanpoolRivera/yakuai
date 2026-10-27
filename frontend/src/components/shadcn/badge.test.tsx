@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import { Badge, badgeVariants } from "./badge";
+import { Badge } from "./badge";
+import { badgeVariants } from "./badge-utils";
 
 afterEach(() => cleanup());
 

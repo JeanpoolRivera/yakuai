@@ -14,6 +14,10 @@ return [
     |
     */
 
+    'frontend' => [
+        'url' => env('FRONTEND_URL', 'http://localhost:8081'),
+    ],
+
     'owm' => [
         'key' => env('OWM_KEY'),
         'timeout' => env('OWM_TIMEOUT', 15),

@@ -1,43 +1,35 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { listEvaluations, listFarmers, listIrrigations, listPlots, listSensors } from '@/api/endpoints';
-import type { DashboardData } from '@/components/dashboard/overview';
-import { summarize, evaluationDays } from '@/components/dashboard/overview';
+import { useMemo, useState } from "react";
+import { listEvaluations, listFarmers, listIrrigations, listPlots, listSensors } from "@/api/endpoints";
+import type { DashboardData } from "@/components/dashboard/overview";
+import { summarize, evaluationDays } from "@/components/dashboard/overview";
 import { friendlyError } from "@/api/client";
+import { useAsync } from "@/hooks/useAsync";
+
+type DashboardSnapshot = { data: DashboardData; failed: string[]; updated: Date };
+const EMPTY_DASHBOARD: DashboardData = { plots: null, farmers: null, sensors: null, evaluations: null, irrigations: null };
 
 export function useDashboard() {
-  const [data, setData] = useState<DashboardData>({ plots: null, farmers: null, sensors: null, evaluations: null, irrigations: null });
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState<string[]>([]);
-  const [updated, setUpdated] = useState<Date | null>(null);
-  const request = useRef(0);
-
-  async function load(): Promise<void> {
-    const id = ++request.current;
-    setLoading(true);
+  const [initialNow] = useState(() => new Date());
+  const { data: snapshot, loading, execute } = useAsync<DashboardSnapshot>(async () => {
     const results = await Promise.allSettled([listPlots(), listFarmers(), listSensors(), listEvaluations(), listIrrigations()]);
-    if (id !== request.current) return;
-    const errors: string[] = [];
-    const patch: Partial<DashboardData> = {};
+    const values: Partial<DashboardData> = {};
+    const failed: string[] = [];
     const keys = ["plots", "farmers", "sensors", "evaluations", "irrigations"] as const;
-    const names: Record<string, string> = { plots: "parcelas", farmers: "agricultores", sensors: "sensores", evaluations: "evaluaciones", irrigations: "riegos" };
-    results.forEach((result, i) => {
-      if (result.status === "fulfilled") Object.assign(patch, { [keys[i]]: result.value });
-      else errors.push(`${names[keys[i]]}: ${friendlyError(result.reason, "No disponible")}`);
+    const names: Record<(typeof keys)[number], string> = { plots: "parcelas", farmers: "agricultores", sensors: "sensores", evaluations: "evaluaciones", irrigations: "riegos" };
+    results.forEach((result, index) => {
+      const key = keys[index];
+      if (result.status === "fulfilled") Object.assign(values, { [key]: result.value });
+      else failed.push(`${names[key]}: ${friendlyError(result.reason, "No disponible")}`);
     });
-    setData((prev) => ({ ...prev, ...patch }));
-    setFailed(errors);
-    setUpdated(new Date());
-    setLoading(false);
-  }
+    return { data: { ...EMPTY_DASHBOARD, ...values }, failed, updated: new Date() };
+  });
 
-  useEffect(() => {
-    void load();
-    return () => { request.current++; };
-  }, []);
-
-  const now = useMemo(() => updated ?? new Date(), [updated]);
+  const data = snapshot?.data ?? EMPTY_DASHBOARD;
+  const failed = snapshot?.failed ?? [];
+  const updated = snapshot?.updated ?? null;
+  const now = updated ?? initialNow;
   const overview = useMemo(() => summarize(data, now), [data, now]);
   const chart = useMemo(() => evaluationDays(data.evaluations ?? [], 7, now), [data.evaluations, now]);
 
-  return { data, loading, failed, updated, load, now, overview, chart };
+  return { data, loading, failed, updated, load: execute, now, overview, chart };
 }

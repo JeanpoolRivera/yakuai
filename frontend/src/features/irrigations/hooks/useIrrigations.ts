@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useAsync } from "@/hooks/useAsync";
 import { friendlyError } from "@/api/client";
 import { listIrrigations, listPlots } from "@/api/endpoints";
 import type { Irrigation, Plot } from "@/api/types";
@@ -11,40 +11,17 @@ export interface UseIrrigationsResult {
   reload: () => Promise<void>;
 }
 
+type IrrigationsData = { items: Irrigation[]; plots: Plot[] };
+
 export function useIrrigations(): UseIrrigationsResult {
-  const [items, setItems] = useState<Irrigation[]>([]);
-  const [plots, setPlots] = useState<Plot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const request = useRef(0);
-
-  const load = useCallback(async () => {
-    const sequence = ++request.current;
-    setLoading(true);
-    setError(null);
+  const { data, loading, error, execute } = useAsync<IrrigationsData>(async () => {
     try {
-      const [nextItems, nextPlots] = await Promise.all([listIrrigations(), listPlots()]);
-      if (sequence !== request.current) return;
-      setItems(nextItems);
-      setPlots(nextPlots);
+      const [items, plots] = await Promise.all([listIrrigations(), listPlots()]);
+      return { items, plots };
     } catch (err) {
-      if (sequence !== request.current) return;
-      setError(friendlyError(err, "No se pudo cargar el historial."));
-    } finally {
-      if (sequence === request.current) setLoading(false);
+      throw new Error(friendlyError(err, "No se pudo cargar el historial."));
     }
-  }, []);
+  });
 
-  useEffect(() => {
-    void load();
-    return () => {
-      request.current += 1;
-    };
-  }, [load]);
-
-  const reload = useCallback(async () => {
-    await load();
-  }, [load]);
-
-  return { items, plots, loading, error, reload };
+  return { items: data?.items ?? [], plots: data?.plots ?? [], loading, error, reload: execute };
 }

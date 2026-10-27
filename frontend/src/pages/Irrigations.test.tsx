@@ -11,7 +11,7 @@ const api = vi.hoisted(()=>({
 }));
 vi.mock("../api/endpoints",()=>api);
 const auth = vi.hoisted(() => ({role:"tecnico"}));
-vi.mock("../app/auth",()=>({useAuth:()=>auth}));
+vi.mock("../app/auth-context",()=>({useAuth:()=>auth}));
 afterEach(()=>{cleanup();vi.clearAllMocks();});
 const old = {...irrigations[0],id:2,occurred_at:new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),recommended_liters:"3000",applied_liters:"3000",note:"Riego de enero"};
 function mockLoaded():void {
@@ -24,12 +24,11 @@ describe("Riegos",()=>{
   render(<Irrigations/>);
   await screen.findAllByRole("button",{name:/Abrir registro de/});
   const cutoff = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString().slice(0,10);
-  fireEvent.click(screen.getByRole("button",{name:/Filtrar/}));
-  fireEvent.change(screen.getByLabelText("Hasta"),{target:{value:cutoff}});
-  expect(screen.getAllByRole("button",{name:/Abrir registro de/})).toHaveLength(1);
+  fireEvent.change(screen.getByLabelText("Desde"),{target:{value:cutoff}});
+  expect(within(screen.getByRole("table")).getAllByRole("row")).toHaveLength(2);
   fireEvent.click(screen.getByRole("button",{name:/Limpiar/}));
-  expect(screen.getAllByRole("button",{name:/Abrir registro de/})).toHaveLength(2);
-  expect(screen.queryByRole("button",{name:/Limpiar/})).not.toBeInTheDocument();
+  expect(within(screen.getByRole("table")).getAllByRole("row")).toHaveLength(3);
+  expect(screen.getByLabelText("Desde")).toHaveValue("");
  });
  it("anota un riego",async()=>{
   mockLoaded();
@@ -40,7 +39,7 @@ describe("Riegos",()=>{
   await screen.findByRole("dialog",{name:"Registrar riego"});
   fireEvent.change(within(screen.getByRole("dialog")).getByLabelText(/Parcela/),{target:{value:"1"}});
   fireEvent.change(screen.getByLabelText(/Agua aplicada/),{target:{value:"4800"}});
-  fireEvent.click(screen.getByRole("button",{name:"Guardar"}));
+  fireEvent.click(screen.getByRole("button",{name:"Guardar riego"}));
   await waitFor(()=>expect(api.createIrrigation).toHaveBeenCalledTimes(1));
   expect(api.createIrrigation).toHaveBeenCalledWith(expect.objectContaining({plot_id:1,applied_liters:4800}));
  });
@@ -51,17 +50,16 @@ describe("Riegos",()=>{
   render(<Irrigations/>);
   await screen.findAllByRole("button",{name:/Abrir registro de/});
   fireEvent.click(screen.getAllByRole("button",{name:/Abrir registro de/})[0]);
-  fireEvent.click(await screen.findByRole("button",{name:"Corregir registro"}));
+  fireEvent.click(await screen.findByRole("button",{name:"Corregir"}));
   await screen.findByRole("dialog",{name:/Corregir riego/});
   fireEvent.change(screen.getByLabelText(/Motivo/),{target:{value:"Medí mal el contador"}});
   fireEvent.click(screen.getByRole("button",{name:"Guardar corrección"}));
   await waitFor(()=>expect(api.correctIrrigation).toHaveBeenCalledWith(1,1600,"Medí mal el contador"));
   fireEvent.click(screen.getAllByRole("button",{name:/Abrir registro de/})[0]);
-  fireEvent.click(await screen.findByRole("button",{name:"Anular riego"}));
+  fireEvent.click(await screen.findByRole("button",{name:"Anular"}));
   await screen.findByRole("dialog",{name:/Anular riego/});
   fireEvent.change(screen.getByLabelText(/Motivo de anulación/),{target:{value:"No se regó"}});
-  fireEvent.click(screen.getByRole("button",{name:"Continuar"}));
-  fireEvent.click(await screen.findByRole("button",{name:"Anular registro"}));
+  fireEvent.click(screen.getByRole("button",{name:"Anular riego"}));
   await waitFor(()=>expect(api.voidIrrigation).toHaveBeenCalledWith(1,"No se regó"));
  });
 });

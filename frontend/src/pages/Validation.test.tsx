@@ -18,23 +18,22 @@ describe("Validación del motor",()=>{
   api.runValidation.mockReturnValue(new Promise((resolve) => { resolveReport = resolve; }));
   render(<Validation/>);
   fireEvent.click(screen.getAllByRole("button",{name:"Ejecutar validación"})[0]);
-  const runningButton = screen.getByRole("button",{name:/Revisando los 10 casos/});
+  const runningButton = screen.getByRole("button",{name:/Ejecutando/});
   expect(runningButton).toBeDisabled();
   fireEvent.click(runningButton);
   expect(api.runValidation).toHaveBeenCalledTimes(1);
   resolveReport(report);
-  expect(await screen.findByText("Hay respuestas que revisar")).toBeInTheDocument();
-  expect(screen.getByText("casos correctos")).toBeInTheDocument();
+  expect(await screen.findByRole("heading",{name:"Detalle de casos"})).toBeInTheDocument();
+  expect(screen.getByText("Casos superados")).toBeInTheDocument();
   expect(screen.getByText("Bajo umbral riega")).toBeInTheDocument();
-  expect(screen.getByText("No coincide")).toBeInTheDocument();
+  expect(screen.getByText("Revisar")).toBeInTheDocument();
  });
  it("muestra los casos con fallos y permite consultar los correctos",async()=>{
   api.runValidation.mockResolvedValue(report);
   render(<Validation/>);
   fireEvent.click(screen.getAllByRole("button",{name:"Ejecutar validación"})[0]);
-  expect(await screen.findByText("Hay respuestas que revisar")).toBeInTheDocument();
+  expect(await screen.findByRole("heading",{name:"Detalle de casos"})).toBeInTheDocument();
   expect(screen.getByText("Bajo umbral riega")).toBeInTheDocument();
-  fireEvent.click(screen.getByText("Casos correctos"));
   expect(screen.getByText("Humedad suficiente no riega")).toBeInTheDocument();
  });
 });

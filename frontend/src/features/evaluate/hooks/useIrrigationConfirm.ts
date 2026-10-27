@@ -1,20 +1,30 @@
 import { useCallback, useState } from "react";
 import { createIrrigation, listIrrigations } from "@/api/endpoints";
+import { ApiError } from "@/api/client";
 import type { Evaluation } from "@/api/types";
 import { toastError, toastInfo, toastOk } from "@/lib/toast";
 
 export interface UseIrrigationConfirmResult {
   confirming: boolean;
   recorded: boolean;
+  validationError: string | null;
+  clearValidationError: () => void;
   confirm: (appliedLiters: number) => Promise<boolean>;
 }
 
 export function useIrrigationConfirm(evaluation: Evaluation | null): UseIrrigationConfirmResult {
   const [confirming, setConfirming] = useState(false);
   const [recordedEvaluationId, setRecordedEvaluationId] = useState<number | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const clearValidationError = useCallback(() => setValidationError(null), []);
 
   const confirm = useCallback(async (appliedLiters: number): Promise<boolean> => {
-    if (!evaluation || evaluation.result !== "riega" || !Number.isFinite(appliedLiters) || appliedLiters <= 0) return false;
+    if (!evaluation || evaluation.result !== "riega") return false;
+    setValidationError(null);
+    if (!Number.isFinite(appliedLiters) || appliedLiters <= 0 || appliedLiters > 99999999.99 || Math.round(appliedLiters * 100) !== appliedLiters * 100) {
+      setValidationError("Usa litros mayores que 0 y hasta 2 decimales.");
+      return false;
+    }
     setConfirming(true);
     try {
       // El backend ignora plot_id para agricultor: filtramos en cliente.
@@ -48,12 +58,22 @@ export function useIrrigationConfirm(evaluation: Evaluation | null): UseIrrigati
       toastOk("Riego registrado con la cantidad que aplicaste.");
       return true;
     } catch (err) {
-      toastError(err instanceof Error ? err.message : "No se pudo registrar el riego.");
+      if (err instanceof ApiError && err.status === 422 && err.fields.applied_liters?.[0]) {
+        setValidationError(err.fields.applied_liters[0]);
+      } else {
+        toastError(err instanceof Error ? err.message : "No se pudo registrar el riego.");
+      }
       return false;
     } finally {
       setConfirming(false);
     }
   }, [evaluation]);
 
-  return { confirming, recorded: recordedEvaluationId === evaluation?.id, confirm };
+  return { confirming, recorded: recordedEvaluationId === evaluation?.id, validationError, clearValidationError, confirm };
 }
+
+
+
+
+
+

@@ -1,25 +1,11 @@
 /* Sesión de autenticación: token + usuario + login/logout. */
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { getToken, setToken } from "../api/client";
 import { login, logout as apiLogout, me } from "../api/endpoints";
-import type { AuthUser, Role } from "../api/types";
+import type { AuthUser } from "../api/types";
+import { AuthContext, type AuthCtx, type Session } from "./auth-context";
 
-export interface Session {
-  user: AuthUser;
-  token: string;
-}
-
-interface AuthCtx {
-  session: Session | null;
-  ready: boolean;
-  signInPassword: (email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  role: Role | null;
-  displayName: string;
-}
-
-const Ctx = createContext<AuthCtx | null>(null);
 const SESSION_KEY = "yakuai-session";
 
 function loadStored(): Session | null {
@@ -36,12 +22,11 @@ function loadStored(): Session | null {
 
 export function AuthProvider({ children }: { children: ReactNode }): React.JSX.Element {
   const [session, setSession] = useState<Session | null>(() => loadStored());
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(() => !getToken());
 
   useEffect(() => {
     let alive = true;
     if (!getToken()) {
-      setReady(true);
       return () => {
         alive = false;
       };
@@ -134,11 +119,6 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     [session, ready, signInPassword, signOut],
   );
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth(): AuthCtx {
-  const ctx = useContext(Ctx);
-  if (!ctx) throw new Error("useAuth fuera de AuthProvider");
-  return ctx;
-}

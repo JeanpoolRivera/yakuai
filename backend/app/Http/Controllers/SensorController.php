@@ -61,6 +61,18 @@ class SensorController extends Controller
      */
     public function simular(Request $request, Sensor $sensor, SensorNormalizer $normalizer): JsonResponse
     {
+        if (! in_array($request->user()->role, ['admin', 'tecnico'], true)) {
+            return response()->json([
+                'error' => ['message' => 'Sin permiso para esta acción.'],
+            ], 403);
+        }
+
+        if (! $sensor->is_active) {
+            return response()->json([
+                'error' => ['message' => 'No se pueden simular lecturas en un sensor inactivo.'],
+            ], 422);
+        }
+
         $forbidden = $this->forbiddenIfCantAccessPlot($request, $sensor->plot);
         if ($forbidden !== null) {
             return $forbidden;

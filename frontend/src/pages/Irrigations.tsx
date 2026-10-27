@@ -1,4 +1,4 @@
-import { useAuth } from "@/app/auth";
+import { useAuth } from "@/app/auth-context";
 import { IrrigationsWorkspace } from "@/features/irrigations/components";
 import { useIrrigations } from "@/features/irrigations/hooks/useIrrigations";
 import { useIrrigationFilters } from "@/features/irrigations/hooks/useIrrigationFilters";

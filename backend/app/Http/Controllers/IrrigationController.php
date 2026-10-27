@@ -8,6 +8,7 @@ use App\Models\Irrigation;
 use App\Models\Plot;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class IrrigationController extends Controller
 {
@@ -15,6 +16,9 @@ class IrrigationController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $request->validate([
+            'plot_id' => ['sometimes', 'nullable', 'integer', 'exists:plots,id'],
+        ]);
         $query = Irrigation::query()->with('plot')->latest('occurred_at');
 
         $this->scopeToFarmerPlots($query, $request);
@@ -38,45 +42,53 @@ class IrrigationController extends Controller
 
     public function corregir(IrrigationRequest $request, Irrigation $riego): JsonResponse
     {
-        $this->authorizePlot($riego->plot_id);
-
-        if ($riego->status !== 'activo') {
-            return response()->json([
-                'error' => ['message' => 'Solo se puede corregir un registro activo.'],
-            ], 422);
-        }
-
         $data = $request->validated();
 
-        $nuevo = Irrigation::create([
-            'plot_id' => $riego->plot_id,
-            'evaluation_id' => $riego->evaluation_id,
-            'supersedes_id' => $riego->id,
-            'occurred_at' => $riego->occurred_at,
-            'recommended_liters' => $riego->recommended_liters,
-            'applied_liters' => $data['applied_liters'],
-            'origin' => 'manual',
-            'note' => $data['motivo'],
-            'status' => 'activo',
-        ]);
-        $riego->update(['status' => 'corregido']);
+        return DB::transaction(function () use ($riego, $data): JsonResponse {
+            $riego = Irrigation::query()->lockForUpdate()->findOrFail($riego->id);
+            $this->authorizePlot($riego->plot_id);
 
-        return response()->json(['data' => $nuevo->load('plot')], 201);
+            if ($riego->status !== 'activo') {
+                return response()->json([
+                    'error' => ['message' => 'Solo se puede corregir un registro activo.'],
+                ], 422);
+            }
+
+            $nuevo = Irrigation::create([
+                'plot_id' => $riego->plot_id,
+                'evaluation_id' => $riego->evaluation_id,
+                'supersedes_id' => $riego->id,
+                'occurred_at' => $riego->occurred_at,
+                'recommended_liters' => $riego->recommended_liters,
+                'applied_liters' => $data['applied_liters'],
+                'origin' => 'manual',
+                'note' => $data['motivo'],
+                'status' => 'activo',
+            ]);
+            $riego->update(['status' => 'corregido']);
+
+            return response()->json(['data' => $nuevo->load('plot')], 201);
+        });
     }
 
     public function anular(IrrigationRequest $request, Irrigation $riego): JsonResponse
     {
-        $this->authorizePlot($riego->plot_id);
+        $data = $request->validated();
 
-        if ($riego->status !== 'activo') {
-            return response()->json([
-                'error' => ['message' => 'Solo se puede anular un registro activo.'],
-            ], 422);
-        }
+        return DB::transaction(function () use ($riego, $data): JsonResponse {
+            $riego = Irrigation::query()->lockForUpdate()->findOrFail($riego->id);
+            $this->authorizePlot($riego->plot_id);
 
-        $riego->update(['status' => 'anulado', 'note' => $request->validated()['motivo']]);
+            if ($riego->status !== 'activo') {
+                return response()->json([
+                    'error' => ['message' => 'Solo se puede anular un registro activo.'],
+                ], 422);
+            }
 
-        return response()->json(['data' => $riego]);
+            $riego->update(['status' => 'anulado', 'note' => $data['motivo']]);
+
+            return response()->json(['data' => $riego]);
+        });
     }
 
     private function authorizePlot(int $plotId): void
@@ -92,3 +104,5 @@ class IrrigationController extends Controller
         }
     }
 }
+
+

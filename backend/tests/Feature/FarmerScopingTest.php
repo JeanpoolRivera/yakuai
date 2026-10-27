@@ -87,7 +87,7 @@ class FarmerScopingTest extends TestCase
 
         Sanctum::actingAs(User::factory()->create(['role' => 'agricultor']));
 
-        foreach (['/api/v1/sensors', '/api/v1/measurements', '/api/v1/evaluations', '/api/v1/irrigations'] as $path) {
+        foreach (['/api/v1/plots', '/api/v1/sensors', '/api/v1/measurements', '/api/v1/evaluations', '/api/v1/irrigations'] as $path) {
             $this->getJson($path)->assertOk()->assertJsonCount(0, 'data');
         }
     }
@@ -111,4 +111,5 @@ class FarmerScopingTest extends TestCase
         Sanctum::actingAs(User::factory()->create(['role' => 'agricultor', 'farmer_id' => $farmer->id]));
 
         $this->getJson('/api/v1/alerts')->assertOk()->assertJsonCount(2, 'data');
-    }}
+    }
+}

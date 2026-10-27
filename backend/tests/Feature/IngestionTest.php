@@ -130,5 +130,6 @@ class IngestionTest extends TestCase
         ])->assertCreated();
 
         $this->withToken($token)->getJson('/api/v1/plots')->assertForbidden();
+        $this->withToken($token)->getJson('/api/v1/user')->assertForbidden();
     }
 }

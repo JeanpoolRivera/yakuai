@@ -3,7 +3,7 @@ import {render,screen,cleanup} from "@testing-library/react";
 import {MemoryRouter} from "react-router-dom";
 import {App} from "./App";
 const auth = vi.hoisted(()=>({session:null as null|{user:{role:string}},role:null as string|null,ready:true,displayName:"Persona de prueba",signOut:vi.fn()}));
-vi.mock("./auth",()=>({useAuth:()=>auth}));
+vi.mock("./auth-context",()=>({useAuth:()=>auth}));
 vi.mock("../pages/Dashboard",()=>({Dashboard:()=> <h1>Dashboard de prueba</h1>}));
 vi.mock("../pages/Hoy",()=>({Hoy:()=> <h1>Mi campo de prueba</h1>}));
 vi.mock("../pages/Login",()=>({Login:()=> <h1>Ingreso de prueba</h1>}));

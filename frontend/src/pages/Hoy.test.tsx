@@ -28,19 +28,19 @@ describe("Hoy",()=>{
   expect(screen.getByText("El Molino")).toBeInTheDocument();
   expect(screen.getByText("La Esperanza")).toBeInTheDocument();
   expect(screen.getByText("Los Sauces")).toBeInTheDocument();
-  expect(screen.getAllByText(/ahora mismo/)).toHaveLength(3);
+  expect(screen.getByText("Últimas recomendaciones")).toBeInTheDocument();
   expect(screen.getByText("Sensores operativos")).toBeInTheDocument();
-  expect(screen.getByText(/2 de 3/)).toBeInTheDocument();
+  expect(screen.getByText("2/3")).toBeInTheDocument();
  });
  it("filtra por estado y busca por nombre",async()=>{
   mockLoaded();
   render(<MemoryRouter><Hoy/></MemoryRouter>);
   await screen.findByText("El Molino");
-  fireEvent.click(screen.getByRole("button",{name:/Piden riego/}));
+  fireEvent.change(screen.getByLabelText("Filtrar por estado"),{target:{value:"riega"}});
   expect(screen.getByText("El Molino")).toBeInTheDocument();
   expect(screen.queryByText("La Esperanza")).not.toBeInTheDocument();
   expect(screen.queryByText("Los Sauces")).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button",{name:/Todas/}));
+  fireEvent.change(screen.getByLabelText("Filtrar por estado"),{target:{value:"todas"}});
   fireEvent.change(screen.getByLabelText(/Buscar parcela/),{target:{value:"sauces"}});
   expect(screen.getByText("Los Sauces")).toBeInTheDocument();
   expect(screen.queryByText("El Molino")).not.toBeInTheDocument();
@@ -50,7 +50,7 @@ describe("Hoy",()=>{
   render(<MemoryRouter initialEntries={["/"]}><Routes><Route path="/" element={<Hoy/>}/><Route path="/evaluar" element={<StateProbe/>}/></Routes></MemoryRouter>);
   await screen.findByText("El Molino");
   fireEvent.change(screen.getByLabelText(/Buscar parcela/),{target:{value:"molino"}});
-  fireEvent.click(screen.getByRole("link",{name:/Ver qué hacer/}));
+  fireEvent.click(screen.getByRole("link",{name:/Ver recomendación/}));
   expect(await screen.findByText("plot:1")).toBeInTheDocument();
  });
 });

@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useAsync } from "@/hooks/useAsync";
 import { listEvaluations } from "@/api/endpoints";
 import type { Evaluation } from "@/api/types";
+
+type HistoryData = { plotId: number | null; history: Evaluation[]; error: string | null };
 
 export interface UseHistoryResult {
   history: Evaluation[];
@@ -10,45 +12,25 @@ export interface UseHistoryResult {
 }
 
 export function useHistory(plotId: number | null): UseHistoryResult {
-  const [history, setHistory] = useState<Evaluation[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const request = useRef(0);
-
-  const load = useCallback(async (id: number) => {
-    const sequence = ++request.current;
-    setError(null);
-    setLoading(true);
+  const { data, loading, execute } = useAsync<HistoryData>(async () => {
+    if (plotId === null) return { plotId: null, history: [], error: null };
     try {
-      // El backend ignora plot_id para agricultor: filtramos en cliente.
-      const list = await listEvaluations(id);
-      if (sequence !== request.current) return;
-      setHistory(
-        list
-          .filter((item) => item.plot_id === id)
-          .sort((a, b) => Date.parse(b.evaluated_at) - Date.parse(a.evaluated_at))
-          .slice(0, 20),
-      );
+      const list = await listEvaluations(plotId);
+      return {
+        plotId,
+        history: list.filter((item) => item.plot_id === plotId).sort((a, b) => Date.parse(b.evaluated_at) - Date.parse(a.evaluated_at)).slice(0, 20),
+        error: null,
+      };
     } catch {
-      if (sequence !== request.current) return;
-      setHistory([]);
-      setError("No se pudo cargar el historial.");
-    } finally {
-      if (sequence === request.current) setLoading(false);
+      return { plotId, history: [], error: "No se pudo cargar el historial." };
     }
-  }, []);
+  }, { immediate: plotId !== null, refreshKey: plotId });
 
-  useEffect(() => {
-    if (plotId === null) return;
-    void load(plotId);
-    return () => {
-      request.current += 1;
-    };
-  }, [plotId, load]);
-
-  const reload = useCallback(() => {
-    if (plotId !== null) void load(plotId);
-  }, [plotId, load]);
-
-  return { history, loading, error, reload };
+  const matchesPlot = data?.plotId === plotId;
+  return {
+    history: matchesPlot ? data.history : [],
+    loading: plotId !== null && (loading || !matchesPlot),
+    error: matchesPlot ? data.error : null,
+    reload: () => { if (plotId !== null) void execute(); },
+  };
 }

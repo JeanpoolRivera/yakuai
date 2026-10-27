@@ -22,6 +22,7 @@ Route::get('/health', HealthController::class);
 
 Route::post('/auth/login', [AuthController::class, 'unified'])->middleware('throttle:10,1');
 Route::post('/auth/recover-pin', [AuthController::class, 'recoverPin'])->middleware('throttle:5,1');
+Route::post('/auth/activate-farmer', [AuthController::class, 'activateFarmer'])->middleware('throttle:5,1');
 Route::post('/auth/reset-pin', [AuthController::class, 'resetPin'])->middleware('throttle:5,1');
 
 Route::middleware(['auth:sanctum', 'yakuai'])->group(function (): void {
@@ -43,6 +44,7 @@ Route::middleware(['auth:sanctum', 'yakuai'])->group(function (): void {
     Route::post('/farmers', [FarmerController::class, 'store']);
     Route::get('/farmers/{farmer}', [FarmerController::class, 'show']);
     Route::patch('/farmers/{farmer}', [FarmerController::class, 'update']);
+    Route::post('/farmers/{farmer}/invitation', [FarmerController::class, 'resendInvitation'])->middleware('throttle:3,1');
 
     Route::get('/plots', [PlotController::class, 'index']);
     Route::post('/plots', [PlotController::class, 'store']);
@@ -82,4 +84,4 @@ Route::middleware(['auth:sanctum', 'yakuai'])->group(function (): void {
 
 Route::get('/user', function (Request $request) {
     return $request->user();
-})->middleware('auth:sanctum');
+})->middleware(['auth:sanctum', 'yakuai']);

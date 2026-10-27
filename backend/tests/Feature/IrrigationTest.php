@@ -70,6 +70,18 @@ class IrrigationTest extends TestCase
         $this->assertSame(5000, (int) $nuevo['applied_liters']);
         $this->assertSame($id, $nuevo['supersedes_id']);
         $this->assertSame('corregido', Irrigation::findOrFail($id)->status);
+
+        $this->assertDatabaseHas('irrigations', [
+            'id' => $nuevo['id'],
+            'supersedes_id' => $id,
+            'status' => 'activo',
+        ]);
+        $this->postJson("/api/v1/irrigations/{$id}/corregir", [
+            'applied_liters' => 5100,
+            'motivo' => 'Segunda corrección',
+        ])->assertUnprocessable();
+
+        $this->assertDatabaseCount('irrigations', 2);
     }
 
     public function test_no_corregir_dos_veces(): void

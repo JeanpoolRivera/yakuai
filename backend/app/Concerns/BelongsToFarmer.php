@@ -9,19 +9,16 @@ use Illuminate\Http\Request;
 
 trait BelongsToFarmer
 {
-    protected function farmerId(Request $request): ?int
-    {
-        return $request->user()->role === 'agricultor'
-            ? $request->user()->farmer_id
-            : null;
-    }
-
     protected function scopeToFarmer(Builder $query, Request $request): Builder
     {
-        $farmerId = $this->farmerId($request);
+        $user = $request->user();
 
-        if ($farmerId !== null) {
-            $query->where('farmer_id', $farmerId);
+        if ($user !== null && $user->role === 'agricultor') {
+            if ($user->farmer_id === null) {
+                return $query->whereRaw('1 = 0');
+            }
+
+            $query->where('farmer_id', $user->farmer_id);
         }
 
         return $query;
@@ -40,6 +37,10 @@ trait BelongsToFarmer
         }
 
         $farmerId = $user->farmer_id;
+
+        if ($farmerId === null) {
+            return $query->whereRaw('1 = 0');
+        }
 
         return $query->whereIn($column, function ($sq) use ($farmerId): void {
             $sq->select('id')->from('plots')->where('farmer_id', $farmerId);

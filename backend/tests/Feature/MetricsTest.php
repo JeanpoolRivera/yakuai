@@ -23,4 +23,17 @@ class MetricsTest extends TestCase
                 'evaluations_espera', 'evaluations_incompleta', 'critical_today',
             ]]);
     }
+
+    public function test_agricultor_recibe_403_en_las_metricas_globales(): void
+    {
+        Sanctum::actingAs(User::factory()->create(['role' => 'agricultor']));
+
+        foreach ([
+            '/api/v1/metrics/summary',
+            '/api/v1/metrics/evaluations',
+            '/api/v1/metrics/sensors',
+        ] as $path) {
+            $this->getJson($path)->assertForbidden();
+        }
+    }
 }

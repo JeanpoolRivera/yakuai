@@ -1,32 +1,26 @@
-import { useEffect, useState } from "react";
-import { listSensors, listPlots } from '@/api/endpoints';
+import { useAsync } from "@/hooks/useAsync";
+import { listSensors, listPlots } from "@/api/endpoints";
 import type { Sensor, Plot } from "@/api/types";
-import { friendlyError } from '@/api/client';
+import { friendlyError } from "@/api/client";
 
+type SensorsData = { sensors: Sensor[]; plots: Plot[] };
 
 export function useSensors() {
-  const [sensors, setSensors] = useState<Sensor[]>([]);
-  const [plots, setPlots] = useState<Plot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  async function load(): Promise<void> {
-    setLoading(true);
-    setError(null);
+  const { data, loading, error, execute, setData } = useAsync<SensorsData>(async () => {
     try {
-      const [s, p] = await Promise.all([listSensors(), listPlots()]);
-      setSensors(s);
-      setPlots(p);
+      const [sensors, plots] = await Promise.all([listSensors(), listPlots()]);
+      return { sensors, plots };
     } catch (err) {
-      setError(friendlyError(err, "No se pudieron cargar los sensores."));
-    } finally {
-      setLoading(false);
+      throw new Error(friendlyError(err, "No se pudieron cargar los sensores."));
     }
-  }
+  });
 
-  useEffect(() => {
-    void load();
-  }, []);
+  const updateSensors = (sensors: Sensor[] | ((current: Sensor[]) => Sensor[])): void => {
+    setData((current) => current ? { ...current, sensors: typeof sensors === "function" ? sensors(current.sensors) : sensors } : null);
+  };
+  const updatePlots = (plots: Plot[] | ((current: Plot[]) => Plot[])): void => {
+    setData((current) => current ? { ...current, plots: typeof plots === "function" ? plots(current.plots) : plots } : null);
+  };
 
-  return { sensors, plots, loading, error, load, setSensors, setPlots };
+  return { sensors: data?.sensors ?? [], plots: data?.plots ?? [], loading, error, load: execute, setSensors: updateSensors, setPlots: updatePlots };
 }

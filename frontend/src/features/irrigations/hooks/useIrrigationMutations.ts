@@ -40,7 +40,6 @@ export function useIrrigationMutations(onDone?: () => void | Promise<void>): Irr
       } catch (err) {
         if (err instanceof ApiError && err.status === 422) {
           setFieldErrors(err.fields);
-          toastError("Revisa los campos marcados.");
         } else {
           toastError(friendlyError(err, "No se pudo registrar el riego."));
         }
@@ -64,7 +63,6 @@ export function useIrrigationMutations(onDone?: () => void | Promise<void>): Irr
       } catch (err) {
         if (err instanceof ApiError && err.status === 422) {
           setFieldErrors(err.fields);
-          toastError("Revisa los campos marcados.");
         } else {
           toastError(friendlyError(err, "No se pudo corregir el riego."));
         }
@@ -88,7 +86,6 @@ export function useIrrigationMutations(onDone?: () => void | Promise<void>): Irr
       } catch (err) {
         if (err instanceof ApiError && err.status === 422) {
           setFieldErrors(err.fields);
-          toastError("Revisa los campos marcados.");
         } else {
           toastError(friendlyError(err, "No se pudo anular el riego."));
         }

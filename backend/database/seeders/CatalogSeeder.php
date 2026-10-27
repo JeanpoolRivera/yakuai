@@ -6,16 +6,22 @@ use App\Models\Crop;
 use App\Models\CropStage;
 use App\Models\SoilTexture;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Cache;
 
 class CatalogSeeder extends Seeder
 {
     /**
-     * Valores de referencia FAO-56 (Tablas 11, 12, 22) y Saxton-Rawls.
-     * Kc ini/medio/fin de Tabla 12; Kc de desarrollo interpolado linealmente.
-     * Pendientes de validación local en Chupaca. No son mediciones.
+     * Carga valores iniciales de literatura; no representa validación local.
+     * Kc genérico: FAO-56 Tabla 12; raíces y agotamiento: Tabla 22.
+     * Duraciones y valores de suelo quedan sujetos a revisión agronómica local.
      */
     public function run(): void
     {
+        $reviewedAt = now()->toDateString();
+        $cropSource = 'FAO Irrigation and Drainage Paper 56 (1998), Tables 12 and 22. Stage durations are provisional estimates; local validation is pending.';
+        $cropSourceUrl = 'https://www.fao.org/4/X0490E/x0490e0b.htm';
+        $soilSource = 'FAO-56 Table 19; Saxton & Rawls (2006). Provisional class defaults; local measurements pending.';
+        $soilSourceUrl = 'https://www.fao.org/4/X0490E/x0490e0e.htm';
         $crops = [
             'papa' => ['Papa', 'Solanum tuberosum', [
                 ['ini', 25, 0.50, 0.40, 0.35],
@@ -52,7 +58,15 @@ class CatalogSeeder extends Seeder
             foreach ($stages as [$stage, $days, $kc, $zr, $p]) {
                 CropStage::firstOrCreate(
                     ['crop_id' => $crop->id, 'stage' => $stage, 'version' => 1],
-                    ['days' => $days, 'kc' => $kc, 'root_depth_m' => $zr, 'depletion_fraction' => $p]
+                    [
+                        'days' => $days,
+                        'kc' => $kc,
+                        'root_depth_m' => $zr,
+                        'depletion_fraction' => $p,
+                        'source' => $cropSource,
+                        'source_url' => $cropSourceUrl,
+                        'reviewed_at' => $reviewedAt,
+                    ]
                 );
             }
         }
@@ -70,7 +84,12 @@ class CatalogSeeder extends Seeder
                 'name' => $name,
                 'field_capacity' => $cc,
                 'wilting_point' => $pmp,
+                'source' => $soilSource,
+                'source_url' => $soilSourceUrl,
+                'reviewed_at' => $reviewedAt,
             ]);
         }
+        Cache::forget('crops_active');
+        Cache::forget('soil_textures_all');
     }
 }

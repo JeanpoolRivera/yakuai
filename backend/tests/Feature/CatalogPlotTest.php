@@ -28,6 +28,12 @@ class CatalogPlotTest extends TestCase
         $this->assertSame(4, Crop::count());
         $this->assertSame(16, CropStage::count());
         $this->assertSame(5, SoilTexture::count());
+        $this->assertNotEmpty(CropStage::firstOrFail()->source);
+        $this->assertNotEmpty(CropStage::firstOrFail()->source_url);
+        $this->assertNotNull(CropStage::firstOrFail()->reviewed_at);
+        $this->assertNotEmpty(SoilTexture::firstOrFail()->source);
+        $this->assertNotEmpty(SoilTexture::firstOrFail()->source_url);
+        $this->assertNotNull(SoilTexture::firstOrFail()->reviewed_at);
     }
 
     public function test_rutas_protegidas_exigen_token(): void
@@ -83,6 +89,56 @@ class CatalogPlotTest extends TestCase
             'irrigation_system' => 'goteo',
             'irrigation_efficiency' => 0.90,
         ])->assertUnprocessable();
+    }
+
+    public function test_parcela_rechaza_contorno_con_menos_de_tres_puntos(): void
+    {
+        Sanctum::actingAs(User::factory()->create(['role' => 'tecnico']));
+        $farmer = Farmer::create(['name' => 'Contorno incompleto']);
+        $cropId = Crop::where('code', 'papa')->firstOrFail()->id;
+        $payload = [
+            'farmer_id' => $farmer->id,
+            'name' => 'Parcela con contorno incompleto',
+            'latitude' => -12.06,
+            'longitude' => -75.28,
+            'area_m2' => 100,
+            'area_origin' => 'manual',
+            'crop_id' => $cropId,
+            'sowing_date' => now()->toDateString(),
+            'soil_texture_code' => 'franco',
+            'irrigation_system' => 'goteo',
+            'irrigation_efficiency' => 0.90,
+            'boundary' => [[-75.2833, -12.0667], [-75.2830, -12.0667]],
+        ];
+
+        $this->postJson('/api/v1/plots', $payload)
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.boundary.0', 'El contorno debe tener al menos tres puntos.');
+    }
+
+    public function test_parcela_rechaza_area_de_dibujo_sin_contorno(): void
+    {
+        Sanctum::actingAs(User::factory()->create(['role' => 'tecnico']));
+        $farmer = Farmer::create(['name' => 'Área dibujada']);
+        $cropId = Crop::where('code', 'papa')->firstOrFail()->id;
+        $payload = [
+            'farmer_id' => $farmer->id,
+            'name' => 'Parcela sin contorno',
+            'latitude' => -12.06,
+            'longitude' => -75.28,
+            'area_m2' => 100,
+            'area_origin' => 'dibujo',
+            'crop_id' => $cropId,
+            'sowing_date' => now()->toDateString(),
+            'soil_texture_code' => 'franco',
+            'irrigation_system' => 'goteo',
+            'irrigation_efficiency' => 0.90,
+            'boundary' => null,
+        ];
+
+        $this->postJson('/api/v1/plots', $payload)
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.boundary.0', 'Dibuja un contorno válido antes de usar el área calculada del mapa.');
     }
 
     public function test_agricultor_no_puede_crear_parcelas(): void

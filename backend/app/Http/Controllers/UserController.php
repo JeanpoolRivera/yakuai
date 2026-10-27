@@ -22,7 +22,7 @@ class UserController extends Controller
         $data = $request->validated();
 
         if (($data['role'] ?? null) === 'agricultor' && empty($data['farmer_id'])) {
-            return response()->json(['error' => ['message' => 'Agricultor requiere farmer_id.', 'fields' => ['farmer_id' => ['El agricultor debe estar vinculado a un agricultor.']]]], 422);
+            return response()->json(['error' => ['message' => 'Selecciona el agricultor vinculado a esta cuenta.', 'fields' => ['farmer_id' => ['Selecciona un agricultor válido.']]]], 422);
         }
 
         $user = User::create($data);
@@ -44,7 +44,7 @@ class UserController extends Controller
         $data = $request->validated();
 
         if (array_key_exists('role', $data) && $data['role'] === 'agricultor' && empty($data['farmer_id']) && empty($user->farmer_id)) {
-            return response()->json(['error' => ['message' => 'Agricultor requiere farmer_id.', 'fields' => ['farmer_id' => ['El agricultor debe estar vinculado a un agricultor.']]]], 422);
+            return response()->json(['error' => ['message' => 'Selecciona el agricultor vinculado a esta cuenta.', 'fields' => ['farmer_id' => ['Selecciona un agricultor válido.']]]], 422);
         }
 
         if (array_key_exists('password', $data) && $data['password'] === null) {

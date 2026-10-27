@@ -4,20 +4,20 @@ import {MemoryRouter} from "react-router-dom";
 import {Login} from "./Login";
 import {ApiError} from "../api/client";
 const auth = vi.hoisted(()=>({signInPassword:vi.fn()}));
-vi.mock("../app/auth",()=>({useAuth:()=>auth}));
+vi.mock("../app/auth-context",()=>({useAuth:()=>auth}));
 afterEach(()=>{cleanup();vi.clearAllMocks();});
 function renderLogin():void {
  render(<MemoryRouter><Login/></MemoryRouter>);
 }
 function fillValid(email = "tecnico@yakuai.pe", secret = "clave123"):void {
  fireEvent.change(screen.getByLabelText(/Correo de cuenta/),{target:{value:email}});
- fireEvent.change(screen.getByLabelText(/PIN o contraseña/),{target:{value:secret}});
+ fireEvent.change(screen.getByLabelText(/^PIN o contraseña$/),{target:{value:secret}});
 }
 describe("Ingreso",()=>{
  it("no pide elegir un rol y acepta las credenciales unificadas",()=>{
   renderLogin();
   expect(screen.queryByRole("group",{name:"Tipo de acceso"})).not.toBeInTheDocument();
-  expect(screen.getByLabelText(/PIN o contraseña/)).toBeInTheDocument();
+  expect(screen.getByLabelText(/^PIN o contraseña$/)).toBeInTheDocument();
  });
  it("pide el correo cuando está vacío",async()=>{
   renderLogin();
@@ -55,7 +55,7 @@ describe("Ingreso",()=>{
  });
  it("alterna mostrar u ocultar la credencial",()=>{
   renderLogin();
-  const secret=screen.getByLabelText(/PIN o contraseña/);
+  const secret=screen.getByLabelText(/^PIN o contraseña$/);
   expect(secret).toHaveAttribute("type","password");
   fireEvent.click(screen.getByRole("button",{name:"Mostrar PIN o contraseña"}));
   expect(secret).toHaveAttribute("type","text");

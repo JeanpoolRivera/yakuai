@@ -4,7 +4,7 @@ import {MemoryRouter,Route,Routes,useLocation} from "react-router-dom";
 import {Alerts} from "./Alerts";
 const api = vi.hoisted(()=>({listAlerts:vi.fn()}));
 const auth = vi.hoisted(()=>({role:"tecnico"}));
-vi.mock("../app/auth",()=>({useAuth:()=>auth}));
+vi.mock("../app/auth-context",()=>({useAuth:()=>auth}));
 vi.mock("../api/endpoints",()=>api);
 afterEach(()=>{cleanup();vi.clearAllMocks();});
 const alerts = [
@@ -27,7 +27,7 @@ describe("Alertas",()=>{
   expect(screen.getByText(/Evalúa la parcela y riega hoy mismo/)).toBeInTheDocument();
   expect(screen.getByText(/Revisa su conexión o registra una lectura manual/)).toBeInTheDocument();
   expect(screen.getByText(/Complétalos y vuelve a evaluar/)).toBeInTheDocument();
-  expect(screen.getAllByRole("link",{name:/Evaluar parcela|Revisar sensores/})).toHaveLength(4);
+  expect(screen.getAllByRole("link",{name:/Revisar parcela/})).toHaveLength(4);
  });
  it("filtra por prioridad y busca por mensaje",async()=>{
   api.listAlerts.mockResolvedValue(alerts);
@@ -45,7 +45,7 @@ describe("Alertas",()=>{
   api.listAlerts.mockResolvedValue(alerts);
   render(<MemoryRouter initialEntries={["/alertas"]}><Routes><Route path="/alertas" element={<Alerts/>}/><Route path="/evaluar" element={<StateProbe/>}/></Routes></MemoryRouter>);
   await screen.findByText(/humedad crítica, revisión prioritaria/);
-  fireEvent.click(screen.getAllByRole("link",{name:/Evaluar parcela|Revisar sensores/})[0]);
+  fireEvent.click(screen.getAllByRole("link",{name:/Revisar parcela/})[0]);
   expect(await screen.findByText("plot:1")).toBeInTheDocument();
  });
 });

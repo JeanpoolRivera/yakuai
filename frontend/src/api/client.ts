@@ -124,7 +124,10 @@ export function friendlyError(err: unknown, fallback: string): string {
     if (err.status === 409) return err.message || "Ese registro ya existe.";
     if (err.status === 429) return "Demasiados intentos. Espera un minuto e inténtalo de nuevo.";
     if (err.status === 422 && err.data) return "Faltan datos para decidir. Revisa el detalle.";
-    if (err.status === 422) return err.message || "Revisa los datos del formulario.";
+    if (err.status === 422) {
+      const fieldMessage = Object.values(err.fields).flat()[0];
+      return fieldMessage || "Revisa los datos del formulario e intenta de nuevo.";
+    }
     return err.message || fallback;
   }
   return err instanceof Error ? err.message : fallback;
@@ -139,3 +142,5 @@ export function qs(params: Record<string, string | number | undefined | null>): 
   const s = q.toString();
   return s ? `?${s}` : "";
 }
+
+

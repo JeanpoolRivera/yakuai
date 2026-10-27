@@ -11,7 +11,7 @@ class SoilTextureController extends Controller
     public function index(): JsonResponse
     {
         $soils = Cache::remember('soil_textures_all', 3600, function () {
-            return SoilTexture::all();
+            return SoilTexture::all()->toArray();
         });
 
         return response()->json(['data' => $soils]);

@@ -5,7 +5,7 @@ La configuración de desarrollo permanece en `docker-compose.yml`: monta el cód
 ## Preparar variables
 
 1. Copia `.env.example` a `.env` y define secretos únicos para producción: `APP_KEY`, `DB_PASSWORD` y `MYSQL_ROOT_PASSWORD`.
-2. Configura `APP_URL` con el dominio HTTPS público, `APP_ENV=production`, `APP_DEBUG=false`, `MAIL_MAILER=smtp` y los datos reales de SMTP. Configura `OWM_KEY` si se requiere pronóstico real. Las credenciales opcionales de WhatsApp/Brevo solo se incluyen si esos servicios se habilitan.
+2. Configura `APP_URL` y `FRONTEND_URL` con las URL HTTPS públicas, `APP_ENV=production`, `APP_DEBUG=false`, `MAIL_MAILER=smtp` y los datos reales de SMTP. Configura `OWM_KEY` si se requiere pronóstico real. Configura Brevo SMTP para enviar invitaciones de acceso a agricultores; WhatsApp sigue siendo opcional.
 3. Conserva el archivo `.env` fuera del repositorio. `.dockerignore` excluye los archivos de entorno de los contextos de build.
 
 Por defecto, el frontend se publica en `127.0.0.1:${FRONTEND_PORT:-8081}`. Coloca un proxy de entrada con TLS en el mismo host y configura el reenvío de `X-Forwarded-Proto`. Si el proxy se ejecuta fuera del host, configura `FRONTEND_BIND=0.0.0.0` y limita el puerto al proxy mediante el firewall; el tráfico público debe terminar TLS en ese proxy. La API no publica un puerto de host: solo se alcanza desde la red interna de Compose a través del frontend.
