@@ -6,7 +6,7 @@ import { listCrops, listFarmers, listPlots, listSoils, createPlot, updatePlot } 
 import type { PlotInput } from "@/api/endpoints";
 import type { Farmer, Plot } from "@/api/types";
 import { ApiError, friendlyError } from "@/api/client";
-import { toastOk } from "@/lib/toast";
+import { toastOk, toastError } from "@/lib/toast";
 import { PlotMap, type DrawResult, type PlotPoint } from "@/components/shadcn/plot-map";
 import { PageHeading, Metric, StatusBadge, EmptyBlock, ErrorBlock, LoadingBlock } from "@/components/workspace/WorkspaceKit";
 import { Button } from "@/components/shadcn/button";
@@ -55,6 +55,7 @@ export function PlotsWorkspace(): React.JSX.Element {
   const [form, setForm] = useState<FormValues>(blank);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState("");
+  const [updatingPlotId, setUpdatingPlotId] = useState<number | null>(null);
   const [formErrorField, setFormErrorField] = useState<string | null>(null);
 
   const activeCount = plots.filter((p) => p.status === "activa").length;
@@ -75,6 +76,29 @@ export function PlotsWorkspace(): React.JSX.Element {
     ...(crops.length ? [] : [{ label: "Solicita cargar cultivos al administrador", href: "/catalogos" }]),
     ...(soils.length ? [] : [{ label: "Solicita cargar tipos de suelo al administrador", href: "/catalogos" }]),
   ];
+
+  async function cambiarEstadoParcela(
+  plotId: number,
+  nuevoEstado: Plot["status"]
+): Promise<void> {
+  setUpdatingPlotId(plotId);
+
+  try {
+    await updatePlot(plotId, {
+      status: nuevoEstado,
+    });
+
+    await load();
+
+    toastOk("Estado de la parcela actualizado correctamente.");
+  } catch (error) {
+    toastError(
+      friendlyError(error, "No se pudo actualizar el estado.")
+    );
+  } finally {
+    setUpdatingPlotId(null);
+  }
+}
 
   function openCreate(): void { setEditing(null); setForm({ ...blank(), farmer_id: farmers[0] ? String(farmers[0].id) : "", crop_id: crops[0] ? String(crops[0].id) : "", soil_texture_code: soils[0]?.code ?? "" }); setStep(0); setFormError(""); setFormErrorField(null); setOpen(true); }
   function openEdit(plot: Plot): void { setEditing(plot); setFormError(""); setFormErrorField(null); setForm({ farmer_id: String(plot.farmer_id), name: plot.name, latitude: String(plot.latitude), longitude: String(plot.longitude), boundary: plot.boundary, area_m2: String(plot.area_m2), area_origin: plot.area_origin, crop_id: String(plot.crop_id), sowing_date: plot.sowing_date, soil_texture_code: plot.soil_texture_code, irrigation_system: plot.irrigation_system, irrigation_efficiency: String(plot.irrigation_efficiency), flow_lpm: plot.flow_lpm ? String(plot.flow_lpm) : "", status: plot.status }); setStep(0); setFormError(""); setOpen(true); }
@@ -161,7 +185,55 @@ export function PlotsWorkspace(): React.JSX.Element {
         {!open ? <Card className="overflow-hidden rounded-xl"><div className="border-b border-neutral-200 p-4 sm:p-5"><h2 className="font-semibold text-neutral-900">Mapa del campo</h2><p className="mt-1 text-sm text-neutral-600">Selecciona un marcador para identificar la parcela.</p></div><PlotMap plots={mapPoints} mapClassName="h-[320px] sm:h-[400px]" /><div className="border-t border-neutral-200 px-4 py-3 text-xs text-neutral-500">Ubicaciones aproximadas. El contorno se define al crear o editar una parcela.</div></Card> : null}
         <Card className="space-y-4 rounded-xl p-4 sm:p-5"><div><h2 className="font-semibold text-neutral-900">Directorio de parcelas</h2><p className="mt-1 text-sm text-neutral-600">Busca por nombre, cultivo o agricultor.</p></div><SearchInput value={query} onChange={setQuery} placeholder="Buscar parcela…" label="Buscar parcelas" /><label className="grid gap-1 text-xs font-medium text-neutral-700">Estado<select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="min-h-12 rounded-md border border-neutral-300 bg-white px-3 text-sm"><option value="todas">Todos los estados</option><option value="activa">Activas</option><option value="pausada">Pausadas</option><option value="cerrada">Cerradas</option></select></label><div className="border-t border-neutral-200 pt-3 text-xs text-neutral-500">{visible.length} de {plots.length} parcelas</div></Card>
       </div>
-      {visible.length ? <Card className="overflow-hidden rounded-xl"><Table><caption className="sr-only">Parcelas, responsables, cultivo, área y estado</caption><TableHeader className="bg-neutral-50"><TableRow><TableHead>Parcela</TableHead><TableHead>Agricultor</TableHead><TableHead>Cultivo</TableHead><TableHead>Área</TableHead><TableHead>Riego</TableHead><TableHead>Estado</TableHead><TableHead><span className="sr-only">Acciones</span></TableHead></TableRow></TableHeader><TableBody>{visible.map((plot) => <TableRow key={plot.id}><TableCell><p className="font-semibold text-neutral-900">{plot.name}</p><p className="text-xs text-neutral-500">{Number(plot.latitude).toFixed(4)}, {Number(plot.longitude).toFixed(4)}</p></TableCell><TableCell>{farmers.find((f) => f.id === plot.farmer_id)?.name ?? "—"}</TableCell><TableCell>{plot.crop?.name ?? crops.find((c) => c.id === plot.crop_id)?.name ?? "—"}</TableCell><TableCell className="tabular-nums">{fmtNum(plot.area_m2)} m²</TableCell><TableCell className="capitalize">{plot.irrigation_system}</TableCell><TableCell><StatusBadge value={plot.status} label={plot.status === "activa" ? "Activa" : plot.status === "pausada" ? "Pausada" : "Cerrada"} /></TableCell><TableCell><Button variant="ghost" size="sm" aria-label={`Editar parcela ${plot.name}`} onClick={() => openEdit(plot)}><Pencil size={15} aria-hidden="true" />Editar</Button></TableCell></TableRow>)}</TableBody></Table></Card> : <EmptyBlock title={query || statusFilter !== "todas" ? "Sin coincidencias" : "Aún no hay parcelas"} description={query || statusFilter !== "todas" ? "Prueba con otro término o estado." : "Registra una parcela para comenzar el seguimiento."} action={!query && statusFilter === "todas" && farmers.length ? <Button onClick={openCreate}>Registrar parcela</Button> : undefined} />}
+      {visible.length ? 
+      <Card className="overflow-hidden rounded-xl">
+      <Table>
+      <caption className="sr-only">Parcelas, responsables, cultivo, área y estado</caption>
+      <TableHeader className="bg-neutral-50"><TableRow>
+      <TableHead>Parcela</TableHead><TableHead>Agricultor</TableHead><TableHead>Cultivo</TableHead><TableHead>Área</TableHead>
+      <TableHead>Riego</TableHead><TableHead>Estado</TableHead><TableHead><span className="sr-only">Acciones</span>
+      </TableHead></TableRow></TableHeader><TableBody>{visible.map((plot) => <TableRow key={plot.id}><TableCell>
+      <p className="font-semibold text-neutral-900">{plot.name}</p>
+      <p className="text-xs text-neutral-500">{Number(plot.latitude).toFixed(4)}, {Number(plot.longitude).toFixed(4)}</p>
+      </TableCell><TableCell>{farmers.find((f) => f.id === plot.farmer_id)?.name ?? "—"}</TableCell>
+      <TableCell>{plot.crop?.name ?? crops.find((c) => c.id === plot.crop_id)?.name ?? "—"}</TableCell>
+      <TableCell className="tabular-nums">{fmtNum(plot.area_m2)} m²</TableCell>
+      <TableCell className="capitalize">{plot.irrigation_system}</TableCell>
+
+      <TableCell>
+        <select
+          value={plot.status}
+          disabled={updatingPlotId === plot.id}
+          onChange={(event) =>
+            void cambiarEstadoParcela(
+              plot.id,
+              event.target.value as Plot["status"]
+            )
+          }
+          aria-label={`Cambiar estado de ${plot.name}`}
+          className={`min-h-9 rounded-lg border px-3 py-1.5 text-sm font-semibold outline-none transition-colors
+            ${
+              plot.status === "activa"
+                ? "border-green-200 bg-green-50 text-green-700"
+                : plot.status === "pausada"
+                  ? "border-amber-200 bg-amber-50 text-amber-700"
+                  : "border-neutral-200 bg-neutral-100 text-neutral-700"
+            }
+            disabled:cursor-wait disabled:opacity-50`}
+        >
+          <option value="activa">Activa</option>
+          <option value="pausada">Pausada</option>
+          <option value="cerrada">Cerrada</option>
+        </select>
+
+        {updatingPlotId === plot.id && (
+          <span className="ml-2 text-xs text-neutral-500">
+            Guardando...
+          </span>
+        )}
+      </TableCell>
+
+      <TableCell><Button variant="ghost" size="sm" aria-label={`Editar parcela ${plot.name}`} onClick={() => openEdit(plot)}><Pencil size={15} aria-hidden="true" />Editar</Button></TableCell></TableRow>)}</TableBody></Table></Card> : <EmptyBlock title={query || statusFilter !== "todas" ? "Sin coincidencias" : "Aún no hay parcelas"} description={query || statusFilter !== "todas" ? "Prueba con otro término o estado." : "Registra una parcela para comenzar el seguimiento."} action={!query && statusFilter === "todas" && farmers.length ? <Button onClick={openCreate}>Registrar parcela</Button> : undefined} />}
     </>}
 
     <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-3xl"><DialogHeader><DialogTitle>{editing ? "Editar parcela" : "Registrar parcela"}</DialogTitle><DialogDescription>{missingReferenceData.length ? "Antes de continuar, completa los datos requeridos." : "Completa los datos por secciones. El área puede calcularse desde el contorno del mapa."}</DialogDescription></DialogHeader>

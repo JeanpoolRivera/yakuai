@@ -20,22 +20,34 @@ class PlotRequest extends FormRequest
     }
 
     /** @return array<string, ValidationRule|array<mixed>|string> */
+    
     public function rules(): array
     {
+        // Al crear una parcela, los campos siguen siendo obligatorios.
+        // Al actualizarla mediante PATCH, solo validamos los campos enviados.
+        $required = $this->isMethod('PATCH') || $this->isMethod('PUT')
+            ? 'sometimes|required'
+            : 'required';
+
         return [
-            'farmer_id' => ['required', 'integer', 'exists:farmers,id'],
-            'name' => ['required', 'string', 'min:2', 'max:120', 'regex:/^[\p{L}\p{M}\p{N}][\p{L}\p{M}\p{N} .\x{27}\x{2019}()#\/_-]*$/u'],
-            'latitude' => ['required', 'numeric', 'decimal:0,7', 'between:-90,90'],
-            'longitude' => ['required', 'numeric', 'decimal:0,7', 'between:-180,180'],
-            'boundary' => ['nullable', 'array'],
-            'area_m2' => ['required', 'numeric', 'decimal:0,2', 'min:1', 'max:99999999.99'],
+            'farmer_id' => [$required, 'integer', 'exists:farmers,id'],
+            'name' => [$required, 'string', 'min:2', 'max:120', 'regex:/^[\p{L}\p{M}\p{N}][\p{L}\p{M}\p{N} .\x{27}\x{2019}()#\/_-]*$/u'],
+            'latitude' => [$required, 'numeric', 'decimal:0,7', 'between:-90,90'],
+            'longitude' => [$required, 'numeric', 'decimal:0,7', 'between:-180,180'],
+
+            'boundary' => ['sometimes', 'nullable', 'array'],
+            'area_m2' => [$required, 'numeric', 'decimal:0,2', 'min:1', 'max:99999999.99'],
             'area_origin' => ['sometimes', 'in:dibujo,manual'],
-            'crop_id' => ['required', 'integer', 'exists:crops,id'],
-            'sowing_date' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
-            'soil_texture_code' => ['required', 'string', 'exists:soil_textures,code'],
-            'irrigation_system' => ['required', 'in:goteo,aspersion,gravedad'],
-            'irrigation_efficiency' => ['required', 'numeric', 'decimal:0,2', 'min:0.01', 'lte:1'],
-            'flow_lpm' => ['nullable', 'numeric', 'decimal:0,2', 'min:0.1', 'max:999999.99'],
+
+            'crop_id' => [$required, 'integer', 'exists:crops,id'],
+            'sowing_date' => [$required, 'date_format:Y-m-d', 'before_or_equal:today'],
+            'soil_texture_code' => [$required, 'string', 'exists:soil_textures,code'],
+
+            'irrigation_system' => [$required, 'in:goteo,aspersion,gravedad'],
+            'irrigation_efficiency' => [$required, 'numeric', 'decimal:0,2', 'min:0.01', 'lte:1'],
+
+            'flow_lpm' => ['sometimes', 'nullable', 'numeric', 'decimal:0,2', 'min:0.1', 'max:999999.99'],
+
             'status' => ['sometimes', 'in:activa,pausada,cerrada'],
         ];
     }

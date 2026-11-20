@@ -109,8 +109,14 @@ export function createPlot(input: PlotInput): Promise<Plot> {
   return api<Plot>("plots", { method: "POST", body: input });
 }
 
-export function updatePlot(id: number, input: PlotInput): Promise<Plot> {
-  return api<Plot>(`plots/${id}`, { method: "PATCH", body: input });
+export function updatePlot(
+  id: number,
+  input: Partial<PlotInput>
+): Promise<Plot> {
+  return api<Plot>(`plots/${id}`, {
+    method: "PATCH",
+    body: input,
+  });
 }
 
 /* ---------- Sensores ---------- */
