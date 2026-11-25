@@ -2,9 +2,11 @@
 import { api, apiList, qs } from "./client";
 import type {
   AlertItem,
+  ArduinoSensorConfiguration,
   AuthPayload,
   AuthUser,
   Crop,
+  DemoEvaluation,
   Evaluation,
   Farmer,
   Forecast,
@@ -128,8 +130,16 @@ export function listSensors(plotId?: number): Promise<Sensor[]> {
   return apiList<Sensor>(`sensors${qs({ plot_id: plotId })}`);
 }
 
+export function configureArduino(plotId: number): Promise<ArduinoSensorConfiguration> {
+  return api<ArduinoSensorConfiguration>(`plots/${plotId}/arduino/configure`, { method: "POST", body: {} });
+}
+
 export function createSensor(input: SensorInput): Promise<Sensor> {
   return api<Sensor>("sensors", { method: "POST", body: input });
+}
+
+export function updateSensor(id: number, input: Partial<SensorInput>): Promise<Sensor> {
+  return api<Sensor>(`sensors/${id}`, { method: "PATCH", body: input });
 }
 
 export function simulateSensor(sensorId: number): Promise<Measurement> {
@@ -164,6 +174,13 @@ export function refreshWeather(plotId: number): Promise<Forecast> {
 /* ---------- Evaluaciones ---------- */
 export function evaluatePlot(plotId: number): Promise<Evaluation> {
   return api<Evaluation>(`plots/${plotId}/evaluate`, { method: "POST" });
+}
+
+export function evaluateDemoPlot(
+  plotId: number,
+  input: { humedad_pct: number; rain_mm: number; rain_prob: number },
+): Promise<DemoEvaluation> {
+  return api<DemoEvaluation>(`plots/${plotId}/evaluate-demo`, { method: "POST", body: input });
 }
 
 export function listEvaluations(plotId?: number): Promise<Evaluation[]> {

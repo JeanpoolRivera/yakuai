@@ -1,7 +1,7 @@
 export const CATALOGS_COPY = {
   title: "Cultivos y suelos",
   eyebrow: "Referencia",
-  description: "Consulta los parámetros agronómicos que sustentan las recomendaciones de riego.",
+  description: "Valores de cultivo y suelo usados en las recomendaciones.",
   crumbs: "YakuAI / Catálogos",
   loading: "Cargando catálogos…",
   errorLoad: "No se pudieron cargar los catálogos.",

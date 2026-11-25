@@ -47,7 +47,7 @@ class IngestionTest extends TestCase
 
         $response = $this->postJson('/api/v1/measurements', [
             'sensor_id' => $sensor->id,
-            'measured_at' => now()->toDateTimeString(),
+            'measured_at' => now()->format('Y-m-d\TH:i:s'),
             'raw_value' => 650,
         ])->assertCreated();
 
@@ -68,8 +68,9 @@ class IngestionTest extends TestCase
 
         $this->postJson('/api/v1/measurements', [
             'sensor_id' => $sensor->id,
-            'measured_at' => now()->toDateTimeString(),
+            'measured_at' => now()->format('Y-m-d\TH:i:s'),
             'raw_value' => 5000,
+            'origin' => 'sensor',
         ])->assertCreated()
             ->assertJsonPath('data.quality', 'anomalo')
             ->assertJsonPath('data.norm_value', null);
@@ -84,7 +85,7 @@ class IngestionTest extends TestCase
         $sensor = Sensor::create([
             'plot_id' => $plot->id, 'type' => 'lluvia', 'model' => 'FC-37',
         ]);
-        $at = now()->toDateTimeString();
+        $at = now()->format('Y-m-d\TH:i:s');
 
         $this->postJson('/api/v1/measurements', [
             'sensor_id' => $sensor->id, 'measured_at' => $at, 'raw_value' => 1,
@@ -125,7 +126,7 @@ class IngestionTest extends TestCase
 
         $this->withToken($token)->postJson('/api/v1/measurements', [
             'sensor_id' => $sensor->id,
-            'measured_at' => now()->toDateTimeString(),
+            'measured_at' => now()->format('Y-m-d\TH:i:s'),
             'raw_value' => 1,
         ])->assertCreated();
 

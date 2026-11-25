@@ -52,6 +52,7 @@ Route::middleware(['auth:sanctum', 'yakuai'])->group(function (): void {
     Route::patch('/plots/{plot}', [PlotController::class, 'update']);
 
     Route::get('/sensors', [SensorController::class, 'index']);
+    Route::post('/plots/{plot}/arduino/configure', [SensorController::class, 'configureArduino']);
     Route::post('/sensors', [SensorController::class, 'store']);
     Route::get('/sensors/{sensor}', [SensorController::class, 'show']);
     Route::patch('/sensors/{sensor}', [SensorController::class, 'update']);
@@ -64,6 +65,7 @@ Route::middleware(['auth:sanctum', 'yakuai'])->group(function (): void {
     Route::post('/plots/{plot}/weather/refresh', [WeatherController::class, 'refresh']);
 
     Route::post('/plots/{plot}/evaluate', [EvaluationController::class, 'evaluate']);
+    Route::post('/plots/{plot}/evaluate-demo', [EvaluationController::class, 'evaluateDemo']);
     Route::get('/evaluations', [EvaluationController::class, 'index']);
     Route::get('/evaluations/{evaluation}', [EvaluationController::class, 'show']);
     Route::get('/evaluations/{evaluation}/mensaje', [EvaluationController::class, 'mensaje']);

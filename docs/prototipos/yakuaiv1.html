@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mapa conectado de YakuAI</title>
+  <style>
+    :root {
+      --fondo: #f2f6f4;
+      --papel: #fff;
+      --texto: #18313b;
+      --suave: #526972;
+      --borde: #d6e2de;
+      --teal: #0b6672;
+      --azul: #405b8d;
+      --verde: #28674f;
+      --ambar: #8a5b0b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      background: var(--fondo);
+      color: var(--texto);
+      font-family: Inter, "Segoe UI", Arial, sans-serif;
+    }
+
+    main {
+      width: min(1280px, 100%);
+      margin: 0 auto;
+      padding: 20px;
+      border: 1px solid var(--borde);
+      border-radius: 20px;
+      background: var(--papel);
+      box-shadow: 0 10px 28px rgb(24 49 59 / 8%);
+    }
+
+    h1 {
+      margin: 0 0 4px;
+      font-size: clamp(1.35rem, 3vw, 2rem);
+    }
+
+    p {
+      margin: 0;
+      color: var(--suave);
+    }
+
+    .grafico {
+      display: block;
+      width: 100%;
+      height: auto;
+      margin-top: 12px;
+    }
+
+    .nodo {
+      stroke-width: 1.5;
+      rx: 14;
+    }
+
+    .texto-titulo {
+      fill: var(--texto);
+      font-size: 17px;
+      font-weight: 700;
+      text-anchor: middle;
+    }
+
+    .texto {
+      fill: var(--suave);
+      font-size: 13px;
+      text-anchor: middle;
+    }
+
+    .conexion {
+      fill: none;
+      stroke: #718991;
+      stroke-width: 2.5;
+      marker-end: url(#flecha);
+    }
+
+    .conexion-ia {
+      fill: none;
+      stroke: var(--ambar);
+      stroke-width: 2.5;
+      marker-end: url(#flecha-ia);
+    }
+
+    .respuesta {
+      fill: none;
+      stroke: var(--azul);
+      stroke-width: 2.5;
+      marker-end: url(#flecha-azul);
+    }
+
+    .linea-ia {
+      stroke-dasharray: 7 6;
+    }
+
+    .etiqueta-linea {
+      fill: var(--suave);
+      font-size: 12px;
+      font-weight: 600;
+      text-anchor: middle;
+    }
+
+    .banda {
+      fill: #f8fbfa;
+      stroke: var(--borde);
+      stroke-width: 1;
+      rx: 16;
+    }
+
+    .banda-ia {
+      fill: #fffaf0;
+      stroke: #ead9ad;
+    }
+
+    .banda-titulo {
+      fill: var(--suave);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    @media (max-width: 700px) {
+      body { padding: 8px; }
+      main { padding: 12px; border-radius: 14px; }
+      .grafico { min-width: 850px; }
+      .contenedor-grafico { overflow-x: auto; }
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <h1>Conexiones del sistema YakuAI</h1>
+    <p>
+      El desarrollo asistido por IA produce cambios revisados en frontend y backend.
+      En ejecución, el frontend se comunica con la API Laravel y esta con los datos y servicios.
+    </p>
+
+    <div class="contenedor-grafico">
+      <svg
+        class="grafico"
+        viewBox="0 0 1200 650"
+        role="img"
+        aria-labelledby="titulo-svg descripcion-svg"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <title id="titulo-svg">Mapa conectado de YakuAI</title>
+        <desc id="descripcion-svg">
+          Flujo de prompts a cambios revisados en frontend y backend, y conexiones
+          de ejecución entre interfaz React, cliente HTTP, API Laravel, servicios,
+          base de datos e integraciones externas.
+        </desc>
+
+        <defs>
+          <marker id="flecha" markerWidth="10" markerHeight="10"
+                  refX="8" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L9,3 z" fill="#718991"/>
+          </marker>
+          <marker id="flecha-ia" markerWidth="10" markerHeight="10"
+                  refX="8" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L9,3 z" fill="#8a5b0b"/>
+          </marker>
+          <marker id="flecha-azul" markerWidth="10" markerHeight="10"
+                  refX="8" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L9,3 z" fill="#405b8d"/>
+          </marker>
+        </defs>
+
+        <!-- Un solo mapa: el flujo de desarrollo alimenta el sistema -->
+        <rect class="banda banda-ia" x="20" y="20" width="1160" height="180"/>
+        <text class="banda-titulo" x="42" y="45">DESARROLLO CON IA POR PROMPTS</text>
+
+        <!-- Conexiones del flujo de prompts -->
+        <path class="conexion-ia" d="M220 112 H258"/>
+        <path class="conexion-ia" d="M438 112 H476"/>
+        <path class="conexion-ia" d="M656 112 H694"/>
+        <path class="conexion-ia" d="M874 112 H912"/>
+
+        <!-- Pasos del desarrollo -->
+        <rect class="nodo" x="40" y="72" width="180" height="80"
+              fill="#e0f0ed" stroke="#b9dcd5"/>
+        <text class="texto-titulo" x="130" y="102">Necesidad</text>
+        <text class="texto" x="130" y="125">objetivo y contexto</text>
+
+        <rect class="nodo" x="258" y="72" width="180" height="80"
+              fill="#e8edf8" stroke="#cad5eb"/>
+        <text class="texto-titulo" x="348" y="102">Prompt</text>
+        <text class="texto" x="348" y="125">tarea y restricciones</text>
+
+        <rect class="nodo" x="476" y="72" width="180" height="80"
+              fill="#fff2d7" stroke="#ead9ad"/>
+        <text class="texto-titulo" x="566" y="102">IA propone</text>
+        <text class="texto" x="566" y="125">código o solución</text>
+
+        <rect class="nodo" x="694" y="72" width="180" height="80"
+              fill="#e8edf8" stroke="#cad5eb"/>
+        <text class="texto-titulo" x="784" y="102">Revisión humana</text>
+        <text class="texto" x="784" y="125">reglas y aceptación</text>
+
+        <rect class="nodo" x="912" y="72" width="220" height="80"
+              fill="#e5f2e9" stroke="#c6dfce"/>
+        <text class="texto-titulo" x="1022" y="102">Cambio integrado</text>
+        <text class="texto" x="1022" y="125">frontend y/o backend</text>
+
+        <!-- El cambio revisado se conecta al código de ambos lados -->
+        <path class="conexion-ia linea-ia" d="M1022 152 V232 H250 V274"/>
+        <path class="conexion-ia linea-ia" d="M1022 152 V232 H850 V274"/>
+        <text class="etiqueta-linea" x="540" y="222">cambios revisados en el repositorio</text>
+
+        <!-- Runtime -->
+        <rect class="banda" x="20" y="250" width="1160" height="370"/>
+        <text class="banda-titulo" x="42" y="275">CONEXIONES EN EJECUCIÓN · DATOS Y RESPUESTAS</text>
+
+        <!-- Flechas de solicitud -->
+        <path class="conexion" d="M220 366 H260"/>
+        <path class="conexion" d="M440 366 H480"/>
+        <path class="conexion" d="M700 366 H740"/>
+        <path class="conexion" d="M930 366 H970"/>
+
+        <!-- Capa frontend -->
+        <rect class="nodo" x="40" y="294" width="180" height="144"
+              fill="#e0f0ed" stroke="#b9dcd5"/>
+        <text class="texto-titulo" x="130" y="328">Frontend</text>
+        <text class="texto" x="130" y="352">React · TypeScript</text>
+        <text class="texto" x="130" y="374">pantallas y componentes</text>
+        <text class="texto" x="130" y="396">por rol y funcionalidad</text>
+
+        <rect class="nodo" x="260" y="294" width="180" height="144"
+              fill="#e8edf8" stroke="#cad5eb"/>
+        <text class="texto-titulo" x="350" y="328">Cliente API</text>
+        <text class="texto" x="350" y="352">endpoints tipados</text>
+        <text class="texto" x="350" y="374">HTTP · JSON</text>
+        <text class="texto" x="350" y="396">token Bearer</text>
+
+        <!-- Capa backend -->
+        <rect class="nodo" x="480" y="294" width="220" height="144"
+              fill="#fff2d7" stroke="#ead9ad"/>
+        <text class="texto-titulo" x="590" y="328">API Laravel</text>
+        <text class="texto" x="590" y="352">rutas /api/v1</text>
+        <text class="texto" x="590" y="374">middleware y permisos</text>
+        <text class="texto" x="590" y="396">controladores</text>
+
+        <rect class="nodo" x="740" y="294" width="190" height="144"
+              fill="#e5f2e9" stroke="#c6dfce"/>
+        <text class="texto-titulo" x="835" y="328">Dominio</text>
+        <text class="texto" x="835" y="352">servicios Laravel</text>
+        <text class="texto" x="835" y="374">modelos Eloquent</text>
+        <text class="texto" x="835" y="396">reglas y persistencia</text>
+
+        <rect class="nodo" x="970" y="294" width="180" height="144"
+              fill="#e0f0ed" stroke="#b9dcd5"/>
+        <text class="texto-titulo" x="1060" y="328">MySQL</text>
+        <text class="texto" x="1060" y="352">parcelas y usuarios</text>
+        <text class="texto" x="1060" y="374">sensores y lecturas</text>
+        <text class="texto" x="1060" y="396">evaluaciones y riegos</text>
+
+        <text class="etiqueta-linea" x="350" y="460">solicitud HTTP + token</text>
+
+        <!-- Respuesta del backend al frontend -->
+        <path class="respuesta" d="M590 440 V490 H350 V440"/>
+        <text class="etiqueta-linea" x="470" y="485">respuesta JSON → pantalla actualizada</text>
+
+        <!-- Integraciones conectadas al backend -->
+        <path class="conexion" d="M835 438 V520 H700"/>
+        <path class="conexion" d="M835 520 H860"/>
+
+        <rect class="nodo" x="510" y="520" width="190" height="74"
+              fill="#e8edf8" stroke="#cad5eb"/>
+        <text class="texto-titulo" x="605" y="548">Clima y correo</text>
+        <text class="texto" x="605" y="572">OWM · SMTP</text>
+
+        <rect class="nodo" x="860" y="520" width="250" height="74"
+              fill="#fff2d7" stroke="#ead9ad"/>
+        <text class="texto-titulo" x="985" y="548">Redis → Worker</text>
+        <text class="texto" x="985" y="572">colas y WhatsApp opcional</text>
+
+        <!-- Nota que aclara el papel de la IA -->
+        <text class="texto" x="600" y="612">
+          La IA apoya el desarrollo; no forma parte de las solicitudes ni del cálculo de riego en producción.
+        </text>
+      </svg>
+    </div>
+  </main>
+</body>
+</html>

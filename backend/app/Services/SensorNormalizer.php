@@ -4,8 +4,8 @@ namespace App\Services;
 
 /**
  * Normaliza lecturas crudas y decide su calidad.
- * Reglas v1 (README §6): YL-69 0-1023 con calibración de 2 puntos,
- * DHT11 temp -10..60, HR 0..100, FC-37 solo 0/1, YF-S201 0..60 L/min.
+ * Humedad capacitiva 0-1023 con calibración, temperaturas, humedad relativa,
+ * estados discretos y caudal. Los tipos reflejan la magnitud que mide cada dispositivo.
  */
 class SensorNormalizer
 {
@@ -17,9 +17,12 @@ class SensorNormalizer
         return match ($type) {
             'humedad' => $this->moisture($raw, $dryRef, $wetRef),
             'aire_temp' => $this->range($raw, -10.0, 60.0),
+            'temperatura_suelo' => $this->range($raw, -55.0, 125.0),
             'aire_hr' => $this->range($raw, 0.0, 100.0),
             'lluvia' => $this->discrete($raw, [0.0, 1.0]),
-            'caudal' => $this->range($raw, 0.0, 60.0),
+            // El hardware actual es YF-S401 (hasta 6 L/min); 0 representa bomba parada.
+            'caudal' => $this->range($raw, 0.0, 6.0),
+            'agua_suficiente', 'bomba_estado' => $this->discrete($raw, [0.0, 1.0]),
             default => ['quality' => 'anomalo', 'norm' => null],
         };
     }

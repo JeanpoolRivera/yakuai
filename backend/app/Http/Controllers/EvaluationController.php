@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Concerns\BelongsToFarmer;
 use App\Models\Evaluation;
 use App\Models\Forecast;
+use App\Models\Irrigation;
 use App\Models\Measurement;
 use App\Models\Plot;
 use App\Services\HydroService;
@@ -17,6 +18,56 @@ use Illuminate\Http\Request;
 class EvaluationController extends Controller
 {
     use BelongsToFarmer;
+
+    /** Calculate a presentation scenario without saving readings, forecasts or evaluations. */
+    public function evaluateDemo(Request $request, Plot $plot, HydroService $hydro): JsonResponse
+    {
+        if (! in_array($request->user()->role, ['tecnico', 'admin'], true)) {
+            return response()->json(['error' => ['message' => 'Solo el personal técnico puede ejecutar una simulación.']], 403);
+        }
+
+        $forbidden = $this->forbiddenIfCantAccessPlot($request, $plot);
+        if ($forbidden !== null) {
+            return $forbidden;
+        }
+
+        $token = $request->user()->currentAccessToken();
+        if ($token !== null && ! $token->can('*') && ! $token->can('evaluar')) {
+            return response()->json(['error' => ['message' => 'Sin permiso para esta acción.']], 403);
+        }
+
+        $values = $request->validate([
+            'humedad_pct' => ['required', 'numeric', 'between:0,100'],
+            'rain_mm' => ['required', 'numeric', 'between:0,200'],
+            'rain_prob' => ['required', 'numeric', 'between:0,1'],
+        ]);
+
+        $now = now();
+        $measurement = new Measurement([
+            'plot_id' => $plot->id,
+            'measured_at' => $now,
+            'raw_value' => $values['humedad_pct'],
+            'norm_value' => $values['humedad_pct'],
+            'quality' => 'ok',
+            'origin' => 'demo',
+        ]);
+        $forecast = new Forecast([
+            'plot_id' => $plot->id,
+            'fetched_at' => $now,
+            'temp_max' => 24,
+            'temp_min' => 12,
+            'rain_mm' => $values['rain_mm'],
+            'rain_prob' => $values['rain_prob'],
+            'origin' => 'demo',
+        ]);
+
+        $result = $hydro->evaluate($plot, $measurement, $forecast, $now);
+        $result['confidence'] = 'media';
+        $result['snapshot']['modo'] = 'demostracion';
+        $result['snapshot']['humedad_pct'] = (float) $values['humedad_pct'];
+
+        return response()->json(['data' => $result]);
+    }
 
     public function index(Request $request): JsonResponse
     {
@@ -65,7 +116,8 @@ class EvaluationController extends Controller
             ->where('evaluated_at', $slot)
             ->first();
 
-        if ($existing !== null) {
+        // Recalcula la evaluación de esta hora con lecturas nuevas, salvo que ya tenga un riego vinculado.
+        if ($existing !== null && Irrigation::where('evaluation_id', $existing->id)->exists()) {
             return response()->json(['data' => $existing->load('plot')]);
         }
 
@@ -86,8 +138,7 @@ class EvaluationController extends Controller
 
         $calc = $hydro->evaluate($plot, $measurement, $forecast, $now);
 
-        try {
-            $evaluation = Evaluation::create([
+        $values = [
                 'plot_id' => $plot->id,
                 'evaluated_at' => $slot,
                 'stage' => $calc['stage'],
@@ -99,7 +150,15 @@ class EvaluationController extends Controller
                 'reason' => $calc['reason'],
                 'next_at' => $calc['next_at'],
                 'is_critical' => $calc['is_critical'],
-            ]);
+            ];
+
+        try {
+            if ($existing !== null) {
+                $existing->update($values);
+                $evaluation = $existing->fresh();
+            } else {
+                $evaluation = Evaluation::create($values);
+            }
         } catch (QueryException $e) {
             if ($e->getCode() === '23000') {
                 $existing = Evaluation::where('plot_id', $plot->id)

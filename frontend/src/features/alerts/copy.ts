@@ -1,7 +1,7 @@
 export const ALERTS_COPY = {
   title: "Alertas",
   eyebrow: "Vigilancia",
-  description: "Supervisa las condiciones que necesitan atención en tus parcelas y sensores.",
+  description: "Revisa los avisos y atiende primero los más importantes.",
   crumbs: "YakuAI / Alertas",
   loading: "Cargando alertas…",
   errorLoad: "No se pudieron cargar las alertas.",
@@ -23,7 +23,7 @@ export const ALERTS_COPY = {
   retry: "Reintentar",
   goPlot: "Ir a parcela",
   helpTitle: "Bandeja de alertas",
-  helpDesc: "Filtra por prioridad o encuentra una parcela.",
+  helpDesc: "Busca avisos por prioridad o parcela.",
   criticalBanner: (n: number) => `${n} alerta${n === 1 ? "" : "s"} crítica${n === 1 ? "" : "s"}: revisa esas parcelas hoy.`,
   emptyHint: {
     search: "Prueba con otro mensaje o parcela.",

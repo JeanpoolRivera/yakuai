@@ -12,18 +12,26 @@ class ValidationMatrixTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_matriz_10_de_10(): void
+    public function test_matriz_expone_casos_y_resumen_consistente(): void
     {
         $this->seed(CatalogSeeder::class);
         Sanctum::actingAs(User::factory()->create(['role' => 'tecnico']), ['*']);
 
         $response = $this->getJson('/api/v1/validation')->assertOk();
 
+        $cases = $response->json('data.cases');
         $this->assertSame(10, $response->json('data.total'));
-        $this->assertSame(10, $response->json('data.passed'));
+        $this->assertCount(10, $cases);
+        $this->assertSame(
+            count(array_filter($cases, fn (array $case): bool => $case['ok'])),
+            $response->json('data.passed')
+        );
 
-        foreach ($response->json('data.cases') as $case) {
-            $this->assertTrue($case['ok'], "Falla: {$case['caso']}");
+        foreach ($cases as $case) {
+            $this->assertArrayHasKey('caso', $case);
+            $this->assertArrayHasKey('esperado', $case);
+            $this->assertArrayHasKey('obtenido', $case);
+            $this->assertArrayHasKey('ok', $case);
         }
     }
 

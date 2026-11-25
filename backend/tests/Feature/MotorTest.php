@@ -31,7 +31,7 @@ class MotorTest extends TestCase
         $cropId = Crop::where('code', 'papa')->firstOrFail()->id;
 
         // Siembra hace 70 días → etapa med (55-95): kc 1.15, zr 0.60, p 0.35.
-        // Suelo franco: cc 0.27, pmp 0.12 → umbral 21.75 %.
+        // Suelo franco: cc 0.27, pmp 0.12; índice relativo del sensor: umbral (1-p) = 65 %.
         $this->plot = Plot::create([
             'farmer_id' => $farmer->id,
             'name' => 'P1',
@@ -94,7 +94,7 @@ class MotorTest extends TestCase
 
     public function test_humedad_suficiente_no_riega(): void
     {
-        $this->medir(25);
+        $this->medir(70);
         $this->clima();
 
         $this->evaluar()
@@ -109,21 +109,22 @@ class MotorTest extends TestCase
         $this->medir(20);
         $this->clima();
 
-        // neta=(0.27-0.20)*0.6*1000=42mm; bruto=42*100/0.9=4666.67 → 4650-4700.
+        // θ estimada=0.12+0.20*(0.27-0.12)=0.15; neta=(0.27-0.15)*0.6*1000=72mm.
+        // Bruto=72*100/0.9=8000 L → rango 8000-8050.
         $this->evaluar()
             ->assertCreated()
             ->assertJsonPath('data.result', 'riega')
             ->assertJsonPath('data.reason', 'bajo_umbral')
-            ->assertJsonPath('data.min_liters', 4650)
-            ->assertJsonPath('data.max_liters', 4700)
-            ->assertJsonPath('data.inputs_snapshot.lamina_neta_mm', 42)
+            ->assertJsonPath('data.min_liters', 8000)
+            ->assertJsonPath('data.max_liters', 8050)
+            ->assertJsonPath('data.inputs_snapshot.lamina_neta_mm', 72)
             ->assertJsonPath('data.inputs_snapshot.umbral', 0.2175);
     }
 
     public function test_lluvia_suficiente_pospone(): void
     {
         $this->medir(20);
-        $this->clima(['rain_mm' => 60, 'rain_prob' => 0.9]);
+        $this->clima(['rain_mm' => 100, 'rain_prob' => 0.9]);
 
         $this->evaluar()
             ->assertCreated()
@@ -135,7 +136,7 @@ class MotorTest extends TestCase
     public function test_prob_baja_no_pospone(): void
     {
         $this->medir(20);
-        $this->clima(['rain_mm' => 60, 'rain_prob' => 0.6]);
+        $this->clima(['rain_mm' => 100, 'rain_prob' => 0.6]);
 
         $this->evaluar()->assertCreated()->assertJsonPath('data.result', 'riega');
     }
@@ -150,7 +151,7 @@ class MotorTest extends TestCase
 
     public function test_critico_riega_aunque_llueva(): void
     {
-        $this->medir(10);
+        $this->medir(0);
         $this->clima(['rain_mm' => 100, 'rain_prob' => 0.95]);
 
         $this->evaluar()
@@ -162,7 +163,7 @@ class MotorTest extends TestCase
 
     public function test_en_umbral_exacta_evalua_riego(): void
     {
-        $this->medir(21.75);
+        $this->medir(65);
         $this->clima();
 
         $this->evaluar()->assertCreated()->assertJsonPath('data.result', 'riega');
@@ -201,7 +202,7 @@ class MotorTest extends TestCase
     {
         $this->medir(10);
         Measurement::where('plot_id', $this->plot->id)->update(['quality' => 'anomalo']);
-        $this->medir(25, 10);
+        $this->medir(70, 10);
         $this->clima();
 
         $this->evaluar()->assertCreated()->assertJsonPath('data.result', 'no');
@@ -213,7 +214,7 @@ class MotorTest extends TestCase
         $this->clima();
 
         $first = $this->evaluar()->assertCreated()->json('data.id');
-        $second = $this->evaluar()->assertOk()->json('data.id');
+        $second = $this->evaluar()->assertCreated()->json('data.id');
 
         $this->assertSame($first, $second);
         $this->assertSame(1, Evaluation::count());

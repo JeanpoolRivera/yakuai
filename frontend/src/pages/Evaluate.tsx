@@ -4,6 +4,7 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "../app/auth-context";
 import { EvaluationWorkspace } from "../features/evaluate/components";
 import { useEvaluation, useHistory, useIrrigationConfirm, usePlots } from "../features/evaluate/hooks";
+import { useArduinoPump } from "../features/evaluate/hooks/useArduinoPump";
 
 export function Evaluate(): React.JSX.Element {
   const { role } = useAuth();
@@ -19,6 +20,7 @@ export function Evaluate(): React.JSX.Element {
   const history = useHistory(plots.plotId);
   const evaluation = useEvaluation();
   const irrigation = useIrrigationConfirm(evaluation.current);
+  const pump = useArduinoPump(evaluation.current, isStaff);
 
   const { plotId, setPlotId } = plots;
   const { current, busy, reset, evaluate } = evaluation;
@@ -46,6 +48,7 @@ export function Evaluate(): React.JSX.Element {
       history={history}
       evaluation={evaluation}
       irrigation={irrigation}
+      pump={pump}
       isStaff={isStaff}
       titleRef={titleRef}
       onSelect={select}

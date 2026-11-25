@@ -87,7 +87,7 @@ export interface Plot {
   crop?: Crop;
 }
 
-export type SensorType = "humedad" | "aire_temp" | "aire_hr" | "lluvia" | "caudal";
+export type SensorType = "humedad" | "aire_temp" | "aire_hr" | "lluvia" | "caudal" | "temperatura_suelo" | "temperatura_agua" | "agua_suficiente" | "bomba_estado";
 export type SensorStatus = "ok" | "anomalo" | "sin_datos";
 
 export interface Sensor {
@@ -103,6 +103,17 @@ export interface Sensor {
   plot?: Plot;
   measurements?: Measurement[];
   latest_measurement?: Measurement | null;
+}
+
+export interface ArduinoSensorConfiguration {
+  plot_id: number;
+  sensors: {
+    humedad: number;
+    temperatura_suelo: number;
+    caudal: number;
+    agua_suficiente: number;
+    bomba_estado: number;
+  };
 }
 
 export type MeasurementQuality = "ok" | "anomalo";
@@ -165,10 +176,14 @@ export interface EvalSnapshot {
   zr_m?: number;
   p?: number;
   humedad_pct?: number;
+  humedad_umbral_pct?: number;
+  humedad_theta_estimada?: number;
   rain_mm?: number;
   rain_prob?: number;
   et0_mm_dia?: number;
   etc_mm_dia?: number;
+  temperatura_suelo_c?: number | null;
+  temperatura_suelo_estado?: "vigente" | "sin_lectura_reciente";
   umbral?: number;
   lamina_neta_mm?: number;
   volumen_bruto_L?: number;
@@ -191,6 +206,18 @@ export interface Evaluation {
   next_at: string | null;
   is_critical: boolean;
   plot?: Plot;
+}
+
+export interface DemoEvaluation {
+  result: EvalResult;
+  stage: string | null;
+  min_liters: number | null;
+  max_liters: number | null;
+  confidence: "media" | null;
+  reason: string;
+  next_at: string | null;
+  is_critical: boolean;
+  snapshot: EvalSnapshot;
 }
 
 export type IrrigationStatus = "activo" | "corregido" | "anulado";

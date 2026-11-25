@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Metodología de desarrollo asistido por IA · YakuAI</title>
+
+  <style>
+    :root {
+      --bg: #f3f6f5;
+      --paper: #fff;
+      --ink: #18313b;
+      --muted: #536a72;
+      --line: #d5e1dd;
+      --blue: #284d76;
+      --blue-light: #e7eef7;
+      --teal: #0b6672;
+      --teal-light: #e0f0ed;
+      --green-light: #e5f2e9;
+      --amber: #8a5b0b;
+      --amber-light: #fff2d7;
+      --purple-light: #eee9f5;
+      --shadow: 0 12px 32px rgb(24 49 59 / 8%);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 28px;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, "Segoe UI", Arial, sans-serif;
+      line-height: 1.5;
+    }
+
+    main { width: min(1160px, 100%); margin: auto; }
+
+    header, section {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    header { padding: 30px; }
+    section { margin-top: 20px; padding: 25px; }
+
+    .eyebrow {
+      color: var(--teal);
+      font-size: .76rem;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 8px 0;
+      font-size: clamp(1.8rem, 4vw, 2.7rem);
+      line-height: 1.12;
+    }
+
+    h2 { margin: 0 0 5px; font-size: 1.3rem; }
+    h3 { margin: 0 0 6px; font-size: .98rem; }
+    p { margin-top: 0; }
+
+    .intro, .section-intro { color: var(--muted); }
+    .section-intro { margin-bottom: 18px; }
+
+    .section-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .badge {
+      padding: 6px 10px;
+      border-radius: 99px;
+      background: var(--blue-light);
+      color: var(--blue);
+      font-size: .75rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 22px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .step {
+      position: relative;
+      min-height: 150px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+    }
+
+    .step:not(:last-child)::after {
+      position: absolute;
+      top: 45%;
+      right: -20px;
+      color: #789099;
+      content: "›";
+      font-size: 2rem;
+      font-weight: 700;
+      transform: translateY(-50%);
+    }
+
+    .step:nth-child(1), .step:nth-child(6) {
+      border-color: #b9dcd5;
+      background: var(--teal-light);
+    }
+
+    .step:nth-child(2), .step:nth-child(5) {
+      border-color: #cad5eb;
+      background: var(--blue-light);
+    }
+
+    .step:nth-child(3) {
+      border-color: #ead9ad;
+      background: var(--amber-light);
+    }
+
+    .step:nth-child(4) {
+      border-color: #d9cee8;
+      background: var(--purple-light);
+    }
+
+    .number {
+      display: grid;
+      width: 29px;
+      height: 29px;
+      margin-bottom: 10px;
+      place-items: center;
+      border-radius: 50%;
+      background: white;
+      color: var(--teal);
+      font-weight: 800;
+    }
+
+    .step p { margin: 0; color: var(--muted); font-size: .84rem; }
+
+    .loop {
+      margin-top: 16px;
+      padding: 13px 15px;
+      border: 1px dashed #cfb76f;
+      border-radius: 11px;
+      background: #fffaf0;
+      color: #674f1d;
+      text-align: center;
+      font-weight: 650;
+    }
+
+    .definitions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin: 18px 0;
+    }
+
+    .definition {
+      padding: 17px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--teal-light);
+    }
+
+    .definition:nth-child(2) { background: var(--blue-light); }
+    .definition p { margin: 0; color: var(--muted); font-size: .88rem; }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+
+    table {
+      width: 100%;
+      min-width: 1050px;
+      border-collapse: collapse;
+      font-size: .79rem;
+    }
+
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th { background: var(--blue); color: white; }
+    tbody tr:nth-child(even) { background: #f7faf9; }
+    td { color: var(--muted); }
+    td strong { color: var(--ink); }
+    code { color: #145b65; overflow-wrap: anywhere; }
+
+    .note {
+      margin-top: 15px;
+      padding: 13px 15px;
+      border-left: 4px solid var(--amber);
+      border-radius: 8px;
+      background: #fff9eb;
+      color: var(--muted);
+      font-size: .87rem;
+    }
+
+    footer {
+      padding: 18px 4px;
+      color: var(--muted);
+      font-size: .8rem;
+      text-align: center;
+    }
+
+    @media (max-width: 950px) {
+      .flow { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .step:nth-child(3)::after { content: ""; }
+    }
+
+    @media (max-width: 620px) {
+      body { padding: 11px; }
+      header, section { padding: 19px; }
+      .section-heading { align-items: start; flex-direction: column; }
+      .flow, .definitions { grid-template-columns: 1fr; }
+      .step { min-height: auto; }
+      .step::after { display: none; }
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <header>
+      <span class="eyebrow">YakuAI · proceso de trabajo</span>
+      <h1>Metodología de desarrollo asistido por IA</h1>
+      <p class="intro">
+        La metodología organiza el trabajo en intenciones y tareas pequeñas.
+        Los prompts proporcionan contexto y criterios claros; una persona revisa,
+        decide e identifica la evidencia del resultado.
+      </p>
+    </header>
+
+    <section aria-labelledby="flow-title">
+      <div class="section-heading">
+        <div>
+          <h2 id="flow-title">Flujo de trabajo con prompts</h2>
+          <p class="section-intro">De la identificación de una necesidad a la verificación del cambio.</p>
+        </div>
+        <span class="badge">Proceso iterativo</span>
+      </div>
+
+      <ol class="flow">
+        <li class="step">
+          <span class="number">1</span>
+          <h3>Identificar intención</h3>
+          <p>Definir la necesidad, el resultado esperado y el dominio funcional.</p>
+        </li>
+        <li class="step">
+          <span class="number">2</span>
+          <h3>Dividir en tareas</h3>
+          <p>Separar la intención en tareas pequeñas, concretas y verificables.</p>
+        </li>
+        <li class="step">
+          <span class="number">3</span>
+          <h3>Preparar el prompt</h3>
+          <p>Incluir contexto, objetivo, restricciones y criterios de aceptación.</p>
+        </li>
+        <li class="step">
+          <span class="number">4</span>
+          <h3>Solicitar apoyo a IA</h3>
+          <p>Registrar modelo y fecha; pedir una propuesta acotada a la tarea.</p>
+        </li>
+        <li class="step">
+          <span class="number">5</span>
+          <h3>Revisar e implementar</h3>
+          <p>Una persona revisa la propuesta y determina cómo aplicarla.</p>
+        </li>
+        <li class="step">
+          <span class="number">6</span>
+          <h3>Verificar evidencia</h3>
+          <p>Vincular la tarea con archivos, funciones y comprobaciones.</p>
+        </li>
+      </ol>
+
+      <div class="loop">
+        Si la revisión detecta un problema, se ajusta el prompt o el resultado y se verifica otra vez.
+      </div>
+    </section>
+
+    <section aria-labelledby="int-bolt-title">
+      <h2 id="int-bolt-title">Cómo se organiza el trabajo: INT y BOLT</h2>
+      <p class="section-intro">
+        Cada INT agrupa una intención funcional. Sus BOLT identifican las tareas
+        concretas que se desarrollan para cumplirla.
+      </p>
+
+      <div class="definitions">
+        <article class="definition">
+          <h3>INT · intención</h3>
+          <p>Objetivo funcional de nivel superior. Ejemplo: <strong>INT-001 Permitir el acceso de usuarios.</strong></p>
+        </article>
+        <article class="definition">
+          <h3>BOLT · tarea</h3>
+          <p>Parte pequeña y verificable de una intención. Ejemplo: <strong>INT-001-BOLT-001 Iniciar sesión con correo y PIN o contraseña.</strong></p>
+        </article>
+      </div>
+
+      <h2>Registro de INT y BOLT</h2>
+      <p class="section-intro">
+        Ejemplos y campos basados en la matriz proporcionada.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>INT / intención</th>
+              <th>ID del BOLT</th>
+              <th>Descripción del BOLT</th>
+              <th>Modelo IA</th>
+              <th>Fecha</th>
+              <th>Macroproceso / dominio</th>
+              <th>HU / Ticket</th>
+              <th>Responsable</th>
+              <th>INT identificado</th>
+              <th>Evidencia</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>INT-001</strong><br>Permitir el acceso de usuarios</td>
+              <td>INT-001-BOLT-001</td>
+              <td>Iniciar sesión con correo y PIN o contraseña</td>
+              <td>Codex 5.6 Terra</td>
+              <td>2026-10-27</td>
+              <td>MP-01 Acceso y usuarios / Acceso</td>
+              <td>No documentado</td>
+              <td>Jeanpool Rivera</td>
+              <td>Sí</td>
+              <td><code>AuthController.php</code><br><code>frontend/src/features/auth/</code></td>
+            </tr>
+            <tr>
+              <td><strong>INT-001</strong><br>Permitir el acceso de usuarios</td>
+              <td>INT-001-BOLT-002</td>
+              <td>Consultar sesión, cerrar sesión y proteger rutas privadas</td>
+              <td>Codex 5.6 Terra</td>
+              <td>2026-10-27</td>
+              <td>MP-01 Acceso y usuarios / Acceso</td>
+              <td>No documentado</td>
+              <td>Jeanpool Rivera</td>
+              <td>Sí</td>
+              <td><code>AuthController.php</code><br><code>frontend/src/features/auth/</code></td>
+            </tr>
+            <tr>
+              <td><strong>INT-002</strong><br>Activar y recuperar cuentas de agricultores</td>
+              <td>INT-002-BOLT-001</td>
+              <td>Activar una cuenta mediante invitación</td>
+              <td>Codex 6 Luna</td>
+              <td>2026-10-27</td>
+              <td>MP-01 Acceso y usuarios / Activación y recuperación</td>
+              <td>No documentado</td>
+              <td>Jeanpool Rivera</td>
+              <td>Sí</td>
+              <td><code>FarmerController.php</code><br><code>frontend/src/features/farmers/</code></td>
+            </tr>
+            <tr>
+              <td><strong>INT-002</strong><br>Activar y recuperar cuentas de agricultores</td>
+              <td>INT-002-BOLT-002</td>
+              <td>Recuperar y restablecer el PIN</td>
+              <td>Codex 6 Luna</td>
+              <td>2026-10-27</td>
+              <td>MP-01 Acceso y usuarios / Activación y recuperación</td>
+              <td>No documentado</td>
+              <td>Jeanpool Rivera</td>
+              <td>Sí</td>
+              <td><code>AuthController.php</code><br><code>frontend/src/features/auth/</code></td>
+            </tr>
+            <tr>
+              <td><strong>INT-003</strong><br>Gestionar agricultores</td>
+              <td>INT-003-BOLT-001</td>
+              <td>Registrar, consultar y actualizar agricultores</td>
+              <td>Codex 6 Luna</td>
+              <td>2026-10-27</td>
+              <td>MP-01 Acceso y usuarios / Agricultores</td>
+              <td>No documentado</td>
+              <td>Jeanpool Rivera</td>
+              <td>Sí</td>
+              <td><code>FarmerController.php</code><br><code>frontend/src/features/farmers/</code></td>
+            </tr>
+            <tr>
+              <td><strong>INT-003</strong><br>Gestionar agricultores</td>
+              <td>INT-003-BOLT-002</td>
+              <td>Enviar y reenviar invitaciones</td>
+              <td>Codex 6 Luna</td>
+              <td>2026-10-27</td>
+              <td>MP-01 Acceso y usuarios / Agricultores</td>
+              <td>No documentado</td>
+              <td>Jeanpool Rivera</td>
+              <td>Sí</td>
+              <td><code>FarmerController.php</code><br><code>frontend/src/features/farmers/</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        La tabla representa los registros visibles en la imagen. La evidencia debe
+        apuntar a los archivos concretos asociados a cada BOLT.
+      </div>
+    </section>
+
+    <footer>Metodología de desarrollo asistido por IA · YakuAI</footer>
+  </main>
+</body>
+</html>

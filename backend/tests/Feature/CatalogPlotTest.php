@@ -113,7 +113,7 @@ class CatalogPlotTest extends TestCase
 
         $this->postJson('/api/v1/plots', $payload)
             ->assertUnprocessable()
-            ->assertJsonPath('errors.boundary.0', 'El contorno debe tener al menos tres puntos.');
+            ->assertJsonPath('errors.boundary.0', 'El contorno debe tener al menos tres vértices diferentes.');
     }
 
     public function test_parcela_rechaza_area_de_dibujo_sin_contorno(): void
@@ -138,7 +138,7 @@ class CatalogPlotTest extends TestCase
 
         $this->postJson('/api/v1/plots', $payload)
             ->assertUnprocessable()
-            ->assertJsonPath('errors.boundary.0', 'Dibuja un contorno válido antes de usar el área calculada del mapa.');
+            ->assertJsonPath('errors.boundary.0', 'Dibuja un contorno válido antes de usar el área del mapa.');
     }
 
     public function test_agricultor_no_puede_crear_parcelas(): void

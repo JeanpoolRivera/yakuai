@@ -1,7 +1,7 @@
 export const VALIDATION_COPY = {
   title: "Validación del motor",
   eyebrow: "Calidad",
-  description: "Verifica la consistencia de las recomendaciones con un conjunto de casos de referencia.",
+  description: "Comprueba las recomendaciones con escenarios de referencia.",
   crumbs: "YakuAI / Validación",
   loading: "Corriendo los 10 casos…",
   running: "Revisando los 10 casos…",
@@ -9,7 +9,7 @@ export const VALIDATION_COPY = {
   runButton: "Ejecutar validación",
   runAgain: "Ejecutar de nuevo",
   readyTitle: "Comprueba el motor de riego",
-  readyDesc: "Contrasta las decisiones del sistema con resultados esperados en un entorno de prueba.",
+  readyDesc: "Compara la respuesta del motor con el resultado esperado.",
   runNow: "Ejecutar validación",
   stats: {
     total: "Casos evaluados",

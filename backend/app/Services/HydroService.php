@@ -60,6 +60,11 @@ class HydroService
     {
         $crop = Crop::with('stages')->findOrFail($plot->crop_id);
         $soil = SoilTexture::where('code', $plot->soil_texture_code)->firstOrFail();
+        $soilTemperature = Measurement::where('plot_id', $plot->id)
+            ->whereHas('sensor', fn ($q) => $q->where('type', 'temperatura_suelo'))
+            ->where('quality', 'ok')
+            ->latest('measured_at')
+            ->first();
 
         $snapshot = [
             'fuente' => 'FAO-56 referencia, a validar en Chupaca',
@@ -70,6 +75,13 @@ class HydroService
             'area_m2' => (float) $plot->area_m2,
             'efficiency' => (float) $plot->irrigation_efficiency,
         ];
+
+        $soilTemperatureIsFresh = $soilTemperature !== null
+            && $soilTemperature->quality === 'ok'
+            && $soilTemperature->norm_value !== null
+            && $soilTemperature->measured_at->diffInMinutes($now) <= self::MEASURE_MAX_MIN;
+        $snapshot['temperatura_suelo_c'] = $soilTemperatureIsFresh ? (float) $soilTemperature->norm_value : null;
+        $snapshot['temperatura_suelo_estado'] = $soilTemperatureIsFresh ? 'vigente' : 'sin_lectura_reciente';
 
         if ($measurement === null || $measurement->quality !== 'ok'
             || $measurement->measured_at->diffInMinutes($now) > self::MEASURE_MAX_MIN
@@ -103,15 +115,20 @@ class HydroService
 
         $cc = (float) $soil->field_capacity;
         $pmp = (float) $soil->wilting_point;
-        $theta = (float) $measurement->norm_value / 100;
+        $humidityPct = max(0.0, min(100.0, (float) $measurement->norm_value));
+        // El capacitivo entrega un índice relativo 0–100, no humedad volumétrica.
+        // Se aproxima 0 al PMP y 100 a CC usando las referencias seco/mojado del sensor.
+        $theta = $pmp + ($humidityPct / 100) * ($cc - $pmp);
         $umbral = $cc - (float) $stage->depletion_fraction * ($cc - $pmp);
         $snapshot['umbral'] = round($umbral, 4);
+        $snapshot['humedad_umbral_pct'] = round((1 - (float) $stage->depletion_fraction) * 100, 2);
+        $snapshot['humedad_theta_estimada'] = round($theta, 4);
 
         $fresh = $measurement->measured_at->diffInMinutes($now) <= 15
             && $forecast->fetched_at->diffInMinutes($now) <= 60;
         $confidence = $fresh ? 'alta' : 'media';
 
-        if ($theta > $umbral) {
+        if ($humidityPct > (float) $snapshot['humedad_umbral_pct']) {
             return [
                 'result' => 'no', 'stage' => $stage->stage,
                 'min_liters' => null, 'max_liters' => null,
@@ -124,7 +141,7 @@ class HydroService
         $netMm = max(0.0, ($cc - $theta)) * (float) $stage->root_depth_m * 1000;
         $snapshot['lamina_neta_mm'] = round($netMm, 2);
 
-        $isCritical = $theta <= $pmp;
+        $isCritical = $humidityPct <= 0;
         $waits = ! $isCritical
             && (float) $forecast->rain_prob >= self::PROB_MIN
             && (float) $forecast->rain_mm * self::RAIN_EFF >= $netMm

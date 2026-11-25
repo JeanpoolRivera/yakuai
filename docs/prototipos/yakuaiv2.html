@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Arquitectura de software de YakuAI">
+  <title>Arquitectura del software · YakuAI</title>
+
+  <style>
+    :root {
+      --fondo: #f2f6f4;
+      --superficie: #fff;
+      --texto: #18313b;
+      --texto-suave: #526972;
+      --borde: #d6e2de;
+      --teal: #0b6672;
+      --teal-claro: #e0f0ed;
+      --azul: #405b8d;
+      --azul-claro: #e8edf8;
+      --verde: #28674f;
+      --verde-claro: #e5f2e9;
+      --ambar: #8a5b0b;
+      --ambar-claro: #fff2d7;
+      --sombra: 0 12px 32px rgb(24 49 59 / 8%);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 28px;
+      background: var(--fondo);
+      color: var(--texto);
+      font-family: Inter, "Segoe UI", Arial, sans-serif;
+      line-height: 1.55;
+    }
+
+    main { width: min(1160px, 100%); margin: auto; }
+
+    header, section {
+      border: 1px solid var(--borde);
+      border-radius: 20px;
+      background: var(--superficie);
+      box-shadow: var(--sombra);
+    }
+
+    header { padding: 32px; }
+    section { margin-top: 20px; padding: 25px; }
+
+    .etiqueta {
+      color: var(--teal);
+      font-size: .76rem;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 8px 0;
+      font-size: clamp(1.8rem, 4vw, 2.7rem);
+      line-height: 1.12;
+    }
+
+    h2 { margin: 0 0 5px; font-size: 1.3rem; }
+    h3 { margin: 0 0 7px; font-size: 1rem; }
+    p { margin-top: 0; }
+
+    .introduccion, .descripcion { color: var(--texto-suave); }
+    .descripcion { margin-bottom: 18px; }
+
+    .cabecera-seccion {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .insignia {
+      padding: 6px 10px;
+      border-radius: 99px;
+      background: var(--teal-claro);
+      color: var(--teal);
+      font-size: .75rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .flujo {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 22px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .paso {
+      position: relative;
+      min-height: 130px;
+      padding: 16px;
+      border: 1px solid var(--borde);
+      border-radius: 15px;
+      background: #f9fbfa;
+    }
+
+    .paso:not(:last-child)::after {
+      position: absolute;
+      top: 45%;
+      right: -20px;
+      color: #789099;
+      content: "›";
+      font-size: 2rem;
+      font-weight: 700;
+      transform: translateY(-50%);
+    }
+
+    .paso:nth-child(1), .paso:nth-child(5) {
+      border-color: #b9dcd5;
+      background: var(--teal-claro);
+    }
+
+    .paso:nth-child(2), .paso:nth-child(4) {
+      border-color: #cad5eb;
+      background: var(--azul-claro);
+    }
+
+    .paso:nth-child(3) {
+      border-color: #ead9ad;
+      background: var(--ambar-claro);
+    }
+
+    .paso p {
+      margin: 0;
+      color: var(--texto-suave);
+      font-size: .85rem;
+    }
+
+    .tecnologias {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .tarjeta {
+      padding: 19px;
+      border: 1px solid var(--borde);
+      border-radius: 15px;
+    }
+
+    .tarjeta h3 { font-size: 1.08rem; }
+    .tarjeta p { margin: 0; color: var(--texto-suave); font-size: .88rem; }
+
+    .tarjeta ul {
+      margin: 12px 0 0;
+      padding-left: 19px;
+      color: var(--texto-suave);
+      font-size: .87rem;
+    }
+
+    .tarjeta li { margin: 5px 0; }
+    .frontend { background: var(--azul-claro); }
+    .backend { background: var(--teal-claro); }
+    .infra { background: var(--verde-claro); }
+
+    .mvc {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 20px;
+    }
+
+    .componente {
+      position: relative;
+      min-height: 125px;
+      padding: 17px;
+      border: 1px solid var(--borde);
+      border-radius: 14px;
+    }
+
+    .componente:not(:last-child)::after {
+      position: absolute;
+      top: 44%;
+      right: -19px;
+      color: #718991;
+      content: "→";
+      font-size: 1.35rem;
+      font-weight: 800;
+    }
+
+    .componente:nth-child(1) { background: var(--azul-claro); }
+    .componente:nth-child(2) { background: var(--teal-claro); }
+    .componente:nth-child(3) { background: var(--ambar-claro); }
+    .componente:nth-child(4) { background: var(--verde-claro); }
+
+    .componente p {
+      margin: 0;
+      color: var(--texto-suave);
+      font-size: .84rem;
+    }
+
+    .nota {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-left: 4px solid var(--teal);
+      border-radius: 9px;
+      background: #f0f7f5;
+      color: var(--texto-suave);
+      font-size: .9rem;
+    }
+
+    .nota strong { color: var(--texto); }
+
+    code {
+      color: #1b5360;
+      font-family: "Cascadia Code", Consolas, monospace;
+    }
+
+    footer {
+      padding: 18px 4px;
+      color: var(--texto-suave);
+      font-size: .82rem;
+      text-align: center;
+    }
+
+    @media (max-width: 900px) {
+      .flujo { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .paso:nth-child(3)::after { content: ""; }
+      .tecnologias { grid-template-columns: 1fr 1fr; }
+      .mvc { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .componente:nth-child(2)::after { content: ""; }
+    }
+
+    @media (max-width: 620px) {
+      body { padding: 11px; }
+      header, section { padding: 19px; }
+      .cabecera-seccion { align-items: start; flex-direction: column; }
+      .flujo, .tecnologias, .mvc { grid-template-columns: 1fr; }
+      .paso, .componente { min-height: auto; }
+      .paso::after, .componente::after { display: none; }
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <header>
+      <span class="etiqueta">YakuAI · documento técnico</span>
+      <h1>Arquitectura del software</h1>
+      <p class="introduccion">
+        YakuAI es una aplicación web con frontend React, API REST Laravel y
+        persistencia relacional. El backend concentra la autorización, el acceso
+        a datos y las reglas de negocio.
+      </p>
+    </header>
+
+    <section aria-labelledby="vista-general">
+      <div class="cabecera-seccion">
+        <div>
+          <h2 id="vista-general">Arquitectura general</h2>
+          <p class="descripcion">Vista de alto nivel de los componentes principales.</p>
+        </div>
+        <span class="insignia">Aplicación web + API</span>
+      </div>
+
+      <ol class="flujo">
+        <li class="paso"><h3>Usuarios</h3><p>Personal técnico y agricultores acceden desde el navegador.</p></li>
+        <li class="paso"><h3>Frontend</h3><p>React presenta pantallas y recoge las acciones de usuario.</p></li>
+        <li class="paso"><h3>API REST</h3><p>Laravel recibe solicitudes JSON bajo <code>/api/v1</code>.</p></li>
+        <li class="paso"><h3>Dominio y datos</h3><p>Servicios y modelos aplican reglas y acceden a MySQL.</p></li>
+        <li class="paso"><h3>Respuesta</h3><p>La API devuelve datos o errores para actualizar la interfaz.</p></li>
+      </ol>
+    </section>
+
+    <section aria-labelledby="tecnologias">
+      <div class="cabecera-seccion">
+        <div>
+          <h2 id="tecnologias">Tecnologías utilizadas</h2>
+          <p class="descripcion">Stack principal implementado en el proyecto.</p>
+        </div>
+      </div>
+
+      <div class="tecnologias">
+        <article class="tarjeta frontend">
+          <h3>Frontend</h3>
+          <p>Interfaz, navegación y experiencia de usuario.</p>
+          <ul>
+            <li>React 19 y TypeScript</li>
+            <li>Vite y React Router</li>
+            <li>Tailwind CSS y componentes compartidos</li>
+            <li>Fetch API para solicitudes HTTP</li>
+            <li>Leaflet y Recharts para mapas y gráficos</li>
+          </ul>
+        </article>
+
+        <article class="tarjeta backend">
+          <h3>Backend</h3>
+          <p>API, autenticación, permisos y lógica de negocio.</p>
+          <ul>
+            <li>PHP 8.3 y Laravel 13</li>
+            <li>Laravel Sanctum para autenticación por token</li>
+            <li>API JSON bajo <code>/api/v1</code></li>
+            <li>Controladores, modelos Eloquent y servicios</li>
+            <li>Migraciones y seeders</li>
+          </ul>
+        </article>
+
+        <article class="tarjeta infra">
+          <h3>Datos e infraestructura</h3>
+          <p>Persistencia y ejecución de los servicios.</p>
+          <ul>
+            <li>MySQL 8.4</li>
+            <li>Redis para caché y colas</li>
+            <li>Docker Compose</li>
+            <li>Nginx y PHP-FPM</li>
+            <li>OpenWeatherMap, SMTP y WhatsApp opcional</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="backend">
+      <div class="cabecera-seccion">
+        <div>
+          <h2 id="backend">Backend · MVC con servicios</h2>
+          <p class="descripcion">Laravel monolítico organizado por responsabilidades.</p>
+        </div>
+      </div>
+
+      <div class="mvc">
+        <article class="componente"><h3>Rutas</h3><p>Definen endpoints y conectan solicitudes con controladores.</p></article>
+        <article class="componente"><h3>Controladores</h3><p>Validan datos, coordinan el caso de uso y preparan respuestas.</p></article>
+        <article class="componente"><h3>Servicios</h3><p>Concentran reglas de dominio e integraciones.</p></article>
+        <article class="componente"><h3>Modelos Eloquent</h3><p>Representan entidades y consultan o guardan datos en MySQL.</p></article>
+      </div>
+
+      <div class="nota">
+        <strong>Ejemplos:</strong> <code>HydroService</code> calcula evaluaciones de riego;
+        <code>OwmService</code> integra datos meteorológicos;
+        <code>SensorNormalizer</code> normaliza las lecturas.
+      </div>
+    </section>
+
+    <section aria-labelledby="frontend">
+      <div class="cabecera-seccion">
+        <div>
+          <h2 id="frontend">Frontend · módulos y componentes</h2>
+          <p class="descripcion">Organización modular por pantallas y funcionalidades.</p>
+        </div>
+      </div>
+
+      <div class="mvc">
+        <article class="componente"><h3>Aplicación y sesión</h3><p><code>app/</code> gestiona rutas, autenticación y navegación por rol.</p></article>
+        <article class="componente"><h3>Páginas</h3><p><code>pages/</code> compone las pantallas de la aplicación.</p></article>
+        <article class="componente"><h3>Funcionalidades</h3><p><code>features/</code> agrupa lógica y utilidades por dominio.</p></article>
+        <article class="componente"><h3>UI y API</h3><p><code>components/</code>, <code>hooks/</code> y <code>api/</code> comparten interfaz y acceso al backend.</p></article>
+      </div>
+
+      <div class="nota">
+        <strong>Enfoque:</strong> el backend sigue MVC con servicios. El frontend usa una
+        organización modular por funcionalidad y componentes reutilizables; no aplica
+        MVC tradicional.
+      </div>
+    </section>
+
+    <footer>Arquitectura del software · YakuAI</footer>
+  </main>
+</body>
+</html>

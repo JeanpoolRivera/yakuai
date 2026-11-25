@@ -9,6 +9,14 @@
 # Build/output artifacts
 /frontend/dist/
 
+# SonarQube analysis output (keep sonar-project.properties in Git)
+/.scannerwork/
+
+# Cypress execution artifacts (keep config and e2e source in Git)
+/frontend/cypress/screenshots/
+/frontend/cypress/videos/
+/frontend/cypress/downloads/
+
 # Coverage reports (generated - never commit)
 /backend/coverage.xml
 /backend/_phpunit.result.cache
@@ -34,7 +42,6 @@
 /check_coverage.py
 /phpunit-junit.xml
 /backend/phpunit-junit.xml
-/sonar-project.properties
 /sonar-scanner-cli-*.zip
 /frontend/coverage/
 /frontend/public/icon-192.svg

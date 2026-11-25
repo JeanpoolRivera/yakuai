@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import "./styles/globals.css";
 import { AuthProvider } from "./app/auth";
 import { App } from "./app/App";
+import "./features/sensors/arduinoIngestion";
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
@@ -15,7 +16,13 @@ if ("serviceWorker" in navigator) {
       await Promise.all(registrations.filter((registration) =>
         [registration.active, registration.waiting, registration.installing].some((worker) => worker?.scriptURL === ownWorker)
       ).map((registration) => registration.unregister()));
-      if (ownsController) location.reload();
+      // An unregistered worker can keep controlling its current tab until navigation.
+      // Some browsers may report it again after reload, so only retry once per tab.
+      const reloadKey = "yakuai-dev-sw-reloaded";
+      if (ownsController && !sessionStorage.getItem(reloadKey)) {
+        sessionStorage.setItem(reloadKey, "1");
+        location.reload();
+      }
       return;
     }
     navigator.serviceWorker.register("/sw.js").catch(() => {

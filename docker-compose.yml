@@ -96,7 +96,7 @@ services:
       context: ./frontend
       dockerfile: ../docker/frontend/Dockerfile
     ports:
-      - "127.0.0.1:${FRONTEND_PORT:-8081}:5173"
+      - "0.0.0.0:${FRONTEND_PORT:-8081}:5173"
     volumes:
       - ./frontend:/app
     depends_on:

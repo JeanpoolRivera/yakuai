@@ -39,7 +39,7 @@ class SensorRequest extends FormRequest
 
         return [
             'plot_id' => [$this->isMethod('post') ? 'required' : 'sometimes', 'integer', 'exists:plots,id'],
-            'type' => [$this->isMethod('post') ? 'required' : 'sometimes', 'in:humedad,aire_temp,aire_hr,lluvia,caudal'],
+            'type' => [$this->isMethod('post') ? 'required' : 'sometimes', 'in:humedad,temperatura_suelo,caudal,agua_suficiente,bomba_estado'],
             'model' => [$this->isMethod('post') ? 'required' : 'sometimes', 'string', 'min:1', 'max:60'],
             'pin' => ['sometimes', 'nullable', 'string', 'max:10'],
             'dry_ref' => $calibrationRules,

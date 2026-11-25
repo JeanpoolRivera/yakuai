@@ -77,7 +77,7 @@ class ClosingTest extends TestCase
             ->assertOk()->json('data.texto');
 
         $this->assertStringContainsString('YakuAI', $texto);
-        $this->assertStringContainsString('4650', $texto);
+        $this->assertStringContainsString('8000', $texto);
         $this->assertStringContainsString('05:30', $texto);
     }
 
@@ -89,14 +89,16 @@ class ClosingTest extends TestCase
 
         $this->postJson('/api/v1/measurements', [
             'sensor_id' => $sensor->id,
-            'measured_at' => now()->toDateTimeString(),
-            'raw_value' => 20,
+            'measured_at' => now()->format('Y-m-d\TH:i:s'),
+            'raw_value' => 2,
+            'origin' => 'sensor',
         ])->assertCreated()->assertJsonPath('data.quality', 'ok');
 
         $this->postJson('/api/v1/measurements', [
             'sensor_id' => $sensor->id,
-            'measured_at' => now()->subMinute()->toDateTimeString(),
-            'raw_value' => 99,
+            'measured_at' => now()->subMinute()->format('Y-m-d\TH:i:s'),
+            'raw_value' => 7,
+            'origin' => 'sensor',
         ])->assertCreated()->assertJsonPath('data.quality', 'anomalo');
     }
 }

@@ -16,21 +16,20 @@ export function pageCopy(isStaff: boolean): PageCopy {
     return {
       eyebrow: "Operación",
       title: "Historial de riego",
-      description:
-        "Revisa el agua aplicada, compárala con la recomendación y mantén una trazabilidad clara.",
+      description: "Consulta los riegos y compáralos con las recomendaciones.",
       cta: "Registrar riego",
       emptyTitle: "Aún no hay riegos registrados",
-      emptyHint: "Registra el primer riego para empezar a comparar el agua aplicada con la recomendación.",
+      emptyHint: "Registra un riego para iniciar el historial.",
       searchPlaceholder: "Parcela o nota",
     };
   }
   return {
     eyebrow: "Tu campo",
     title: "Mis riegos",
-    description: "Consulta el agua que has aplicado y cómo se compara con lo que necesitaba tu parcela.",
+    description: "Consulta los riegos registrados en tus parcelas.",
     cta: "Registrar riego",
     emptyTitle: "Aún no has registrado riegos",
-    emptyHint: "Anota cada riego real para ver si te acercaste a lo recomendado.",
+    emptyHint: "Registra un riego para iniciar tu historial.",
     searchPlaceholder: "Buscar por nota",
   };
 }

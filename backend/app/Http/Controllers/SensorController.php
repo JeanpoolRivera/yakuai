@@ -6,15 +6,74 @@ use App\Concerns\BelongsToFarmer;
 use App\Http\Requests\SensorRequest;
 use App\Models\Forecast;
 use App\Models\Measurement;
+use App\Models\Plot;
 use App\Models\Sensor;
 use App\Services\SensorNormalizer;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class SensorController extends Controller
 {
     use BelongsToFarmer;
+
+    /** Create or reuse the fixed Arduino sensor set for one mockup plot. */
+    public function configureArduino(Request $request, Plot $plot): JsonResponse
+    {
+        if (! in_array($request->user()->role, ['admin', 'tecnico'], true)) {
+            return response()->json(['error' => ['message' => 'Solo el personal técnico puede configurar el Arduino.']], 403);
+        }
+
+        $forbidden = $this->forbiddenIfCantAccessPlot($request, $plot);
+        if ($forbidden !== null) {
+            return $forbidden;
+        }
+
+        $definitions = [
+            'humedad' => ['type' => 'humedad', 'model' => 'Capacitivo V1.2', 'pin' => 'A0'],
+            'temperatura_suelo' => ['type' => 'temperatura_suelo', 'model' => 'DS18B20 impermeable', 'pin' => 'D3'],
+            'caudal' => ['type' => 'caudal', 'model' => 'YF-S401', 'pin' => 'D2'],
+            'agua_suficiente' => ['type' => 'agua_suficiente', 'model' => 'Interruptor de flotador', 'pin' => 'D4'],
+            'bomba_estado' => ['type' => 'bomba_estado', 'model' => 'Bomba 12 V con relé 5 V', 'pin' => 'D5'],
+        ];
+
+        $sensors = DB::transaction(function () use ($definitions, $plot): array {
+            $ids = [];
+            foreach ($definitions as $key => $definition) {
+                $sensor = Sensor::query()
+                    ->where('plot_id', $plot->id)
+                    ->where('type', $definition['type'])
+                    ->where(function ($query) use ($definition): void {
+                        $query->where('pin', $definition['pin'])->orWhereNull('pin');
+                    })
+                    ->orderByRaw('CASE WHEN pin = ? THEN 0 ELSE 1 END', [$definition['pin']])
+                    ->orderBy('id')
+                    ->first();
+
+                if ($sensor === null) {
+                    $sensor = Sensor::create([
+                        ...$definition,
+                        'plot_id' => $plot->id,
+                        'status' => 'sin_datos',
+                        'is_active' => true,
+                    ]);
+                } else {
+                    $sensor->update([
+                        'model' => $definition['model'],
+                        'pin' => $definition['pin'],
+                        'is_active' => true,
+                    ]);
+                }
+
+                $ids[$key] = $sensor->id;
+            }
+
+            return $ids;
+        });
+
+        return response()->json(['data' => ['plot_id' => $plot->id, 'sensors' => $sensors]]);
+    }
 
     public function index(Request $request): JsonResponse
     {

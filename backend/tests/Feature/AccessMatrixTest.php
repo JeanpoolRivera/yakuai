@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\Crop;
 use App\Models\Evaluation;
 use App\Models\Farmer;
+use App\Models\Forecast;
 use App\Models\Irrigation;
+use App\Models\Measurement;
 use App\Models\Plot;
 use App\Models\Sensor;
 use App\Models\User;
@@ -99,11 +101,39 @@ class AccessMatrixTest extends TestCase
             'result' => 'no',
             'reason' => 'suelo_humedo',
         ]);
+        $sensor = Sensor::create([
+            'plot_id' => $this->plot->id,
+            'type' => 'humedad',
+            'model' => 'YL-69',
+            'dry_ref' => 1020,
+            'wet_ref' => 320,
+        ]);
+        Measurement::create([
+            'sensor_id' => $sensor->id,
+            'plot_id' => $this->plot->id,
+            'measured_at' => now()->subMinutes(5),
+            'raw_value' => 530,
+            'norm_value' => 70.0,
+            'quality' => 'ok',
+            'origin' => 'demo',
+        ]);
+        Forecast::create([
+            'plot_id' => $this->plot->id,
+            'fetched_at' => now()->subMinutes(5),
+            'issued_at' => now(),
+            'period_from' => now(),
+            'period_to' => now()->addHours(6),
+            'temp_max' => 25,
+            'temp_min' => 12,
+            'rain_mm' => 0,
+            'rain_prob' => 0,
+            'origin' => 'demo',
+        ]);
         $user = User::factory()->create(['role' => 'agricultor', 'farmer_id' => $this->farmer->id]);
         $token = $user->createToken('evaluation-only', ['evaluar'])->plainTextToken;
 
         $this->withToken($token)->postJson('/api/v1/plots/'.$this->plot->id.'/evaluate')
-            ->assertOk()->assertJsonPath('data.result', 'no');
+            ->assertCreated()->assertJsonPath('data.result', 'no');
         $this->withToken($token)->getJson('/api/v1/crops')->assertForbidden();
         $this->withToken($token)->postJson('/api/v1/irrigations')->assertForbidden();
     }
@@ -114,7 +144,7 @@ class AccessMatrixTest extends TestCase
         $token = $user->createToken('irrigation-only', ['regar'])->plainTextToken;
         $created = $this->withToken($token)->postJson('/api/v1/irrigations', [
             'plot_id' => $this->plot->id,
-            'occurred_at' => now()->toDateTimeString(),
+            'occurred_at' => now()->format('Y-m-d\TH:i:s'),
             'applied_liters' => 100,
         ])->assertCreated();
         $id = $created->json('data.id');
@@ -143,7 +173,7 @@ class AccessMatrixTest extends TestCase
 
         $this->withToken($token)->postJson('/api/v1/measurements', [
             'sensor_id' => $sensor->id,
-            'measured_at' => now()->toDateTimeString(),
+            'measured_at' => now()->format('Y-m-d\TH:i:s'),
             'raw_value' => 650,
         ])->assertCreated();
         $this->withToken($token)->getJson('/api/v1/crops')->assertForbidden();

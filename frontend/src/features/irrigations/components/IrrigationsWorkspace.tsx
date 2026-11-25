@@ -90,7 +90,7 @@ export function IrrigationsWorkspace({ isStaff, irrigations, filters, mutations 
       </section>
 
       <Card className="space-y-4 rounded-xl p-4 sm:p-5">
-        <div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary-50 text-primary-700"><Search size={17} aria-hidden="true" /></span><div><h2 className="font-semibold text-neutral-900">Buscar y filtrar</h2><p className="mt-1 text-sm text-neutral-600">Acota el historial por parcela, fecha o estado.</p></div></div>
+        <div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary-50 text-primary-700"><Search size={17} aria-hidden="true" /></span><div><h2 className="font-semibold text-neutral-900">Filtrar riegos</h2><p className="mt-1 text-sm text-neutral-600">Busca por parcela, fecha o estado.</p></div></div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(14rem,1.4fr)_repeat(4,minmax(8rem,1fr))_auto]">
           <div className="self-end"><SearchInput value={filters.filters.query} onChange={(query) => filters.update({ query })} placeholder={copy.searchPlaceholder} label="Buscar riegos por parcela o nota" /></div>
           <label className="grid gap-1 text-xs font-medium text-neutral-700">Estado<select value={filters.filters.status} onChange={(e) => filters.update({ status: e.target.value as typeof filters.filters.status })} className="min-h-12 rounded-md border border-neutral-300 bg-white px-3 text-sm"><option value="todos">Todos los estados</option>{STATUS_ORDER.filter((s) => s !== "todos").map((s) => <option value={s} key={s}>{STATUS_FILTER_LABEL[s]}</option>)}</select></label>

@@ -6,7 +6,7 @@ import { friendlyError } from "@/api/client";
 type SensorsData = { sensors: Sensor[]; plots: Plot[] };
 
 export function useSensors() {
-  const { data, loading, error, execute, setData } = useAsync<SensorsData>(async () => {
+  const { data, loading, error, execute, refresh, setData } = useAsync<SensorsData>(async () => {
     try {
       const [sensors, plots] = await Promise.all([listSensors(), listPlots()]);
       return { sensors, plots };
@@ -22,5 +22,6 @@ export function useSensors() {
     setData((current) => current ? { ...current, plots: typeof plots === "function" ? plots(current.plots) : plots } : null);
   };
 
-  return { sensors: data?.sensors ?? [], plots: data?.plots ?? [], loading, error, load: execute, setSensors: updateSensors, setPlots: updatePlots };
+  // Keep the initial page load blocking, but refresh live sensor data in the background.
+  return { sensors: data?.sensors ?? [], plots: data?.plots ?? [], loading, error, load: refresh, setSensors: updateSensors, setPlots: updatePlots };
 }

@@ -9,18 +9,18 @@ export function verdictTitle(evaluation: Pick<Evaluation, "result" | "is_critica
 
 export const INCOMPLETE_HELP: Record<string, { text: string; to: string; action: string }> = {
   sin_humedad_valida: {
-    text: "Registra una lectura reciente para poder decidir.",
+    text: "No hay una lectura de humedad reciente. Conecta el Arduino o registra una lectura.",
     to: "/sensores",
-    action: "Ir a sensores",
+    action: "Revisar sensores",
   },
   sin_clima_valido: {
-    text: "Actualiza el pronóstico de la parcela para poder decidir.",
+    text: "El pronóstico está vencido o no disponible. Actualízalo para evaluar.",
     to: "/clima",
-    action: "Ir a clima",
+    action: "Actualizar clima",
   },
 };
 
-export const INCOMPLETE_FALLBACK = "Faltan datos para decidir. Revisa la información de la parcela.";
+export const INCOMPLETE_FALLBACK = "Faltan datos recientes. Revisa la humedad, el clima y la parcela.";
 export const FARMER_CONTACT_COPY = "Contacta a tu técnico para actualizar los datos de esta parcela.";
 
 export const REASON_SHORT: Record<string, string> = {
@@ -48,4 +48,4 @@ export const IRRIGATION_SYSTEM_LABEL: Record<IrrigationSystem, string> = {
   gravedad: "Gravedad",
 };
 
-export const PLAN_EARLY_NOTE = "Riega temprano (05:30–07:00) para que el agua rinda más.";
+export const PLAN_EARLY_NOTE = "Horario sugerido para reducir la pérdida de agua.";

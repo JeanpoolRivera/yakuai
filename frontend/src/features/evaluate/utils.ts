@@ -7,10 +7,14 @@ export interface HumidityReading {
   pmp: number | null;
 }
 
-/** Backend: `humedad_pct` en porcentaje; `umbral`/`pmp` en fracción. */
+/** La humedad es un índice 0–100; el umbral nuevo usa esa misma escala.
+ * Para evaluaciones guardadas antes del cambio, se conserva el umbral volumétrico previo.
+ */
 export function humidityFromSnapshot(snapshot: EvalSnapshot | null | undefined): HumidityReading {
   const actual = typeof snapshot?.humedad_pct === "number" ? snapshot.humedad_pct : null;
-  const threshold = typeof snapshot?.umbral === "number" ? snapshot.umbral * 100 : null;
+  const threshold = typeof snapshot?.humedad_umbral_pct === "number"
+    ? snapshot.humedad_umbral_pct
+    : typeof snapshot?.umbral === "number" ? snapshot.umbral * 100 : null;
   const pmp = typeof snapshot?.pmp === "number" ? snapshot.pmp * 100 : null;
   return { actual, threshold, pmp };
 }

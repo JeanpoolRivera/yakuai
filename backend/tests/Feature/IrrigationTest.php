@@ -45,7 +45,7 @@ class IrrigationTest extends TestCase
     {
         $this->postJson('/api/v1/irrigations', [
             'plot_id' => $this->plot->id,
-            'occurred_at' => now()->toDateTimeString(),
+            'occurred_at' => now()->format('Y-m-d\TH:i:s'),
             'recommended_liters' => 4650,
             'applied_liters' => 4800,
             'note' => 'Riego de prueba',
@@ -58,7 +58,7 @@ class IrrigationTest extends TestCase
     {
         $id = $this->postJson('/api/v1/irrigations', [
             'plot_id' => $this->plot->id,
-            'occurred_at' => now()->toDateTimeString(),
+            'occurred_at' => now()->format('Y-m-d\TH:i:s'),
             'applied_liters' => 4800,
         ])->assertCreated()->json('data.id');
 
@@ -88,7 +88,7 @@ class IrrigationTest extends TestCase
     {
         $id = $this->postJson('/api/v1/irrigations', [
             'plot_id' => $this->plot->id,
-            'occurred_at' => now()->toDateTimeString(),
+            'occurred_at' => now()->format('Y-m-d\TH:i:s'),
             'applied_liters' => 4800,
         ])->assertCreated()->json('data.id');
 
@@ -111,7 +111,7 @@ class IrrigationTest extends TestCase
 
         $this->postJson('/api/v1/irrigations', [
             'plot_id' => $this->plot->id,
-            'occurred_at' => now()->toDateTimeString(),
+            'occurred_at' => now()->format('Y-m-d\TH:i:s'),
             'applied_liters' => 800,
         ])->assertCreated();
     }

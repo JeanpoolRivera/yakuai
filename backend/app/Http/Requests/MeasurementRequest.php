@@ -48,9 +48,11 @@ class MeasurementRequest extends FormRequest
             $valid = match ($sensor->type) {
                 'humedad' => $value >= 0 && $value <= 1023 && floor($value) === $value,
                 'aire_temp' => $value >= -10 && $value <= 60,
+                'temperatura_suelo' => $value >= -55 && $value <= 125,
                 'aire_hr' => $value >= 0 && $value <= 100,
                 'lluvia' => $value === 0.0 || $value === 1.0,
-                'caudal' => $value >= 0 && $value <= 60,
+                'caudal' => $value >= 0 && $value <= 6,
+                'agua_suficiente', 'bomba_estado' => $value === 0.0 || $value === 1.0,
                 default => false,
             };
             if (! $valid) {
